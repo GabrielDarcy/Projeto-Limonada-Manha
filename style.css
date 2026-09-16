@@ -32,6 +32,13 @@ html {
 
 body {
   min-height: 100vh;
+  overflow-x: hidden;
+}
+
+.container {
+  width: min(1180px, calc(100% - 48px));
+  margin-right: auto;
+  margin-left: auto;
 }
 
 img {
@@ -521,7 +528,8 @@ th {
 }
 
 .home-hero {
-  padding: 72px 0 42px;
+  padding: 88px 0 76px;
+  border-bottom: 1px solid rgba(31, 27, 27, 0.06);
 }
 
 .home-hero-grid {
@@ -613,11 +621,12 @@ th {
 }
 
 .home-section {
-  padding: 54px 0;
+  padding: 82px 0;
+  border-bottom: 1px solid rgba(31, 27, 27, 0.06);
 }
 
 .recent-posts-section {
-  background: #fff;
+  background: rgba(255, 255, 255, 0.62);
 }
 
 .section-title-row {
@@ -678,7 +687,7 @@ th {
 }
 
 .home-section.alt {
-  background: linear-gradient(180deg, #fff8f1 0%, #fffdf9 100%);
+  background: linear-gradient(180deg, #fff4e8 0%, #fffaf4 100%);
 }
 
 .section-title {
@@ -920,6 +929,11 @@ th {
   align-items: center;
 }
 
+.home-help-grid,
+.home-about {
+  padding: 8px 0;
+}
+
 .home-help-grid p,
 .about-panel p {
   color: var(--muted);
@@ -958,6 +972,8 @@ th {
   min-height: 82px;
   gap: 12px;
   color: var(--muted);
+  padding-top: 18px;
+  padding-bottom: 18px;
 }
 
 .footer-links {
@@ -1033,6 +1049,10 @@ th {
 }
 
 @media (max-width: 900px) {
+  .container {
+    width: min(100% - 40px, 720px);
+  }
+
   .home-nav,
   .home-help-grid,
   .home-about,
@@ -1056,6 +1076,20 @@ th {
     display: none;
   }
 
+  .home-hero {
+    padding: 64px 0 56px;
+  }
+
+  .home-visual {
+    min-height: auto;
+    margin-top: 12px;
+  }
+
+  .home-card-image,
+  .home-card-image img {
+    height: 420px;
+  }
+
   .category-results,
   .category-result-card {
     grid-template-columns: 1fr;
@@ -1063,8 +1097,85 @@ th {
 }
 
 @media (max-width: 560px) {
+  .container {
+    width: calc(100% - 32px);
+  }
+
+  .home-header {
+    position: relative;
+  }
+
+  .home-nav {
+    align-items: center;
+    gap: 14px;
+  }
+
   .home-actions {
-    display: none;
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-start;
+    width: 100%;
+  }
+
+  .home-actions .btn {
+    flex: 1 1 130px;
+    text-align: center;
+  }
+
+  .home-hero {
+    padding: 48px 0;
+  }
+
+  .home-copy h1 {
+    font-size: clamp(2.2rem, 11vw, 3.2rem);
+  }
+
+  .home-copy p {
+    font-size: 1rem;
+  }
+
+  .home-card-image,
+  .home-card-image img {
+    height: 340px;
+  }
+
+  .floating-tag {
+    padding: 0.7rem 0.85rem;
+    font-size: 0.78rem;
+  }
+
+  .tag-top {
+    top: 16px;
+    right: 10px;
+  }
+
+  .tag-bottom {
+    bottom: 10px;
+    left: 10px;
+  }
+
+  .home-section {
+    padding: 58px 0;
+  }
+
+  .section-title h2,
+  .home-help-grid h2,
+  .home-about h2 {
+    font-size: 2rem;
+  }
+
+  .carousel-shell {
+    gap: 8px;
+  }
+
+  .carousel-control {
+    flex-basis: 36px;
+    width: 36px;
+    height: 36px;
+  }
+
+  .adoption-categories .category-card {
+    flex-basis: 86%;
   }
 
   .home-actions-row {
