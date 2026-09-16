@@ -1,137 +1,54 @@
+import { supabase } from './supabase.js';
+
 const STORAGE_KEYS = {
   users: 'petamor_users',
   ads: 'petamor_ads',
-  posts: 'petamor_posts',
   session: 'petamor_session'
 };
 
-const DEFAULT_USERS = [
-  {
-    id: 'admin-1',
-    name: 'Admin Pet Amor',
-    email: 'admin@petamor.com',
-    password: 'Admin@123',
-    role: 'admin',
-    status: 'active'
-  },
-  {
-    id: 'user-1',
-    name: 'Maria Silva',
-    email: 'maria@petamor.com',
-    password: 'Maria@123',
-    role: 'user',
-    status: 'active'
-  }
-];
-
-const DEFAULT_ADS = [
-  {
-    id: 'ad-1',
-    title: 'Ajude no tratamento do Thor',
-    pet: 'Thor',
-    owner: 'Clínica Esperança',
-    status: 'active'
-  },
-  {
-    id: 'ad-2',
-    title: 'Nova ração para gatos resgatados',
-    pet: 'Nina',
-    owner: 'Lar dos Peludos',
-    status: 'active'
-  },
-  {
-    id: 'ad-3',
-    title: 'Campanha de vacinação da equipe',
-    pet: 'Diversos',
-    owner: 'SOS Animais',
-    status: 'active'
-  }
-];
-
-const DEFAULT_POSTS = [
-  {
-    id: 'post-1',
-    user_id: 'admin-1',
-    title: 'Luna precisa de um lar acolhedor',
-    description: 'Luna é uma cachorra muito carinhosa, tranquila e sociável. Ela tem 2 anos e adora brincar e acompanhar pessoas em casa.',
-    animalType: 'Cachorro',
-    breed: 'Golden Retriever',
-    city: 'São Paulo',
-    state: 'SP',
-    location: 'São Paulo / SP',
-    contactPhone: '(11) 99999-0001',
-    contactEmail: 'adocao@petamor.com',
-    contactSocials: '@petamor.saopaulo',
-    photo: 'https://images.unsplash.com/photo-1517849845537-4d257902454a?auto=format&fit=crop&w=900&q=80'
-  },
-  {
-    id: 'post-2',
-    user_id: 'user-1',
-    title: 'Nina em busca de um lar seguro',
-    description: 'Nina é uma gata dócil e muito inteligente. Ela se adapta bem em ambientes tranquilos e é muito afetuosa.',
-    animalType: 'Gato',
-    breed: 'Siamês',
-    city: 'Rio de Janeiro',
-    state: 'RJ',
-    location: 'Rio de Janeiro / RJ',
-    contactPhone: '(21) 98888-0102',
-    contactEmail: 'nina@petamor.com',
-    contactSocials: '@ninaadocao',
-    photo: 'https://images.unsplash.com/photo-1511044568932-338cba0ad803?auto=format&fit=crop&w=900&q=80'
-  }
-];
-
-const supabaseUrl = 'https://sqosvgesugekqvgucepn.supabase.co';
-const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNxb3N2Z2VzdWdla3F2Z3VjZXBuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODkwNDQ3MzYsImV4cCI6MjEwNDYyMDczNn0.3cMMFMHsCKgeCT3OSucgNKwt7XwYaZIrE14U1M5fR-Y';
-
 const ALLOWED_EMAIL_DOMAINS = ['gmail.com', 'outlook.com', 'hotmail.com', 'yahoo.com', 'icloud.com', 'live.com'];
+
+const DOG_BREEDS = [
+  'Vira-lata (SRD)', 'Golden Retriever', 'Labrador Retriever', 'Pastor Alemão',
+  'Bulldogue Francês', 'Bulldogue Inglês', 'Poodle', 'Shih-tzu', 'Yorkshire Terrier',
+  'Rottweiler', 'Pitbull', 'Pinscher', 'Beagle', 'Boxer', 'Dachshund', 'Husky Siberiano',
+  'Border Collie', 'Cocker Spaniel', 'Chihuahua', 'Basset Hound', 'Doberman', 'Maltês',
+  'Akita', 'Pug', 'Schnauzer', 'Outra raça'
+];
+
+const CAT_BREEDS = [
+  'Vira-lata (SRD)', 'Siamês', 'Persa', 'Maine Coon', 'Ragdoll', 'Angorá', 'Bengal',
+  'British Shorthair', 'Sphynx', 'Scottish Fold', 'Abissínio', 'Birmanês', 'Azul Russo',
+  'Exótico de Pelo Curto', 'Himalaio', 'American Shorthair', 'Outra raça'
+];
+
+const BANNED_WORDS = [
+  'merda', 'porra', 'caralho', 'puta', 'puto', 'viado', 'vadia', 'bosta', 'foder', 'fodase', 'desgracado', 'desgracada'
+];
+
+// --- SISTEMA DE SEGURANÇA (Prevenção de XSS) ---
+function escapeHTML(str) {
+  if (str === null || str === undefined) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
 
 function readStorage(key, fallback) {
   const raw = localStorage.getItem(key);
-
-  if (!raw) {
-    localStorage.setItem(key, JSON.stringify(fallback));
-    return fallback;
-  }
-
-  try {
-    return JSON.parse(raw);
-  } catch (error) {
-    localStorage.setItem(key, JSON.stringify(fallback));
-    return fallback;
-  }
+  if (!raw) return fallback;
+  try { return JSON.parse(raw); } catch (error) { return fallback; }
 }
 
 function writeStorage(key, value) {
   localStorage.setItem(key, JSON.stringify(value));
 }
 
-function ensureSeedData() {
-  const users = readStorage(STORAGE_KEYS.users, DEFAULT_USERS);
-  const ads = readStorage(STORAGE_KEYS.ads, DEFAULT_ADS);
-  const posts = readStorage(STORAGE_KEYS.posts, DEFAULT_POSTS);
-
-  if (!Array.isArray(users) || !users.length) {
-    writeStorage(STORAGE_KEYS.users, DEFAULT_USERS);
-  }
-
-  if (!Array.isArray(ads) || !ads.length) {
-    writeStorage(STORAGE_KEYS.ads, DEFAULT_ADS);
-  }
-
-  if (!Array.isArray(posts) || !posts.length) {
-    writeStorage(STORAGE_KEYS.posts, DEFAULT_POSTS);
-  }
-}
-
 function getSupabaseClient() {
-  if (!window.supabase) return null;
-
-  if (!window.__supabaseClient && supabaseUrl && supabaseUrl.includes('supabase.co')) {
-    window.__supabaseClient = window.supabase.createClient(supabaseUrl, supabaseKey);
-  }
-
-  return window.__supabaseClient || null;
+  return supabase;
 }
 
 function saveSession(user) {
@@ -141,7 +58,6 @@ function saveSession(user) {
     email: user.email,
     name: user.name || user.full_name || user.email
   };
-
   writeStorage(STORAGE_KEYS.session, payload);
 }
 
@@ -152,18 +68,14 @@ function getSession() {
 function isValidEmail(email) {
   const normalized = String(email || '').trim().toLowerCase();
   if (!normalized || !normalized.includes('@')) return false;
-
   const [localPart, domain] = normalized.split('@');
   if (!localPart || !domain || localPart.length < 2) return false;
-
   return ALLOWED_EMAIL_DOMAINS.includes(domain) || domain.endsWith('.com') || domain.endsWith('.net') || domain.endsWith('.org');
 }
 
 function getPasswordStrength(password) {
   let score = 0;
-
   if (!password) return { score: 0, label: 'Sem senha', color: '#ef4444' };
-
   if (password.length >= 8) score += 1;
   if (/[A-Z]/.test(password)) score += 1;
   if (/[a-z]/.test(password)) score += 1;
@@ -179,9 +91,7 @@ function updatePasswordStrength(password) {
   const strength = getPasswordStrength(password);
   const bar = document.getElementById('passwordStrengthBar');
   const text = document.getElementById('passwordStrengthText');
-
   if (!bar || !text) return;
-
   const widthMap = { 0: '0%', 1: '35%', 2: '70%', 3: '100%' };
   bar.style.width = widthMap[strength.score] || '0%';
   bar.style.background = strength.color;
@@ -194,40 +104,68 @@ function clearSession() {
 
 async function fetchProfileByUserId(userId) {
   const client = getSupabaseClient();
-
   if (client) {
     const { data, error } = await client.from('profiles').select('*').eq('id', userId).single();
     if (!error && data) return data;
   }
-
-  const users = readStorage(STORAGE_KEYS.users, DEFAULT_USERS);
-  return users.find((user) => user.id === userId) || null;
+  return null;
 }
 
 async function loginWithSupabase(email, password) {
   const client = getSupabaseClient();
+  const loginEmail = email.toLowerCase() === 'admin' ? 'admin@petamor.com' : email;
+  const { data, error } = await client.auth.signInWithPassword({ email: loginEmail, password });
+  if (error) throw new Error(error.message);
 
-  if (client) {
-    const { data, error } = await client.auth.signInWithPassword({ email, password });
-    if (error) throw new Error(error.message);
+  const profile = await fetchProfileByUserId(data.user.id);
+  return {
+    id: data.user.id,
+    email: data.user.email,
+    name: profile?.full_name || data.user.user_metadata?.full_name || data.user.email,
+    role: profile?.role || 'user',
+    status: profile?.status || 'active'
+  };
+}
 
-    const profile = await fetchProfileByUserId(data.user.id);
-    return {
-      id: data.user.id,
-      email: data.user.email,
-      name: profile?.full_name || data.user.user_metadata?.full_name || data.user.email,
-      role: profile?.role || 'user',
-      status: profile?.status || 'active'
-    };
+async function handleAdminAccountSubmit(event) {
+  event.preventDefault();
+  const emailField = document.getElementById('adminAccountEmail');
+  const passwordField = document.getElementById('adminAccountPassword');
+  const emailValue = emailField.value.trim().toLowerCase();
+  const passwordValue = passwordField.value.trim();
+  const updates = {};
+
+  if (emailValue === 'admin') {
+    updates.email = 'admin@petamor.com';
+  } else if (isValidEmail(emailValue)) {
+    updates.email = emailValue;
+  } else {
+    alert('Informe um e-mail válido ou use o usuário admin.');
+    return;
   }
 
-  const users = readStorage(STORAGE_KEYS.users, DEFAULT_USERS);
-  const user = users.find((item) => item.email.toLowerCase() === email.toLowerCase() && item.password === password);
+  if (passwordValue) {
+    if (passwordValue.length < 8) {
+      alert('A nova senha deve ter pelo menos 8 caracteres.');
+      return;
+    }
+    updates.password = passwordValue;
+  }
 
-  if (!user) throw new Error('Credenciais inválidas.');
-  if (user.status === 'banned') throw new Error('Usuário banido.');
+  try {
+    const { data: authData, error } = await getSupabaseClient().auth.updateUser(updates);
+    if (error) throw error;
 
-  return user;
+    if (authData.user) {
+      await getSupabaseClient().from('profiles').update({ email: updates.email }).eq('id', authData.user.id);
+      saveSession({ ...getSession(), id: authData.user.id, email: updates.email });
+      emailField.value = updates.email;
+      passwordField.value = '';
+    }
+    alert('Credenciais atualizadas com sucesso.');
+  } catch (error) {
+    alert(`Não foi possível atualizar as credenciais: ${error.message}`);
+  }
 }
 
 async function registerWithSupabase(name, email, password) {
@@ -240,63 +178,36 @@ async function registerWithSupabase(name, email, password) {
   }
 
   const client = getSupabaseClient();
-
-  if (client) {
-    const { data, error } = await client.auth.signUp({
-      email,
-      password,
-      options: {
-        data: {
-          full_name: name.trim()
-        }
-      }
-    });
-
-    if (error) throw new Error(error.message);
-
-    const userId = data.user?.id;
-    if (userId) {
-      await client.from('profiles').upsert({
-        id: userId,
-        email,
-        full_name: name.trim(),
-        role: 'user',
-        status: 'active'
-      });
-    }
-
-    return {
-      id: userId,
-      email,
-      name: name.trim(),
-      role: 'user',
-      status: 'active'
-    };
-  }
-
-  const users = readStorage(STORAGE_KEYS.users, DEFAULT_USERS);
-  const exists = users.some((item) => item.email.toLowerCase() === email.toLowerCase());
-
-  if (exists) throw new Error('Este e-mail já está em uso.');
-
-  const newUser = {
-    id: `user-${Date.now()}`,
-    name: name.trim(),
+  const { data, error } = await client.auth.signUp({
     email,
     password,
+    options: { data: { full_name: name.trim() } }
+  });
+
+  if (error) throw new Error(error.message);
+
+  const userId = data.user?.id;
+  if (userId) {
+    // Corrigido para não infligir RLS de Upsert
+    await client.from('profiles').update({
+      email,
+      full_name: name.trim(),
+      status: 'active'
+    }).eq('id', userId);
+  }
+
+  return {
+    id: userId,
+    email,
+    name: name.trim(),
     role: 'user',
     status: 'active'
   };
-
-  users.push(newUser);
-  writeStorage(STORAGE_KEYS.users, users);
-  return newUser;
 }
 
 function updateHomeUserActions() {
   const session = getSession();
   const actionsNode = document.getElementById('homeUserActions');
-
   if (!actionsNode) return;
 
   if (!session) {
@@ -307,21 +218,19 @@ function updateHomeUserActions() {
     return;
   }
 
-  const isAdmin = session.role === 'admin';
-
+  const isAdmin = String(session.role || '').toLowerCase() === 'admin';
   actionsNode.innerHTML = `
-    ${isAdmin ? '<a href="admin.html" class="btn btn-light">Acessar painel admin</a>' : ''}
+    ${isAdmin ? '<a href="admin.html" class="btn btn-primary">Dashboard admin</a>' : ''}
     <a href="create-post.html" class="btn btn-secondary">Criar publicação</a>
     <button class="btn btn-secondary" id="homeLogoutButton">Sair</button>
   `;
 
-  const logoutButton = document.getElementById('homeLogoutButton');
-  if (logoutButton) {
-    logoutButton.addEventListener('click', () => {
+  document.getElementById('homeLogoutButton')?.addEventListener('click', () => {
+    getSupabaseClient().auth.signOut().finally(() => {
       clearSession();
       updateHomeUserActions();
     });
-  }
+  });
 }
 
 function redirectIfLoggedOut() {
@@ -333,81 +242,36 @@ function redirectIfLoggedOut() {
   return session;
 }
 
-function renderAdminDashboard() {
-  const ads = readStorage(STORAGE_KEYS.ads, DEFAULT_ADS);
-  const users = readStorage(STORAGE_KEYS.users, DEFAULT_USERS);
-  const totalAds = ads.length;
-  const activeUsers = users.filter((user) => user.status !== 'banned').length;
-  const bannedUsers = users.filter((user) => user.status === 'banned').length;
+async function renderAdminDashboard() {
+  const postsTableBody = document.getElementById('postsTableBody');
+  if (postsTableBody) {
+    const { data: posts, error } = await getSupabaseClient()
+      .from('posts')
+      .select('id, title, animal_type, city')
+      .order('created_at', { ascending: false });
 
-  const totalAdsNode = document.getElementById('totalAds');
-  const totalUsersNode = document.getElementById('totalUsers');
-  const totalBansNode = document.getElementById('totalBans');
+    if (error) {
+      postsTableBody.innerHTML = `<tr><td colspan="4">Não foi possível carregar os posts: ${escapeHTML(error.message)}</td></tr>`;
+      return;
+    }
 
-  if (totalAdsNode) totalAdsNode.textContent = totalAds;
-  if (totalUsersNode) totalUsersNode.textContent = activeUsers;
-  if (totalBansNode) totalBansNode.textContent = bannedUsers;
-
-  const adsTableBody = document.getElementById('adsTableBody');
-  const usersTableBody = document.getElementById('usersTableBody');
-
-  if (adsTableBody) {
-    adsTableBody.innerHTML = ads
-      .map(
-        (ad) => `
-          <tr>
-            <td>${ad.title}</td>
-            <td>${ad.pet}</td>
-            <td>${ad.owner}</td>
-            <td><span class="status-pill ${ad.status === 'active' ? 'active' : 'inactive'}">${ad.status}</span></td>
-            <td>
-              <button class="admin-btn danger" data-action="delete-ad" data-id="${ad.id}">Excluir</button>
-            </td>
-          </tr>
-        `
-      )
-      .join('');
-  }
-
-  if (usersTableBody) {
-    usersTableBody.innerHTML = users
-      .map(
-        (user) => `
-          <tr>
-            <td>${user.name}</td>
-            <td>${user.email}</td>
-            <td>${user.role}</td>
-            <td><span class="status-pill ${user.status === 'active' ? 'active' : 'inactive'}">${user.status === 'banned' ? 'banido' : 'ativo'}</span></td>
-            <td>
-              <button class="admin-btn ${user.status === 'banned' ? 'secondary' : 'danger'}" data-action="toggle-ban" data-id="${user.id}">
-                ${user.status === 'banned' ? 'Remover ban' : 'Banir'}
-              </button>
-            </td>
-          </tr>
-        `
-      )
-      .join('');
+    postsTableBody.innerHTML = (posts || []).map((post) => `
+      <tr>
+        <td>${escapeHTML(post.title)}</td>
+        <td>${escapeHTML(post.animal_type || 'Não informado')}</td>
+        <td>${escapeHTML(post.city || 'Não informada')}</td>
+        <td><button class="admin-btn danger" data-action="delete-post" data-id="${post.id}">Excluir</button></td>
+      </tr>
+    `).join('') || '<tr><td colspan="4">Nenhum post publicado.</td></tr>';
   }
 }
 
-function deleteAd(adId) {
-  const ads = readStorage(STORAGE_KEYS.ads, DEFAULT_ADS);
-  const updatedAds = ads.filter((ad) => ad.id !== adId);
-  writeStorage(STORAGE_KEYS.ads, updatedAds);
-  renderAdminDashboard();
-}
-
-function toggleUserBan(userId) {
-  const users = readStorage(STORAGE_KEYS.users, DEFAULT_USERS);
-  const updatedUsers = users.map((user) => {
-    if (user.id !== userId) return user;
-    return {
-      ...user,
-      status: user.status === 'banned' ? 'active' : 'banned'
-    };
-  });
-
-  writeStorage(STORAGE_KEYS.users, updatedUsers);
+async function deletePost(postId) {
+  const { error } = await getSupabaseClient().from('posts').delete().eq('id', postId);
+  if (error) {
+    alert(`Não foi possível excluir o post: ${error.message}`);
+    return;
+  }
   renderAdminDashboard();
 }
 
@@ -415,86 +279,193 @@ function bindAdminActions() {
   document.body.addEventListener('click', (event) => {
     const button = event.target.closest('button[data-action]');
     if (!button) return;
-
-    const { action, id } = button.dataset;
-
-    if (action === 'delete-ad') {
-      deleteAd(id);
-    }
-
-    if (action === 'toggle-ban') {
-      toggleUserBan(id);
+    if (button.dataset.action === 'delete-post') {
+      deletePost(button.dataset.id);
     }
   });
 }
 
 function validateImageFile(file) {
   if (!file) return 'Selecione uma imagem.';
-
   const name = file.name.toLowerCase();
   const allowedExtensions = /\.(jpe?g|png)$/i;
   const allowedTypes = ['image/jpeg', 'image/png'];
-
   if (!allowedExtensions.test(name) || !allowedTypes.includes(file.type)) {
     return 'Formato inválido. Envie apenas arquivos .jpg, .jpeg ou .png.';
   }
-
   if (file.size > 2 * 1024 * 1024) {
     return 'A imagem deve ter no máximo 2MB.';
   }
-
   return null;
 }
 
-function readFileAsDataUrl(file) {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(reader.result);
-    reader.onerror = () => reject(new Error('Não foi possível ler a imagem.'));
-    reader.readAsDataURL(file);
-  });
+function containsBannedWord(text) {
+  const normalizedText = String(text || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  return BANNED_WORDS.some((word) => new RegExp(`(^|[^a-z])${word}([^a-z]|$)`, 'i').test(normalizedText));
+}
+
+function formatPhoneNumber(value) {
+  const digits = String(value || '').replace(/\D/g, '').slice(0, 11);
+  if (digits.length <= 2) return digits ? `(${digits}` : '';
+  if (digits.length <= 7) return `(${digits.slice(0, 2)}) ${digits.slice(2)}`;
+  return `(${digits.slice(0, 2)}) ${digits.slice(2, 7)}-${digits.slice(7)}`;
+}
+
+function isValidInstagram(value) {
+  if (!value) return true;
+  return /^(?:@[a-z0-9._]{1,30}|https?:\/\/(?:www\.)?instagram\.com\/[a-z0-9._]{1,30}\/?)(?:\?.*)?$/i.test(value);
 }
 
 async function uploadPostImage(file) {
   const client = getSupabaseClient();
+  const extension = file.name.split('.').pop().toLowerCase();
+  // Corrigido suporte a UUID em Live Previews HTTP para evitar telas brancas silenciosas
+  const uuid = crypto?.randomUUID ? crypto.randomUUID() : Date.now() + '-' + Math.round(Math.random() * 1e9);
+  const fileName = `${uuid}.${extension}`;
+  
+  const { data, error } = await client.storage.from('pet_images').upload(fileName, file, {
+    cacheControl: '3600',
+    upsert: false,
+    contentType: file.type
+  });
 
-  if (client) {
-    const fileName = `${Date.now()}-${file.name.replace(/\s+/g, '-')}`;
-    const { data, error } = await client.storage.from('pet-photos').upload(fileName, file, {
-      cacheControl: '3600',
-      upsert: true,
-      contentType: file.type
-    });
+  if (error) throw new Error(`Não foi possível enviar a imagem: ${error.message}`);
+  const { data: publicUrlData } = client.storage.from('pet_images').getPublicUrl(data.path);
+  if (!publicUrlData?.publicUrl) throw new Error('Não foi possível obter a URL da imagem.');
 
-    if (!error && data?.path) {
-      const { data: publicUrlData } = client.storage.from('pet-photos').getPublicUrl(data.path);
-      return publicUrlData.publicUrl;
-    }
-  }
-
-  return readFileAsDataUrl(file);
+  return publicUrlData.publicUrl;
 }
 
-async function saveCreatedPost(postData) {
-  const client = getSupabaseClient();
-
-  if (client) {
-    const { data, error } = await client.from('posts').insert([postData]);
-    if (error) throw new Error(error.message);
-    return data;
+function populateBreedSelect(select, breeds, placeholder) {
+  select.innerHTML = '';
+  const options = breeds || ['Não sei informar'];
+  options.forEach((breed) => {
+    select.insertAdjacentHTML('beforeend', `<option value="${escapeHTML(breed)}">${escapeHTML(breed)}</option>`);
+  });
+  if (placeholder) {
+    select.insertAdjacentHTML('afterbegin', `<option value="" selected>${escapeHTML(placeholder)}</option>`);
   }
+}
 
-  const posts = readStorage(STORAGE_KEYS.posts, DEFAULT_POSTS);
-  posts.unshift(postData);
-  writeStorage(STORAGE_KEYS.posts, posts);
-  return postData;
+function setupCreatePostForm() {
+  const form = document.getElementById('createPostForm');
+  const typeField = form?.elements.animalType;
+  const stateField = form?.elements.state;
+  const cityField = form?.elements.city;
+  const geneticsFields = document.getElementById('postGeneticsFields');
+  const speciesField = document.getElementById('postSpeciesField');
+  const speciesInput = document.getElementById('postSpecies');
+  const breedField = document.getElementById('postBreed');
+  const motherBreedField = document.getElementById('postMotherBreed');
+  const fatherBreedField = document.getElementById('postFatherBreed');
+  const photoInput = document.getElementById('photoInput');
+  const photoAddButton = document.getElementById('photoAddButton');
+  const photoGallery = document.getElementById('photoGallery');
+  const photoCount = document.getElementById('photoCount');
+
+  if (!form || !typeField || !stateField || !cityField || !geneticsFields || !speciesField || !photoInput || !photoAddButton || !photoGallery) return;
+
+  const selectedFiles = [];
+
+  const renderPhotoGallery = () => {
+    photoGallery.querySelectorAll('.photo-preview').forEach((preview) => preview.remove());
+    selectedFiles.forEach((file, index) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const preview = document.createElement('div');
+        preview.className = 'photo-preview';
+        preview.innerHTML = `<img src="${reader.result}" alt="Prévia da foto ${index + 1}"><button type="button" aria-label="Remover foto ${index + 1}">×</button>`;
+        preview.querySelector('button').addEventListener('click', () => {
+          selectedFiles.splice(index, 1);
+          renderPhotoGallery();
+        });
+        photoGallery.insertBefore(preview, photoAddButton);
+      };
+      reader.readAsDataURL(file);
+    });
+    photoCount.textContent = `${selectedFiles.length}/4`;
+    photoAddButton.hidden = selectedFiles.length >= 4;
+  };
+
+  photoAddButton.addEventListener('click', () => photoInput.click());
+  photoInput.addEventListener('change', () => {
+    const availableSlots = 4 - selectedFiles.length;
+    Array.from(photoInput.files).slice(0, availableSlots).forEach((file) => {
+      const error = validateImageFile(file);
+      if (!error) selectedFiles.push(file);
+      else alert(error);
+    });
+    if (photoInput.files.length > availableSlots) alert('Você pode adicionar no máximo 4 fotos.');
+    photoInput.value = '';
+    renderPhotoGallery();
+  });
+  form.__selectedFiles = selectedFiles;
+
+  form.elements.phone.addEventListener('input', (event) => {
+    event.target.value = formatPhoneNumber(event.target.value);
+  });
+
+  const loadStates = async () => {
+    try {
+      const response = await fetch('https://servicodados.ibge.gov.br/api/v1/localidades/estados?orderBy=nome');
+      const states = await response.json();
+      stateField.innerHTML = '<option value="">Selecione o estado</option>';
+      states.forEach((state) => {
+        stateField.insertAdjacentHTML('beforeend', `<option value="${escapeHTML(state.sigla)}">${escapeHTML(state.nome)}</option>`);
+      });
+    } catch (error) {
+      stateField.innerHTML = '<option value="">Estados indisponíveis</option>';
+    }
+  };
+
+  const loadCities = async () => {
+    cityField.innerHTML = '<option value="">Selecione a cidade</option>';
+    cityField.disabled = !stateField.value;
+    if (!stateField.value) return;
+
+    try {
+      const response = await fetch(`https://servicodados.ibge.gov.br/api/v1/localidades/estados/${stateField.value}/municipios`);
+      const cities = await response.json();
+      cities.forEach((city) => {
+        cityField.insertAdjacentHTML('beforeend', `<option value="${escapeHTML(city.nome)}">${escapeHTML(city.nome)}</option>`);
+      });
+    } catch (error) {
+      cityField.innerHTML = '<option value="">Cidades indisponíveis</option>';
+    }
+  };
+
+  const updateBreedFields = () => {
+    const isGeneticType = typeField.value === 'Cachorro' || typeField.value === 'Gato';
+    geneticsFields.hidden = !isGeneticType;
+    speciesField.hidden = isGeneticType || !typeField.value;
+    speciesInput.disabled = isGeneticType || !typeField.value;
+    breedField.disabled = !isGeneticType;
+    motherBreedField.disabled = !isGeneticType;
+    fatherBreedField.disabled = !isGeneticType;
+
+    if (isGeneticType) {
+      const breeds = typeField.value === 'Cachorro' ? DOG_BREEDS : CAT_BREEDS;
+      populateBreedSelect(breedField, breeds);
+      populateBreedSelect(motherBreedField, ['Não sei informar', ...breeds.filter((breed) => breed !== 'Vira-lata (SRD)')]);
+      populateBreedSelect(fatherBreedField, ['Não sei informar', ...breeds.filter((breed) => breed !== 'Vira-lata (SRD)')]);
+    } else {
+      populateBreedSelect(breedField, ['Não sei informar']);
+      populateBreedSelect(motherBreedField, ['Não sei informar']);
+      populateBreedSelect(fatherBreedField, ['Não sei informar']);
+    }
+  };
+
+  stateField.addEventListener('change', loadCities);
+  typeField.addEventListener('change', updateBreedFields);
+  updateBreedFields();
+  loadStates();
+  form.addEventListener('submit', handleCreatePostSubmit);
 }
 
 async function handleCreatePostSubmit(event) {
   event.preventDefault();
-
-  const session = getSession();
-  if (!session) {
+  const { data: userData } = await getSupabaseClient().auth.getUser();
+  if (!userData.user) {
     alert('Você precisa fazer login para criar uma publicação.');
     window.location.href = 'login.html';
     return;
@@ -504,56 +475,63 @@ async function handleCreatePostSubmit(event) {
   const title = form.title.value.trim();
   const description = form.description.value.trim();
   const animalType = form.animalType.value;
-  const breed = form.breed.value.trim();
-  const city = form.city.value.trim();
+  const isGeneticType = animalType === 'Cachorro' || animalType === 'Gato';
+  const breed = isGeneticType ? form.breed.value.trim() : form.species.value.trim();
+  const motherBreed = isGeneticType ? form.motherBreed.value.trim() : null;
+  const fatherBreed = isGeneticType ? form.fatherBreed.value.trim() : null;
   const state = form.state.value.trim();
+  const city = form.city.value.trim();
   const phone = form.phone.value.trim();
   const email = form.email.value.trim();
-  const socials = form.socials.value.trim();
-  const photoFile = form.photo.files[0];
+  const instagram = form.instagram.value.trim();
+  const photoFiles = form.__selectedFiles || [];
 
-  const imageError = validateImageFile(photoFile);
-  if (imageError) {
-    alert(imageError);
+  if (!photoFiles.length) {
+    alert('Adicione pelo menos uma foto do animal.');
     return;
   }
 
-  if (!title || !description || !animalType || !city || !state) {
+  if (containsBannedWord(title) || containsBannedWord(description)) {
+    alert('Vamos manter um linguajar respeitoso para todos. Revise o título e a descrição antes de publicar.');
+    return;
+  }
+
+  if (!isValidInstagram(instagram)) {
+    alert('Informe apenas um @usuário ou link válido do Instagram.');
+    return;
+  }
+
+  if (!title || !description || !animalType || !state || !city || !breed) {
     alert('Preencha todos os campos obrigatórios.');
     return;
   }
 
-  if (!phone && !email && !socials) {
+  if (!phone && !email && !instagram) {
     alert('Informe pelo menos um meio de contato externo.');
     return;
   }
 
-  if (email && !isValidEmail(email)) {
-    alert('Informe um e-mail válido para contato.');
-    return;
-  }
-
   try {
-    const photoUrl = await uploadPostImage(photoFile);
+    const imageUrls = await Promise.all(photoFiles.map((file) => uploadPostImage(file)));
+    const contatoFinal = `Tel: ${phone || 'Não informado'} | Email: ${email || 'Não informado'} | IG: ${instagram || 'Não informado'}`;
 
     const post = {
-      id: `post-${Date.now()}`,
-      user_id: session.userId,
+      user_id: userData.user.id,
       title,
       description,
-      animalType,
-      breed: animalType === 'Cachorro' || animalType === 'Gato' ? (breed || 'Não informado') : 'Não se aplica',
-      city,
+      contact_info: contatoFinal,
       state,
-      location: `${city} / ${state}`,
-      contactPhone: phone,
-      contactEmail: email,
-      contactSocials: socials,
-      photo: photoUrl,
-      created_at: new Date().toISOString()
+      city,
+      animal_type: animalType,
+      breed: breed || 'Não informado',
+      mother_breed: motherBreed,
+      father_breed: fatherBreed,
+      image_urls: imageUrls
     };
 
-    await saveCreatedPost(post);
+    const { error } = await getSupabaseClient().from('posts').insert([post]).select().single();
+    if (error) throw new Error(error.message);
+    
     alert('Publicação criada com sucesso!');
     window.location.href = 'index.html';
   } catch (error) {
@@ -562,125 +540,148 @@ async function handleCreatePostSubmit(event) {
 }
 
 function renderFeed() {
-  const posts = readStorage(STORAGE_KEYS.posts, DEFAULT_POSTS);
   const feedTarget = document.getElementById('feedPosts');
   const typeField = document.getElementById('feedType');
   const breedField = document.getElementById('feedBreed');
-  const locationField = document.getElementById('feedLocation');
+  const cityField = document.getElementById('feedCity');
+  const stateField = document.getElementById('feedState');
 
   if (!feedTarget) return;
 
-  const locationValue = (locationField?.value || '').trim().toLowerCase();
+  const stateValue = (stateField?.value || '').trim();
+  const cityValue = (cityField?.value || '').trim();
   const typeValue = typeField?.value || 'Todos';
   const breedValue = (breedField?.value || '').trim().toLowerCase();
+  const breedLabel = breedField?.selectedOptions[0]?.textContent || breedValue;
 
-  const filteredPosts = posts.filter((post) => {
-    const matchesLocation = !locationValue || `${post.city} ${post.state}`.toLowerCase().includes(locationValue) || post.location.toLowerCase().includes(locationValue);
-    const matchesType = typeValue === 'Todos' || post.animalType === typeValue;
-    const matchesBreed = !breedValue || !post.breed || post.breed.toLowerCase().includes(breedValue);
+  let query = getSupabaseClient().from('posts').select('*').order('created_at', { ascending: false });
+  
+  // Corrigido o bug do filtro de estado ser ignorado
+  if (stateValue) query = query.eq('state', stateValue);
+  if (cityValue) query = query.eq('city', cityValue);
+  if (typeValue !== 'Todos') query = query.eq('animal_type', typeValue);
+  if (breedValue) query = query.ilike('breed', `%${breedValue}%`);
 
-    return matchesLocation && matchesType && matchesBreed;
-  });
+  query.then(({ data, error }) => {
+    if (error) throw error;
+    const filteredPosts = data || [];
 
-  if (!filteredPosts.length) {
-    feedTarget.innerHTML = '<div class="empty-state">Nenhum animal encontrado com estes filtros.</div>';
-    return;
-  }
+    if (!filteredPosts.length) {
+      feedTarget.innerHTML = breedValue
+        ? `<div class="empty-state">Poxa! No momento não temos nenhum ${escapeHTML(breedLabel)} precisando de um lar. Que tal dar uma chance a um Vira-lata ou conhecer outros animais incríveis?</div>`
+        : '<div class="empty-state">Poxa! No momento não encontramos animais com esses filtros. Que tal tentar outra cidade ou conhecer outras categorias?</div>';
+      return;
+    }
 
-  feedTarget.innerHTML = filteredPosts
-    .map(
-      (post) => `
-        <article class="feed-card">
-          <img src="${post.photo}" alt="${post.title}" />
-          <div class="feed-card-body">
-            <div class="feed-card-header">
-              <div>
-                <span class="mini-tag">${post.animalType}</span>
-                <h3>${post.title}</h3>
-              </div>
-              <span class="feed-location">📍 ${post.location}</span>
+    feedTarget.innerHTML = filteredPosts.map((post) => `
+      <article class="feed-card">
+        <img src="${escapeHTML(getPostImageUrl(post))}" alt="${escapeHTML(post.title)}" />
+        <div class="feed-card-body">
+          <div class="feed-card-header">
+            <div>
+              <span class="mini-tag">${escapeHTML(post.animal_type)}</span>
+              <h3>${escapeHTML(post.title)}</h3>
             </div>
-            <p>${post.description}</p>
-            <div class="feed-meta">
-              <span><strong>Raça:</strong> ${post.breed || 'Não informado'}</span>
-              <span><strong>Contato:</strong> ${post.contactPhone || post.contactEmail || post.contactSocials || 'Não informado'}</span>
-            </div>
-            <div class="feed-contact-list">
-              ${post.contactPhone ? `<span>📞 ${post.contactPhone}</span>` : ''}
-              ${post.contactEmail ? `<span>✉️ ${post.contactEmail}</span>` : ''}
-              ${post.contactSocials ? `<span>💬 ${post.contactSocials}</span>` : ''}
-            </div>
+            <span class="feed-location">📍 ${escapeHTML(post.city)}</span>
           </div>
-        </article>
-      `
-    )
-    .join('');
+          <p>${escapeHTML(post.description)}</p>
+          <div class="feed-meta">
+            <span><strong>Raça:</strong> ${escapeHTML(post.breed || 'Não informado')}</span>
+            <span><strong>Contato:</strong> ${escapeHTML(post.contact_info || 'Não informado')}</span>
+          </div>
+          <div class="feed-contact-list">
+            ${post.contact_info ? `<span>💬 ${escapeHTML(post.contact_info)}</span>` : ''}
+          </div>
+        </div>
+      </article>
+    `).join('');
+  }).catch((error) => {
+    feedTarget.innerHTML = `<div class="empty-state">Não foi possível carregar as publicações: ${escapeHTML(error.message)}</div>`;
+  });
 }
 
 function renderRecentPosts() {
   const target = document.getElementById('recentPosts');
   if (!target) return;
 
-  const posts = readStorage(STORAGE_KEYS.posts, DEFAULT_POSTS)
-    .slice()
-    .sort((firstPost, secondPost) => {
-      const firstDate = firstPost.created_at ? new Date(firstPost.created_at).getTime() : 0;
-      const secondDate = secondPost.created_at ? new Date(secondPost.created_at).getTime() : 0;
-      return secondDate - firstDate;
-    })
-    .slice(0, 3);
-
-  target.innerHTML = posts
-    .map(
-      (post) => `
+  getSupabaseClient().from('posts').select('*').order('created_at', { ascending: false }).limit(3)
+    .then(({ data, error }) => {
+      if (error) throw error;
+      target.innerHTML = (data || []).map((post) => `
         <article class="recent-post-card">
-          <img src="${post.photo}" alt="${post.title}" />
+          <img src="${escapeHTML(getPostImageUrl(post))}" alt="${escapeHTML(post.title)}" />
           <div class="recent-post-body">
-            <span class="mini-tag">${post.animalType}</span>
-            <h3>${post.title}</h3>
-            <p>${post.description}</p>
-            <span class="recent-post-location">📍 ${post.location}</span>
+            <span class="mini-tag">${escapeHTML(post.animal_type)}</span>
+            <h3>${escapeHTML(post.title)}</h3>
+            <p>${escapeHTML(post.description)}</p>
+            <span class="recent-post-location">📍 ${escapeHTML(post.city)}</span>
           </div>
         </article>
-      `
-    )
-    .join('');
+      `).join('');
+    })
+    .catch((error) => {
+      target.innerHTML = `<div class="empty-state">Não foi possível carregar as publicações: ${escapeHTML(error.message)}</div>`;
+    });
 }
 
 function setupFeedFilters() {
   const typeField = document.getElementById('feedType');
   const breedField = document.getElementById('feedBreed');
   const breedWrap = document.getElementById('breedFilterWrap');
+  const stateField = document.getElementById('feedState');
+  const cityField = document.getElementById('feedCity');
 
-  if (!typeField || !breedField || !breedWrap) return;
+  if (!typeField || !breedField || !breedWrap || !stateField || !cityField) return;
+
+  const loadStates = async () => {
+    try {
+      const response = await fetch('https://servicodados.ibge.gov.br/api/v1/localidades/estados?orderBy=nome');
+      const states = await response.json();
+      stateField.innerHTML = '<option value="">Todos os estados</option>';
+      states.forEach((state) => {
+        stateField.insertAdjacentHTML('beforeend', `<option value="${escapeHTML(state.sigla)}">${escapeHTML(state.nome)}</option>`);
+      });
+    } catch (error) {
+      stateField.innerHTML = '<option value="">Estados indisponíveis</option>';
+    }
+  };
+
+  const loadCities = async () => {
+    const state = stateField.value;
+    cityField.innerHTML = '<option value="">Todas as cidades</option>';
+    cityField.disabled = !state;
+    if (!state) return;
+    try {
+      const response = await fetch(`https://servicodados.ibge.gov.br/api/v1/localidades/estados/${state}/municipios`);
+      const cities = await response.json();
+      cities.forEach((city) => {
+        cityField.insertAdjacentHTML('beforeend', `<option value="${escapeHTML(city.nome)}">${escapeHTML(city.nome)}</option>`);
+      });
+    } catch (error) {}
+  };
 
   const toggleBreedFilter = () => {
     const isVisible = typeField.value === 'Cachorro' || typeField.value === 'Gato';
-    breedWrap.style.display = isVisible ? 'block' : 'none';
-    if (!isVisible) {
-      breedField.value = '';
+    breedWrap.style.display = isVisible ? 'grid' : 'none';
+    breedField.disabled = !isVisible;
+    breedField.innerHTML = '<option value="">Selecione o tipo primeiro</option>';
+    if (isVisible) {
+      const breeds = typeField.value === 'Cachorro' ? DOG_BREEDS : CAT_BREEDS;
+      breedField.innerHTML = '';
+      breeds.forEach((breed) => {
+        breedField.insertAdjacentHTML('beforeend', `<option value="${escapeHTML(breed)}">${escapeHTML(breed)}</option>`);
+      });
     }
   };
 
   typeField.addEventListener('change', toggleBreedFilter);
   toggleBreedFilter();
-
-  const locationField = document.getElementById('feedLocation');
-  const searchBtn = document.getElementById('applyFiltersBtn');
-
-  if (searchBtn) {
-    searchBtn.addEventListener('click', renderFeed);
-  }
-
-  if (locationField) {
-    locationField.addEventListener('input', renderFeed);
-  }
-
-  if (breedField) {
-    breedField.addEventListener('input', renderFeed);
-  }
-
+  document.getElementById('applyFiltersBtn')?.addEventListener('click', renderFeed);
+  breedField.addEventListener('change', renderFeed);
+  stateField.addEventListener('change', async () => { await loadCities(); renderFeed(); });
+  cityField.addEventListener('change', renderFeed);
   typeField.addEventListener('change', renderFeed);
+  loadStates();
   renderFeed();
 }
 
@@ -688,37 +689,90 @@ function setupAdoptionCarousel() {
   const carousel = document.getElementById('adoptionCarousel');
   const previousButton = document.getElementById('previousCategory');
   const nextButton = document.getElementById('nextCategory');
-
   if (!carousel || !previousButton || !nextButton) return;
-
   const scrollAmount = () => carousel.clientWidth * 0.85;
+  previousButton.addEventListener('click', () => carousel.scrollBy({ left: -scrollAmount(), behavior: 'smooth' }));
+  nextButton.addEventListener('click', () => carousel.scrollBy({ left: scrollAmount(), behavior: 'smooth' }));
+}
 
-  previousButton.addEventListener('click', () => {
-    carousel.scrollBy({ left: -scrollAmount(), behavior: 'smooth' });
-  });
+function getPostImageUrl(post) {
+  const image = Array.isArray(post.image_urls) ? post.image_urls[0] : post.image_urls;
+  return image || 'https://images.unsplash.com/photo-1517849845537-4d257902454a?auto=format&fit=crop&w=900&q=80';
+}
 
-  nextButton.addEventListener('click', () => {
-    carousel.scrollBy({ left: scrollAmount(), behavior: 'smooth' });
+function getPostContact(post) {
+  const contacts = [post.phone, post.contact_phone, post.email, post.contact_email, post.contact_info].filter(Boolean);
+  return contacts.length ? contacts.join(' | ') : 'Contato não informado';
+}
+
+async function renderCategoryFeed(animalType) {
+  const target = document.getElementById('categoryPosts');
+  if (!target) return;
+  target.innerHTML = '<div class="empty-state">Carregando animais...</div>';
+  const { data, error } = await getSupabaseClient().from('posts').select('*').eq('animal_type', animalType).order('created_at', { ascending: false });
+
+  if (error) {
+    target.innerHTML = `<div class="empty-state">Não foi possível carregar: ${escapeHTML(error.message)}</div>`;
+    return;
+  }
+  if (!data?.length) {
+    target.innerHTML = '<div class="empty-state">Ainda não temos animais publicados. Volte em breve para conhecer novos amigos.</div>';
+    return;
+  }
+
+  target.innerHTML = data.map((post) => `
+    <article class="category-pet-card">
+      <img src="${escapeHTML(getPostImageUrl(post))}" alt="${escapeHTML(post.title)}" />
+      <div class="category-pet-card-body">
+        <h2>${escapeHTML(post.title)}</h2>
+        <p class="category-pet-location">📍 ${escapeHTML(post.city || 'Localização não informada')}</p>
+        <button class="btn btn-primary full" type="button" data-adoption-post="${post.id}">Quero Adotar!</button>
+      </div>
+    </article>
+  `).join('');
+
+  const postsById = new Map(data.map((post) => [String(post.id), post]));
+  target.querySelectorAll('[data-adoption-post]').forEach((button) => {
+    button.addEventListener('click', () => openAdoptionModal(postsById.get(button.dataset.adoptionPost)));
   });
+}
+
+function openAdoptionModal(post) {
+  if (!post) return;
+  const modal = document.getElementById('adoptionModal');
+  document.getElementById('modalPostImage').src = getPostImageUrl(post);
+  // NOTA: Usar textContent já é seguro nativamente contra XSS
+  document.getElementById('modalPostTitle').textContent = post.title;
+  document.getElementById('modalPostLocation').textContent = `📍 ${post.city || 'Localização não informada'}`;
+  document.getElementById('modalPostDescription').textContent = post.description || 'Descrição não informada.';
+  document.getElementById('modalBreed').textContent = post.breed || 'SRD';
+  document.getElementById('modalMotherBreed').textContent = post.mother_breed || 'Não informado';
+  document.getElementById('modalFatherBreed').textContent = post.father_breed || 'Não informado';
+  document.getElementById('modalPostContact').textContent = getPostContact(post);
+  modal.hidden = false;
+  document.body.classList.add('modal-open');
+}
+
+function closeAdoptionModal() {
+  const modal = document.getElementById('adoptionModal');
+  if (!modal) return;
+  modal.hidden = true;
+  document.body.classList.remove('modal-open');
+}
+
+function setupCategoryPage() {
+  renderCategoryFeed('Cachorro');
+  document.querySelectorAll('[data-modal-close]').forEach((element) => element.addEventListener('click', closeAdoptionModal));
+  document.addEventListener('keydown', (event) => { if (event.key === 'Escape') closeAdoptionModal(); });
 }
 
 async function handleLoginSubmit(event) {
   event.preventDefault();
   const email = document.getElementById('loginEmail').value.trim();
   const password = document.getElementById('loginPassword').value.trim();
-
-  if (!isValidEmail(email)) {
-    alert('Informe um e-mail válido.');
-    return;
-  }
-
+  if (email.toLowerCase() !== 'admin' && !isValidEmail(email)) return alert('Informe um e-mail válido.');
   try {
     const user = await loginWithSupabase(email, password);
-    if (user.status === 'banned') {
-      alert('Usuário banido.');
-      return;
-    }
-
     saveSession(user);
     window.location.href = 'index.html';
   } catch (error) {
@@ -731,32 +785,12 @@ async function handleRegisterSubmit(event) {
   const name = document.getElementById('registerName').value.trim();
   const email = document.getElementById('registerEmail').value.trim();
   const password = document.getElementById('registerPassword').value.trim();
-  const confirmPassword = document.getElementById('registerConfirmPassword').value.trim();
-
-  if (!name) {
-    alert('Informe seu nome completo.');
-    return;
-  }
-
-  if (!isValidEmail(email)) {
-    alert('Use um e-mail válido com domínio conhecido.');
-    return;
-  }
-
-  if (password !== confirmPassword) {
-    alert('As senhas não coincidem.');
-    return;
-  }
-
-  const strength = getPasswordStrength(password);
-  if (strength.score < 2) {
-    alert('Senha fraca. Use pelo menos 8 caracteres e misture letras, números e símbolos.');
-    return;
-  }
-
+  const confirm = document.getElementById('registerConfirmPassword').value.trim();
+  if (password !== confirm) return alert('As senhas não coincidem.');
   try {
     const user = await registerWithSupabase(name, email, password);
-    saveSession(user);
+    const { data: sessionData } = await getSupabaseClient().auth.getSession();
+    if (sessionData.session) saveSession(user);
     alert('Conta criada com sucesso!');
     window.location.href = 'index.html';
   } catch (error) {
@@ -764,67 +798,45 @@ async function handleRegisterSubmit(event) {
   }
 }
 
-function handleLogout() {
-  clearSession();
-  window.location.href = 'login.html';
-}
-
-document.addEventListener('DOMContentLoaded', () => {
-  ensureSeedData();
-
-  const page = document.body.dataset.page;
-
-  const passwordInput = document.getElementById('registerPassword');
-  if (passwordInput) {
-    passwordInput.addEventListener('input', (event) => updatePasswordStrength(event.target.value));
+async function initializePage() {
+  const { data } = await getSupabaseClient().auth.getUser();
+  if (data.user) {
+    const profile = await fetchProfileByUserId(data.user.id);
+    saveSession({
+      id: data.user.id,
+      email: data.user.email,
+      name: profile?.full_name || data.user.user_metadata?.full_name || data.user.email,
+      role: profile?.role || 'user',
+      status: profile?.status || 'active'
+    });
+  } else {
+    clearSession();
   }
 
+  const page = document.body.dataset.page;
   if (page === 'home') {
     updateHomeUserActions();
     renderRecentPosts();
     setupAdoptionCarousel();
     setupFeedFilters();
-  }
-
-  if (page === 'login') {
-    const existingSession = getSession();
-    if (existingSession) {
-      window.location.href = 'index.html';
-      return;
-    }
-
-    const form = document.getElementById('loginForm');
-    if (form) form.addEventListener('submit', handleLoginSubmit);
-  }
-
-  if (page === 'register') {
-    const form = document.getElementById('registerForm');
-    if (form) form.addEventListener('submit', handleRegisterSubmit);
-  }
-
-  if (page === 'create-post') {
-    const session = redirectIfLoggedOut();
-    if (!session) return;
-
-    const form = document.getElementById('createPostForm');
-    if (form) form.addEventListener('submit', handleCreatePostSubmit);
-  }
-
-  if (page === 'admin') {
-    const session = redirectIfLoggedOut();
-    if (!session) return;
-
-    if (session.role !== 'admin') {
-      alert('Acesso restrito. Somente administradores podem entrar neste painel.');
-      window.location.href = 'index.html';
-      return;
-    }
-
-    const logoutButton = document.getElementById('logoutButton');
-    if (logoutButton) logoutButton.addEventListener('click', handleLogout);
-
+  } else if (page === 'category') {
+    setupCategoryPage();
+  } else if (page === 'login' && !getSession()) {
+    document.getElementById('loginForm')?.addEventListener('submit', handleLoginSubmit);
+  } else if (page === 'register') {
+    document.getElementById('registerForm')?.addEventListener('submit', handleRegisterSubmit);
+  } else if (page === 'create-post' && redirectIfLoggedOut()) {
+    setupCreatePostForm();
+  } else if (page === 'admin' && redirectIfLoggedOut()) {
+    const session = getSession();
+    if (session.role !== 'admin') return (window.location.href = 'index.html');
+    document.getElementById('logoutButton')?.addEventListener('click', () => {
+      getSupabaseClient().auth.signOut().then(() => { clearSession(); window.location.href = 'login.html'; });
+    });
+    document.getElementById('adminAccountForm')?.addEventListener('submit', handleAdminAccountSubmit);
     bindAdminActions();
     renderAdminDashboard();
   }
-});
+}
 
+document.addEventListener('DOMContentLoaded', initializePage);

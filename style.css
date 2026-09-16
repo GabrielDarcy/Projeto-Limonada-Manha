@@ -676,6 +676,7 @@ th {
   margin: 0 0 14px;
   color: var(--muted);
   line-height: 1.65;
+  line-clamp: 3;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 3;
 }
@@ -711,32 +712,77 @@ th {
   display: flex;
   align-items: center;
   gap: 14px;
+  overflow: hidden;
 }
 
 .adoption-categories {
   flex: 1;
   display: flex;
+  min-width: 0;
+  gap: 22px;
   overflow-x: auto;
   scroll-snap-type: x mandatory;
-  scrollbar-width: thin;
-  padding: 4px 2px 14px;
+  scrollbar-width: none;
+  padding: 4px 2px 18px;
+  scroll-padding-inline: 2px;
+}
+
+.adoption-categories::-webkit-scrollbar {
+  display: none;
 }
 
 .adoption-categories .category-card {
-  flex: 0 0 calc((100% - 44px) / 3);
+  flex: 0 0 78%;
   scroll-snap-align: start;
 }
 
 .carousel-control {
-  flex: 0 0 42px;
-  width: 42px;
-  height: 42px;
-  border: 1px solid rgba(231, 108, 32, 0.18);
+  flex: 0 0 48px;
+  width: 48px;
+  height: 48px;
+  border: 2px solid var(--primary-dark);
   border-radius: 50%;
-  background: #fff4ea;
-  color: var(--primary-dark);
-  font-size: 1.2rem;
+  background: var(--primary-dark);
+  color: #fff;
+  box-shadow: 0 8px 18px rgba(231, 108, 32, 0.28);
+  font-size: 1.5rem;
   font-weight: 800;
+  line-height: 1;
+  z-index: 1;
+}
+
+.carousel-control:hover,
+.carousel-control:focus-visible {
+  background: var(--text);
+  border-color: var(--text);
+  transform: scale(1.05);
+}
+
+.feed-filters {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 14px;
+  align-items: end;
+  margin-bottom: 28px;
+}
+
+.feed-filters label {
+  display: grid;
+  gap: 8px;
+  color: var(--text);
+  font-size: 0.85rem;
+  font-weight: 800;
+}
+
+.feed-filters input,
+.feed-filters select {
+  width: 100%;
+  min-height: 48px;
+  padding: 0 14px;
+  border: 1px solid rgba(31, 27, 27, 0.12);
+  border-radius: 12px;
+  background: #fff;
+  color: var(--text);
 }
 
 .feed-toolbar {
@@ -854,6 +900,116 @@ th {
   border-radius: 28px;
   padding: 28px;
   box-shadow: var(--shadow);
+}
+
+.create-post-form label {
+  display: grid;
+  gap: 8px;
+  color: var(--text);
+  font-weight: 800;
+}
+
+.create-post-form input,
+.create-post-form select,
+.create-post-form textarea {
+  width: 100%;
+  border: 1px solid rgba(31, 27, 27, 0.12);
+  border-radius: 14px;
+  padding: 0.9rem 1rem;
+  background: #fff;
+  color: var(--text);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.create-post-form input:focus,
+.create-post-form select:focus,
+.create-post-form textarea:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 4px rgba(255, 138, 61, 0.14);
+}
+
+.photo-gallery-field {
+  display: grid;
+  gap: 12px;
+}
+
+.photo-gallery-heading {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.photo-gallery-heading strong,
+.photo-gallery-heading small {
+  display: block;
+}
+
+.photo-gallery-heading small {
+  margin-top: 4px;
+  color: var(--muted);
+  font-weight: 500;
+}
+
+.photo-gallery-heading > span {
+  color: var(--primary-dark);
+  font-weight: 800;
+}
+
+.photo-gallery {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.photo-add-button,
+.photo-preview {
+  aspect-ratio: 1;
+  border-radius: 16px;
+}
+
+.photo-add-button {
+  display: grid;
+  place-items: center;
+  border: 2px dashed rgba(231, 108, 32, 0.45);
+  background: #fff8f1;
+  color: var(--primary-dark);
+  font-size: 2.2rem;
+  font-weight: 400;
+  transition: background 0.2s ease, transform 0.2s ease;
+}
+
+.photo-add-button:hover,
+.photo-add-button:focus-visible {
+  background: #ffeedf;
+  transform: translateY(-2px);
+}
+
+.photo-preview {
+  position: relative;
+  overflow: hidden;
+  background: #f2efe8;
+}
+
+.photo-preview img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.photo-preview button {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 28px;
+  height: 28px;
+  border: 2px solid #fff;
+  border-radius: 50%;
+  background: rgba(31, 27, 27, 0.8);
+  color: #fff;
+  font-size: 1.15rem;
+  line-height: 1;
 }
 
 .form-grid {
@@ -996,6 +1152,43 @@ th {
   padding: 72px 0;
 }
 
+.admin-account-panel {
+  margin-bottom: 24px;
+}
+
+.post-genetics-fields {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.post-genetics-fields[hidden],
+#postSpeciesField[hidden] {
+  display: none;
+}
+
+.admin-account-form {
+  display: grid;
+  grid-template-columns: 1fr 1fr auto;
+  align-items: end;
+  gap: 16px;
+}
+
+.admin-account-form label {
+  display: grid;
+  gap: 8px;
+  color: var(--text);
+  font-weight: 800;
+}
+
+.admin-account-form input {
+  min-height: 46px;
+  padding: 0 14px;
+  border: 1px solid rgba(31, 27, 27, 0.12);
+  border-radius: 12px;
+  background: #fff;
+}
+
 .category-page h1 {
   max-width: 760px;
   margin: 16px 0 12px;
@@ -1009,6 +1202,195 @@ th {
   color: var(--muted);
   font-size: 1.05rem;
   line-height: 1.8;
+}
+
+.category-breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 28px;
+  color: var(--muted);
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+
+.category-breadcrumb a {
+  color: var(--primary-dark);
+}
+
+.category-feed-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.category-pet-card {
+  overflow: hidden;
+  background: var(--surface);
+  border: 1px solid rgba(31, 27, 27, 0.06);
+  border-radius: 20px;
+  box-shadow: var(--shadow);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.category-pet-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 22px 48px rgba(59, 39, 9, 0.16);
+}
+
+.category-pet-card > img {
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  object-fit: cover;
+}
+
+.category-pet-card-body {
+  padding: 20px;
+}
+
+.category-pet-card h2 {
+  margin: 0 0 8px;
+  font-size: 1.25rem;
+}
+
+.category-pet-location {
+  margin: 0 0 18px;
+  color: var(--muted);
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+
+.adoption-modal[hidden] {
+  display: none;
+}
+
+.adoption-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+}
+
+.adoption-modal-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(31, 27, 27, 0.62);
+  animation: modal-fade-in 0.2s ease both;
+}
+
+.adoption-modal-content {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(260px, 0.9fr) minmax(300px, 1.1fr);
+  width: min(900px, 100%);
+  max-height: min(760px, 92vh);
+  overflow: auto;
+  background: var(--surface);
+  border-radius: 24px;
+  box-shadow: 0 28px 80px rgba(31, 27, 27, 0.3);
+  animation: modal-slide-up 0.25s ease both;
+}
+
+.adoption-modal-content > img {
+  width: 100%;
+  height: 100%;
+  min-height: 440px;
+  object-fit: cover;
+}
+
+.adoption-modal-body {
+  padding: 36px;
+}
+
+.adoption-modal-body h2 {
+  margin: 14px 0 8px;
+  font-size: clamp(1.8rem, 3vw, 2.6rem);
+  line-height: 1.1;
+}
+
+.adoption-modal-body > p {
+  color: var(--muted);
+  line-height: 1.75;
+}
+
+.modal-location {
+  font-weight: 800;
+}
+
+.adoption-modal-body h3 {
+  margin: 26px 0 12px;
+  font-size: 1rem;
+}
+
+.modal-genetics,
+.modal-contact {
+  border-top: 1px solid rgba(31, 27, 27, 0.08);
+  padding-top: 4px;
+}
+
+.modal-genetics dl {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+}
+
+.modal-genetics dl div {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 8px 0;
+  font-size: 0.9rem;
+}
+
+.modal-genetics dt {
+  color: var(--muted);
+}
+
+.modal-genetics dd {
+  margin: 0;
+  font-weight: 800;
+  text-align: right;
+}
+
+#modalPostContact {
+  color: var(--primary-dark);
+  font-weight: 800;
+  line-height: 1.7;
+  overflow-wrap: anywhere;
+}
+
+.adoption-modal-close {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  z-index: 1;
+  width: 42px;
+  height: 42px;
+  border: 2px solid #fff;
+  border-radius: 50%;
+  background: var(--text);
+  color: #fff;
+  font-size: 1.8rem;
+  line-height: 1;
+}
+
+.adoption-modal-close:hover,
+.adoption-modal-close:focus-visible {
+  background: var(--primary-dark);
+}
+
+.modal-open {
+  overflow: hidden;
+}
+
+@keyframes modal-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes modal-slide-up {
+  from { opacity: 0; transform: translateY(18px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
 .category-results {
@@ -1061,10 +1443,6 @@ th {
     grid-template-columns: 1fr;
   }
 
-  .adoption-categories .category-card {
-    flex-basis: 78%;
-  }
-
   .home-nav {
     display: flex;
     flex-wrap: wrap;
@@ -1094,11 +1472,61 @@ th {
   .category-result-card {
     grid-template-columns: 1fr;
   }
+
+  .category-feed-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .admin-account-form {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .post-genetics-fields {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-account-form .btn {
+    width: 100%;
+  }
+
+  .adoption-modal-content {
+    grid-template-columns: 1fr;
+  }
+
+  .adoption-modal-content > img {
+    min-height: 240px;
+    max-height: 300px;
+  }
 }
 
 @media (max-width: 560px) {
   .container {
     width: calc(100% - 32px);
+  }
+
+  .category-feed-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-account-form {
+    grid-template-columns: 1fr;
+  }
+
+  .category-page {
+    padding: 48px 0;
+  }
+
+  .adoption-modal {
+    padding: 12px;
+  }
+
+  .adoption-modal-body {
+    padding: 24px;
+  }
+
+  .adoption-modal-content > img {
+    min-height: 200px;
+    max-height: 240px;
   }
 
   .home-header {
@@ -1169,13 +1597,21 @@ th {
   }
 
   .carousel-control {
-    flex-basis: 36px;
-    width: 36px;
-    height: 36px;
+    flex-basis: 44px;
+    width: 44px;
+    height: 44px;
   }
 
   .adoption-categories .category-card {
-    flex-basis: 86%;
+    flex-basis: 82%;
+  }
+
+  .feed-filters {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .feed-filters .btn {
+    width: 100%;
   }
 
   .home-actions-row {

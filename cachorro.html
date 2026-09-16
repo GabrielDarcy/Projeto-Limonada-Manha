@@ -4,24 +4,67 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Pet Amor | Cachorros</title>
+    <meta name="description" content="Cachorros esperando por um lar na Pet Amor." />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
     <link rel="stylesheet" href="style.css" />
   </head>
-  <body>
+  <body data-page="category">
     <header class="home-header">
       <div class="container home-nav">
         <a class="brand-row" href="index.html"><span class="brand-icon">🐾</span><span>Pet Amor</span></a>
         <a class="btn btn-secondary" href="index.html#adoes">Voltar para adoção</a>
       </div>
     </header>
+
     <main class="category-page">
       <div class="container">
+        <nav class="category-breadcrumb" aria-label="Navegação estrutural">
+          <a href="index.html">Início</a><span aria-hidden="true">/</span><strong>Cachorros</strong>
+        </nav>
         <span class="eyebrow">Adoção responsável</span>
-        <h1>Cachorros procurando um lar</h1>
+        <h1>Cachorros esperando por um lar</h1>
         <p class="category-intro">Encontre cachorros companheiros que estão esperando por uma nova chance.</p>
-        <div class="category-results">
-          <article class="category-result-card"><img src="https://images.unsplash.com/photo-1517849845537-4d257902454a?auto=format&fit=crop&w=900&q=80" alt="Luna, cachorra para adoção" /><div><span class="mini-tag">Cachorro</span><h2>Luna</h2><p>Carinhosa, tranquila e sociável. São Paulo / SP.</p><a class="btn btn-primary" href="index.html#recentes">Ver posts recentes</a></div></article>
-        </div>
+        <div class="category-results category-feed-grid" id="categoryPosts" aria-live="polite"></div>
       </div>
     </main>
+
+    <div class="adoption-modal" id="adoptionModal" role="dialog" aria-modal="true" aria-labelledby="modalPostTitle" hidden>
+      <div class="adoption-modal-backdrop" data-modal-close></div>
+      <article class="adoption-modal-content">
+        <button class="adoption-modal-close" type="button" aria-label="Fechar detalhes" data-modal-close>&times;</button>
+        <img id="modalPostImage" src="" alt="" />
+        <div class="adoption-modal-body">
+          <span class="mini-tag">Cachorro</span>
+          <h2 id="modalPostTitle"></h2>
+          <p class="modal-location" id="modalPostLocation"></p>
+          <p id="modalPostDescription"></p>
+          <section class="modal-genetics" aria-labelledby="geneticsTitle">
+            <h3 id="geneticsTitle">Informações de genética</h3>
+            <dl>
+              <div><dt>Raça do animal</dt><dd id="modalBreed"></dd></div>
+              <div><dt>Raça da mãe</dt><dd id="modalMotherBreed"></dd></div>
+              <div><dt>Raça do pai</dt><dd id="modalFatherBreed"></dd></div>
+            </dl>
+          </section>
+          <section class="modal-contact" aria-labelledby="contactTitle">
+            <h3 id="contactTitle">Contatos</h3>
+            <div id="modalPostContact"></div>
+          </section>
+        </div>
+      </article>
+    </div>
+
+    <footer class="home-footer">
+      <div class="container footer-row">
+        <p>© 2026 Pet Amor. Juntos por uma causa maior.</p>
+        <div class="footer-links" aria-label="Redes sociais">
+          <a href="#">Instagram</a><a href="#">Twitter</a><a href="#">Facebook</a>
+        </div>
+      </div>
+    </footer>
+
+    <script type="module" src="script.js"></script>
   </body>
 </html>

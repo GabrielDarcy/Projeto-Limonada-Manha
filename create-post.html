@@ -58,27 +58,49 @@
               <option value="Cachorro">Cachorro</option>
               <option value="Gato">Gato</option>
               <option value="Outro">Outro</option>
+              <option value="Fazenda">Animal de Fazenda</option>
+              <option value="Exótico">Animal Exótico</option>
+              <option value="Marinho">Animal Marinho</option>
             </select>
           </label>
 
           <label>
-            Raça
-            <input type="text" name="breed" placeholder="Ex.: Vira-lata, Siamesa..." />
+            Estado
+            <select name="state" id="postState" required>
+              <option value="">Carregando estados...</option>
+            </select>
           </label>
 
           <label>
             Cidade
-            <input type="text" name="city" placeholder="Sua cidade" required />
+            <select name="city" id="postCity" required disabled>
+              <option value="">Selecione o estado primeiro</option>
+            </select>
+          </label>
+
+          <div class="full-span post-genetics-fields" id="postGeneticsFields" hidden>
+            <label>
+              Raça do animal
+              <select name="breed" id="postBreed"></select>
+            </label>
+            <label>
+              Raça da mãe
+              <select name="motherBreed" id="postMotherBreed"></select>
+            </label>
+            <label>
+              Raça do pai
+              <select name="fatherBreed" id="postFatherBreed"></select>
+            </label>
+          </div>
+
+          <label class="full-span" id="postSpeciesField" hidden>
+            Raça/Espécie
+            <input type="text" name="species" id="postSpecies" placeholder="Ex.: Cavalo, coelho, tartaruga..." />
           </label>
 
           <label>
-            Estado
-            <input type="text" name="state" placeholder="SP" maxlength="2" required />
-          </label>
-
-          <label>
-            Telefone de contato
-            <input type="tel" name="phone" placeholder="(11) 99999-0000" />
+            WhatsApp / Telefone
+            <input type="tel" name="phone" inputmode="numeric" maxlength="15" placeholder="(11) 99999-0000" />
           </label>
 
           <label>
@@ -86,15 +108,24 @@
             <input type="email" name="email" placeholder="contato@email.com" />
           </label>
 
-          <label class="full-span">
-            Redes sociais / WhatsApp
-            <input type="text" name="socials" placeholder="@petamor, +55 11 ..." />
+          <label>
+            Instagram
+            <input type="text" name="instagram" placeholder="@usuario ou link do perfil" />
           </label>
 
-          <label class="full-span">
-            Foto do animal
-            <input type="file" name="photo" accept="image/jpeg,image/png" required />
-          </label>
+          <div class="full-span photo-gallery-field">
+            <div class="photo-gallery-heading">
+              <div>
+                <strong>Fotos do animal</strong>
+                <small>Adicione até 4 fotos em JPG, JPEG ou PNG.</small>
+              </div>
+              <span id="photoCount">0/4</span>
+            </div>
+            <div class="photo-gallery" id="photoGallery">
+              <button class="photo-add-button" id="photoAddButton" type="button" aria-label="Adicionar fotos">+</button>
+            </div>
+            <input id="photoInput" type="file" accept="image/jpeg,image/png" multiple hidden />
+          </div>
         </div>
 
         <div class="home-actions-row" style="margin-top: 24px;">
@@ -104,7 +135,6 @@
       </form>
     </main>
 
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="script.js"></script>
+    <script type="module" src="script.js"></script>
   </body>
 </html>

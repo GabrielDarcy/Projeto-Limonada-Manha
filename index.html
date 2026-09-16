@@ -97,6 +97,49 @@
         </div>
       </section>
 
+      <section class="home-section" id="feed">
+        <div class="container">
+          <div class="section-title">
+            <span class="eyebrow">Busca</span>
+            <h2>Encontre um animal</h2>
+          </div>
+          <div class="feed-filters">
+            <label>
+              Estado
+              <select id="feedState">
+                <option value="">Todos os estados</option>
+              </select>
+            </label>
+            <label>
+              Cidade
+              <select id="feedCity" disabled>
+                <option value="">Todas as cidades</option>
+              </select>
+            </label>
+            <label>
+              Tipo de animal
+              <select id="feedType">
+                <option value="Todos">Todos os animais</option>
+                <option value="Cachorro">Cachorro</option>
+                <option value="Gato">Gato</option>
+                <option value="Fazenda">Animal de Fazenda</option>
+                <option value="Exótico">Animal Exótico</option>
+                <option value="Marinho">Animal Marinho</option>
+                <option value="Outro">Outro</option>
+              </select>
+            </label>
+            <label id="breedFilterWrap">
+              Raça
+              <select id="feedBreed" disabled>
+                <option value="">Selecione o tipo primeiro</option>
+              </select>
+            </label>
+            <button id="applyFiltersBtn" type="button" class="btn btn-primary">Buscar</button>
+          </div>
+          <div class="recent-posts-grid" id="feedPosts"></div>
+        </div>
+      </section>
+
       <section class="home-section" id="adoes">
         <div class="container">
           <div class="section-title">
@@ -125,12 +168,30 @@
               </div>
               </a>
 
-              <a class="pet-box category-card" href="outros.html">
-              <img src="https://images.unsplash.com/photo-1552728089-57bdde30beb3?auto=format&fit=crop&w=800&q=80" alt="Outros animais disponíveis para adoção" />
+              <a class="pet-box category-card" href="#feed">
+              <img src="https://images.unsplash.com/photo-1516467508483-a7212febe31a?auto=format&fit=crop&w=800&q=80" alt="Animais de fazenda disponíveis para adoção" />
               <div class="pet-box-body">
-                <h3>Outros</h3>
-                <p>Ajude outros animais a encontrarem um lar.</p>
-                <span>Ver outros animais</span>
+                <h3>Animais de Fazenda</h3>
+                <p>Conheça animais de fazenda que precisam de cuidado e espaço.</p>
+                <span>Ver animais de fazenda</span>
+              </div>
+              </a>
+
+              <a class="pet-box category-card" href="#feed">
+              <img src="https://images.unsplash.com/photo-1549366021-9f761d450615?auto=format&fit=crop&w=800&q=80" alt="Animais exóticos disponíveis para adoção" />
+              <div class="pet-box-body">
+                <h3>Animais Exóticos</h3>
+                <p>Encontre cuidados responsáveis para animais exóticos.</p>
+                <span>Ver animais exóticos</span>
+              </div>
+              </a>
+
+              <a class="pet-box category-card" href="#feed">
+              <img src="https://images.unsplash.com/photo-1544551763-46a013bb70d5?auto=format&fit=crop&w=800&q=80" alt="Animais marinhos disponíveis para adoção" />
+              <div class="pet-box-body">
+                <h3>Animais Marinhos</h3>
+                <p>Descubra formas de proteger e apoiar a vida marinha.</p>
+                <span>Ver animais marinhos</span>
               </div>
               </a>
             </div>
@@ -184,6 +245,6 @@
       </div>
     </footer>
 
-    <script src="script.js"></script>
+    <script type="module" src="script.js"></script>
   </body>
 </html>

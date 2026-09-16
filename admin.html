@@ -31,6 +31,26 @@
           </div>
         </div>
 
+        <section class="panel admin-account-panel">
+          <div class="panel-header">
+            <div>
+              <span class="eyebrow">Conta atual</span>
+              <h2>Alterar acesso administrativo</h2>
+            </div>
+          </div>
+          <form id="adminAccountForm" class="admin-account-form">
+            <label>
+              E-mail / usuário de acesso
+              <input type="text" id="adminAccountEmail" required />
+            </label>
+            <label>
+              Nova senha
+              <input type="password" id="adminAccountPassword" minlength="8" placeholder="Deixe vazio para manter" />
+            </label>
+            <button class="btn btn-primary" type="submit">Salvar credenciais</button>
+          </form>
+        </section>
+
         <section class="stats-grid">
           <article class="stat-card">
             <span>Anúncios ativos</span>
@@ -49,6 +69,30 @@
         </section>
 
         <section class="admin-grid">
+          <div class="panel">
+            <div class="panel-header">
+              <div>
+                <span class="eyebrow">Ambiente de teste</span>
+                <h2>Posts de adoção</h2>
+              </div>
+              <button class="admin-btn secondary" id="createTestPostsButton" type="button">Criar 3 posts de teste</button>
+            </div>
+
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Título</th>
+                    <th>Tipo</th>
+                    <th>Cidade</th>
+                    <th>Ação</th>
+                  </tr>
+                </thead>
+                <tbody id="postsTableBody"></tbody>
+              </table>
+            </div>
+          </div>
+
           <div class="panel">
             <div class="panel-header">
               <h2>Anúncios</h2>
@@ -94,7 +138,6 @@
       </main>
     </div>
 
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="script.js"></script>
+    <script type="module" src="script.js"></script>
   </body>
 </html>
