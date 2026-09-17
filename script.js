@@ -306,6 +306,8 @@ async function registerWithSupabase(name, email, password, birthDate, avatarFile
 
 function updateHomeUserActions() {
   const session = getSession();
+  const heroSection = document.getElementById('inicio');
+  if (heroSection) heroSection.style.display = session ? 'none' : 'block';
   const actionsNode = document.getElementById('homeUserActions');
   if (!actionsNode) return;
 
@@ -909,7 +911,7 @@ async function renderCategoryFeed(animalType) {
 }
 
 async function renderFavorites() {
-  const target = document.getElementById('favoritePosts');
+  const target = document.getElementById('profileFavoritePosts');
   if (!target) return;
   const favoriteIds = getFavoriteIds();
   if (!favoriteIds.length) {
@@ -1279,7 +1281,6 @@ async function initializePage() {
     setupSupportModal();
     document.querySelectorAll('[data-modal-close]').forEach((element) => element.addEventListener('click', closeAdoptionModal));
     renderRecentPosts();
-    renderFavorites();
     setupAdoptionCarousel();
     setupFeedFilters();
   } else if (page === 'category') {
