@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Pet Amor | Meu perfil</title>
+    <meta name="description" content="Gerencie seu perfil e as configurações da sua conta Pet Amor." />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body data-page="profile">
+    <header class="home-header">
+      <div class="container home-nav">
+        <a class="brand-row" href="index.html">
+          <span class="brand-icon">🐾</span>
+          <span>Pet Amor</span>
+        </a>
+        <nav class="home-links">
+          <a href="index.html">Início</a>
+          <a href="index.html#adoes">Adoções</a>
+          <a href="index.html#ajuda">Como ajudar</a>
+        </nav>
+        <div class="home-actions" id="homeUserActions">
+          <a href="index.html" class="btn btn-secondary">Voltar</a>
+        </div>
+      </div>
+    </header>
+
+    <main class="profile-layout">
+      <section class="profile-intro">
+        <span class="eyebrow">Minha conta</span>
+        <h1>Configurações da Conta</h1>
+        <p>Atualize seus dados e mantenha seu perfil pronto para a comunidade Pet Amor.</p>
+      </section>
+
+      <section class="profile-grid" aria-label="Configurações da conta">
+        <article class="panel profile-card">
+          <img id="profileAvatarPreview" class="profile-avatar-large" src="https://placehold.co/160x160/ffe8ce/7a3d16?text=🐾" alt="Foto de perfil" />
+          <h2 id="profileName">Meu perfil</h2>
+          <p class="profile-muted">Sua foto aparece no cabeçalho do site.</p>
+          <form id="profileAvatarForm" class="profile-form">
+            <label>
+              Alterar foto de perfil
+              <input type="file" id="profileAvatarInput" accept="image/jpeg,image/png" required />
+            </label>
+            <button type="submit" class="btn btn-primary">Salvar foto</button>
+          </form>
+        </article>
+
+        <div class="profile-settings">
+          <form id="profileEmailForm" class="panel profile-form">
+            <div class="panel-header"><h2>Alterar e-mail</h2></div>
+            <label>
+              Novo e-mail
+              <input type="email" id="profileEmail" required />
+            </label>
+            <button type="submit" class="btn btn-primary">Atualizar e-mail</button>
+          </form>
+
+          <form id="profilePasswordForm" class="panel profile-form">
+            <div class="panel-header"><h2>Alterar senha</h2></div>
+            <label>
+              Nova senha
+              <input type="password" id="profilePassword" minlength="8" required />
+            </label>
+            <label>
+              Confirmar nova senha
+              <input type="password" id="profilePasswordConfirmation" minlength="8" required />
+            </label>
+            <button type="submit" class="btn btn-primary">Atualizar senha</button>
+          </form>
+
+          <section class="panel profile-danger">
+            <div>
+              <span class="eyebrow">Atenção</span>
+              <h2>Excluir conta</h2>
+              <p>Essa ação é permanente e remove seu acesso ao Pet Amor.</p>
+            </div>
+            <button type="button" id="deleteAccountButton" class="btn btn-danger">Excluir minha conta</button>
+          </section>
+        </div>
+      </section>
+    </main>
+
+    <footer class="home-footer">
+      <div class="container footer-row">
+        <span>© 2025 Pet Amor. Feito com carinho pelos animais.</span>
+        <div class="footer-links"><a href="index.html">Voltar ao início</a></div>
+      </div>
+    </footer>
+
+    <script type="module" src="script.js"></script>
+  </body>
+</html>

@@ -45,6 +45,17 @@
           </label>
 
           <label>
+            Data de nascimento
+            <input type="date" id="registerBirthDate" required />
+          </label>
+
+          <label class="file-field">
+            Foto de perfil
+            <input type="file" id="registerAvatar" accept="image/jpeg,image/png" />
+            <small>Opcional. JPG, JPEG ou PNG, até 2MB.</small>
+          </label>
+
+          <label>
             Senha
             <input type="password" id="registerPassword" placeholder="Crie uma senha" required />
             <div class="password-strength" aria-live="polite">
@@ -56,6 +67,11 @@
           <label>
             Confirmar senha
             <input type="password" id="registerConfirmPassword" placeholder="Repita a senha" required />
+          </label>
+
+          <label class="checkbox-field">
+            <input type="checkbox" id="registerTerms" required />
+            <span>Concordo com os Termos de Uso e Privacidade.</span>
           </label>
 
           <button type="submit" class="btn btn-primary full">Cadastrar</button>

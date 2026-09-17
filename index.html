@@ -42,7 +42,7 @@
       <section class="home-hero" id="inicio">
         <div class="container home-hero-grid">
           <div class="home-copy">
-            <span class="badge">🐶 Resgate com amor</span>
+            <span class="badge">Resgate com amor</span>
             <h1>Seu gesto pode dar uma nova chance a um animal.</h1>
             <p>
               A Pet Amor conecta pets em situação de vulnerabilidade com pessoas dispostas
@@ -50,8 +50,7 @@
             </p>
 
             <div class="home-actions-row">
-              <a href="register.html" class="btn btn-primary">Quero ajudar</a>
-              <a href="login.html" class="btn btn-secondary">Acessar painel</a>
+              <a href="register.html" class="btn btn-primary" id="btnQueroDoar">Quero doar</a>
             </div>
 
             <div class="home-stats">
@@ -233,6 +232,32 @@
         </div>
       </section>
     </main>
+
+    <div class="adoption-modal" id="adoptionModal" role="dialog" aria-modal="true" aria-labelledby="modalPostTitle" hidden>
+      <div class="adoption-modal-backdrop" data-modal-close></div>
+      <article class="adoption-modal-content">
+        <button class="adoption-modal-close" type="button" aria-label="Fechar detalhes" data-modal-close>&times;</button>
+        <div id="modalImageContainer"></div>
+        <div class="adoption-modal-body">
+          <span class="mini-tag">Animal</span>
+          <h2 id="modalPostTitle"></h2>
+          <p class="modal-location" id="modalPostLocation"></p>
+          <p id="modalPostDescription"></p>
+          <section class="modal-genetics" aria-labelledby="geneticsTitle">
+            <h3 id="geneticsTitle">Informações de genética</h3>
+            <dl>
+              <div><dt>Raça do animal</dt><dd id="modalBreed"></dd></div>
+              <div><dt>Raça da mãe</dt><dd id="modalMotherBreed"></dd></div>
+              <div><dt>Raça do pai</dt><dd id="modalFatherBreed"></dd></div>
+            </dl>
+          </section>
+          <section class="modal-contact" aria-labelledby="contactTitle">
+            <h3 id="contactTitle">Contatos</h3>
+            <div id="modalPostContact"></div>
+          </section>
+        </div>
+      </article>
+    </div>
 
     <footer class="home-footer">
       <div class="container footer-row">
