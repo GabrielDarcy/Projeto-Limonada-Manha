@@ -464,6 +464,10 @@ function setupCreatePostForm() {
 
 async function handleCreatePostSubmit(event) {
   event.preventDefault();
+  
+  // formulário em memória ANTES de pausar o código com o await
+  const form = event.currentTarget;
+  
   const { data: userData } = await getSupabaseClient().auth.getUser();
   if (!userData.user) {
     alert('Você precisa fazer login para criar uma publicação.');
@@ -471,7 +475,6 @@ async function handleCreatePostSubmit(event) {
     return;
   }
 
-  const form = event.currentTarget;
   const title = form.title.value.trim();
   const description = form.description.value.trim();
   const animalType = form.animalType.value;
