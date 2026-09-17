@@ -528,6 +528,9 @@ th {
 
 .admin-user-search-panel { margin-bottom: 22px; }
 
+.admin-statistics-panel { margin-bottom: 22px; }
+.admin-statistics-actions { display: flex; flex-wrap: wrap; gap: 10px; align-items: end; }
+
 .admin-user-results {
   display: grid;
   gap: 14px;
@@ -562,6 +565,22 @@ th {
 }
 
 .admin-search-message { color: var(--muted); }
+
+.category-empty-state {
+  display: grid;
+  grid-column: 1 / -1;
+  gap: 14px;
+  justify-items: start;
+}
+
+.category-empty-state img {
+  width: min(100%, 320px);
+  height: 180px;
+  border-radius: 16px;
+  object-fit: cover;
+}
+
+.category-empty-state p { margin: 0; }
 
 @media (max-width: 900px) {
   .auth-shell,

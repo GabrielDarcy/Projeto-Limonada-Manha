@@ -454,6 +454,46 @@ async function renderAdminDashboard() {
   }
 }
 
+async function loadSiteStatistics() {
+  const { data, error } = await getSupabaseClient()
+    .from('site_statistics')
+    .select('total_lares, base_diaria')
+    .eq('id', 1)
+    .single();
+  if (error) {
+    showToast(`Não foi possível carregar as estatísticas: ${error.message}`, 'error');
+    return;
+  }
+  const totalHomes = Number(data?.total_lares || 0);
+  const dailyBase = Number(data?.base_diaria || 0);
+  const dailyDonations = dailyBase + new Date().getHours() * 3;
+  document.getElementById('totalHomesStat')?.replaceChildren(String(totalHomes));
+  document.getElementById('dailyDonationsStat')?.replaceChildren(String(dailyDonations));
+  const adminTotalHomes = document.getElementById('adminTotalHomes');
+  if (adminTotalHomes) adminTotalHomes.value = String(totalHomes);
+}
+
+async function updateSiteStatistics(totalHomes, reset = false) {
+  const updates = reset ? { total_lares: 0, base_diaria: 0 } : { total_lares: Number(totalHomes) };
+  const { error } = await getSupabaseClient().from('site_statistics').update(updates).eq('id', 1);
+  if (error) {
+    showToast(`Não foi possível atualizar as estatísticas: ${error.message}`, 'error');
+    return;
+  }
+  showToast(reset ? 'Estatísticas zeradas.' : 'Total de lares atualizado.');
+  await loadSiteStatistics();
+}
+
+function setupStatisticsManagement() {
+  document.getElementById('adminStatisticsForm')?.addEventListener('submit', (event) => {
+    event.preventDefault();
+    const value = Number(document.getElementById('adminTotalHomes').value);
+    if (!Number.isInteger(value) || value < 0) return showToast('Informe um total de lares válido.', 'error');
+    updateSiteStatistics(value);
+  });
+  document.getElementById('resetStatisticsButton')?.addEventListener('click', () => updateSiteStatistics(0, true));
+}
+
 async function deletePost(postId) {
   const { error } = await getSupabaseClient().from('posts').delete().eq('id', postId);
   if (error) {
@@ -495,7 +535,7 @@ async function loadAdminUserPosts(userId) {
 }
 
 async function banAdminUser(userId) {
-  const { error } = await getSupabaseClient().from('profiles').update({ status: 'banned' }).eq('id', userId);
+  const { error } = await getSupabaseClient().rpc('admin_ban_user', { p_user_id: userId });
   if (error) return showToast(`Não foi possível banir o usuário: ${error.message}`, 'error');
   showToast('Usuário banido com sucesso.');
   searchAdminUsers(document.getElementById('adminUserSearch')?.value);
@@ -1017,7 +1057,10 @@ async function renderCategoryFeed(animalType) {
     return;
   }
   if (!data?.length) {
-    target.innerHTML = '<div class="empty-state">Ainda não temos animais publicados. Volte em breve para conhecer novos amigos.</div>';
+    const emptyImage = animalType === 'Outro'
+      ? 'https://images.unsplash.com/photo-1585110396000-c9ffd4e4b308?auto=format&fit=crop&w=800&q=80'
+      : 'https://images.unsplash.com/photo-1425082661705-1834bfd09dca?auto=format&fit=crop&w=800&q=80';
+    target.innerHTML = `<div class="empty-state category-empty-state"><img src="${emptyImage}" alt="Animal fofo aguardando uma nova família"><p>Ainda não temos animais publicados. Volte em breve para conhecer novos amigos.</p></div>`;
     return;
   }
 
@@ -1498,6 +1541,7 @@ async function initializePage() {
 
   // roteamento e Inicialização por Página
   if (page === 'home') {
+    loadSiteStatistics();
     setupDonationRedirect();
     setupSupportModal();
     document.querySelectorAll('[data-modal-close]').forEach((element) => element.addEventListener('click', closeAdoptionModal));
@@ -1539,6 +1583,8 @@ async function initializePage() {
       getSupabaseClient().auth.signOut().then(() => { clearSession(); window.location.href = 'login.html'; });
     });
     document.getElementById('adminAccountForm')?.addEventListener('submit', handleAdminAccountSubmit);
+    setupStatisticsManagement();
+    loadSiteStatistics();
     document.getElementById('adminUserSearchForm')?.addEventListener('submit', (event) => {
       event.preventDefault();
       searchAdminUsers(document.getElementById('adminUserSearch').value);
