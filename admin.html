@@ -68,6 +68,23 @@
           </article>
         </section>
 
+        <section class="panel admin-user-search-panel">
+          <div class="panel-header">
+            <div>
+              <span class="eyebrow">Moderação</span>
+              <h2>Buscar usuário</h2>
+            </div>
+          </div>
+          <form id="adminUserSearchForm" class="admin-account-form">
+            <label>
+              E-mail, nome ou username
+              <input type="search" id="adminUserSearch" placeholder="Digite para pesquisar" autocomplete="off" required />
+            </label>
+            <button class="admin-btn secondary" type="submit">Pesquisar</button>
+          </form>
+          <div id="adminUserResults" class="admin-user-results" aria-live="polite"></div>
+        </section>
+
         <section class="admin-grid">
           <div class="panel">
             <div class="panel-header">
@@ -138,6 +155,6 @@
       </main>
     </div>
 
-    <script type="module" src="script.js?v=11"></script>
+    <script type="module" src="script.js?v=12"></script>
   </body>
 </html>

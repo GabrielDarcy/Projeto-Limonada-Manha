@@ -52,6 +52,33 @@ function getSupabaseClient() {
   return supabase;
 }
 
+function showToast(message, type = 'success') {
+  const toast = document.createElement('div');
+  toast.className = `toast toast-${type}`;
+  toast.setAttribute('role', type === 'error' ? 'alert' : 'status');
+  toast.innerHTML = `<span class="toast-icon" aria-hidden="true">${type === 'error' ? '!' : '✓'}</span><span>${escapeHTML(message)}</span>`;
+  document.body.appendChild(toast);
+  requestAnimationFrame(() => toast.classList.add('is-visible'));
+  window.setTimeout(() => {
+    toast.classList.remove('is-visible');
+    window.setTimeout(() => toast.remove(), 220);
+  }, 3500);
+}
+
+function closeDynamicModal(modal) {
+  modal?.remove();
+  document.body.classList.remove('modal-open');
+}
+
+function createDynamicModal(content, className = '') {
+  const modal = document.createElement('div');
+  modal.className = `dynamic-modal ${className}`;
+  modal.innerHTML = `<div class="dynamic-modal-backdrop"></div><section class="dynamic-modal-panel" role="dialog" aria-modal="true">${content}</section>`;
+  document.body.appendChild(modal);
+  document.body.classList.add('modal-open');
+  return modal;
+}
+
 function saveSession(user) {
   const payload = {
     userId: user.id || user.user_id,
@@ -104,7 +131,7 @@ async function toggleFavorite(postId) {
 
 function favoriteButtonHTML(postId) {
   const favorite = isFavorite(postId);
-  return `<button class="favorite-button${favorite ? ' is-favorite' : ''}" type="button" data-favorite-id="${escapeHTML(postId)}" aria-label="Favoritar" aria-pressed="${favorite}"><svg viewBox="0 0 24 24" width="22" height="22" stroke="currentColor" stroke-width="2" fill="${favorite ? 'currentColor' : 'none'}" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0 7.78 7.78l1.06-1.06L12 21.23l-7.78-7.78-1.06-1.06a5.5 5.5 0 0 0 7.78-7.78L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 0Z"></path></svg></button>`;
+    return `<button class="favorite-button${favorite ? ' is-favorite' : ''}" type="button" data-favorite-id="${escapeHTML(postId)}" aria-label="${favorite ? 'Remover dos favoritos' : 'Adicionar aos favoritos'}" aria-pressed="${favorite}">${favorite ? '❤️' : '🤍'}</button>`;
 }
 
 function renderAuthorBar(profile) {
@@ -195,6 +222,7 @@ async function loginWithSupabase(email, password) {
   if (error) throw new Error(error.message);
 
   const profile = await fetchProfileByUserId(data.user.id);
+  if (profile?.status === 'banned') throw new Error('Esta conta foi banida. Entre em contato com a administração.');
   return {
     id: data.user.id,
     email: data.user.email,
@@ -221,13 +249,13 @@ async function handleAdminAccountSubmit(event) {
   } else if (isValidEmail(emailValue)) {
     updates.email = emailValue;
   } else {
-    alert('Informe um e-mail válido ou use o usuário admin.');
+    showToast('Informe um e-mail válido ou use o usuário admin.', 'error');
     return;
   }
 
   if (passwordValue) {
     if (passwordValue.length < 8) {
-      alert('A nova senha deve ter pelo menos 8 caracteres.');
+      showToast('A nova senha deve ter pelo menos 8 caracteres.', 'error');
       return;
     }
     updates.password = passwordValue;
@@ -243,9 +271,9 @@ async function handleAdminAccountSubmit(event) {
       emailField.value = updates.email;
       passwordField.value = '';
     }
-    alert('Credenciais atualizadas com sucesso.');
+    showToast('Credenciais atualizadas com sucesso.');
   } catch (error) {
-    alert(`Não foi possível atualizar as credenciais: ${error.message}`);
+    showToast(`Não foi possível atualizar as credenciais: ${error.message}`, 'error');
   }
 }
 
@@ -272,7 +300,7 @@ async function uploadAvatar(file, userId) {
   return `${publicUrlData.publicUrl}?t=${Date.now()}`;
 }
 
-async function registerWithSupabase(name, username, email, password, birthDate, avatarFile) {
+async function registerWithSupabase(name, username, email, password, birthDate, avatarFile, recoveryCode) {
   if (!name || !name.trim()) throw new Error('Informe seu nome completo.');
   const normalizedUsername = normalizeUsername(username);
   if (!normalizedUsername) throw new Error('Informe um nome de usuário válido.');
@@ -308,6 +336,7 @@ async function registerWithSupabase(name, username, email, password, birthDate, 
       username: normalizedUsername,
       birth_date: birthDate,
       avatar_url: avatarUrl,
+      recovery_code: recoveryCode,
       status: 'active'
     }).eq('id', userId);
     if (profileError) {
@@ -325,6 +354,7 @@ async function registerWithSupabase(name, username, email, password, birthDate, 
     status: 'active',
     birth_date: birthDate,
     avatar_url: avatarUrl,
+    recovery_code: recoveryCode,
     favorite_posts: []
   };
 }
@@ -427,10 +457,48 @@ async function renderAdminDashboard() {
 async function deletePost(postId) {
   const { error } = await getSupabaseClient().from('posts').delete().eq('id', postId);
   if (error) {
-    alert(`Não foi possível excluir o post: ${error.message}`);
+    showToast(`Não foi possível excluir o post: ${error.message}`, 'error');
     return;
   }
   renderAdminDashboard();
+}
+
+async function searchAdminUsers(queryValue) {
+  const target = document.getElementById('adminUserResults');
+  const query = String(queryValue || '').trim();
+  if (!target || !query) return;
+  const { data: users, error } = await getSupabaseClient().from('profiles')
+    .select('id, email, full_name, username, birth_date, status, role')
+    .or(`email.ilike.%${query}%,full_name.ilike.%${query}%,username.ilike.%${query}%`)
+    .limit(10);
+  if (error) {
+    target.innerHTML = `<p class="admin-search-message">Não foi possível buscar usuários: ${escapeHTML(error.message)}</p>`;
+    return;
+  }
+  if (!users?.length) {
+    target.innerHTML = '<p class="admin-search-message">Nenhum usuário encontrado.</p>';
+    return;
+  }
+  target.innerHTML = users.map((user) => `<article class="admin-user-result" data-user-id="${escapeHTML(user.id)}"><div><strong>${escapeHTML(user.full_name || 'Sem nome')}</strong><span>${escapeHTML(user.email || '')} · @${escapeHTML(user.username || 'sem username')}</span><span>Nascimento: ${escapeHTML(user.birth_date || 'Não informado')}</span><span>Status: ${escapeHTML(user.status || 'active')}</span></div><button class="admin-btn danger" type="button" data-action="ban-user" data-id="${escapeHTML(user.id)}" ${user.status === 'banned' ? 'disabled' : ''}>${user.status === 'banned' ? 'Banido' : 'Banir'}</button><div class="admin-user-posts" data-posts-for="${escapeHTML(user.id)}"><span>Carregando publicações...</span></div></article>`).join('');
+  users.forEach((user) => loadAdminUserPosts(user.id));
+}
+
+async function loadAdminUserPosts(userId) {
+  const target = document.querySelector(`[data-posts-for="${CSS.escape(userId)}"]`);
+  if (!target) return;
+  const { data: posts, error } = await getSupabaseClient().from('posts').select('id, title, animal_type, status').eq('user_id', userId).order('created_at', { ascending: false });
+  if (error) {
+    target.textContent = 'Não foi possível carregar as publicações.';
+    return;
+  }
+  target.innerHTML = posts?.length ? `<strong>Publicações</strong>${posts.map((post) => `<span>${escapeHTML(post.title)} · ${escapeHTML(post.status || 'active')}</span>`).join('')}` : '<span>Nenhuma publicação.</span>';
+}
+
+async function banAdminUser(userId) {
+  const { error } = await getSupabaseClient().from('profiles').update({ status: 'banned' }).eq('id', userId);
+  if (error) return showToast(`Não foi possível banir o usuário: ${error.message}`, 'error');
+  showToast('Usuário banido com sucesso.');
+  searchAdminUsers(document.getElementById('adminUserSearch')?.value);
 }
 
 function bindAdminActions() {
@@ -439,6 +507,9 @@ function bindAdminActions() {
     if (!button) return;
     if (button.dataset.action === 'delete-post') {
       deletePost(button.dataset.id);
+    }
+    if (button.dataset.action === 'ban-user') {
+      banAdminUser(button.dataset.id);
     }
   });
 }
@@ -471,7 +542,24 @@ function formatPhoneNumber(value) {
 
 function isValidInstagram(value) {
   if (!value) return true;
-  return /^(?:@[a-z0-9._]{1,30}|https?:\/\/(?:www\.)?instagram\.com\/[a-z0-9._]{1,30}\/?)(?:\?.*)?$/i.test(value);
+  return /^[a-z0-9._]{1,30}$/i.test(value);
+}
+
+function getContactItems(post) {
+  const rawContact = String(post.contact_info || '');
+  const parsedItems = rawContact.split('|').map((item) => item.trim()).filter((item) => item && !/Não informado|Nao informado/i.test(item));
+  const directItems = [post.phone && `Tel: ${post.phone}`, post.email && `Email: ${post.email}`, post.instagram && `IG: @${String(post.instagram).replace(/^@/, '')}`].filter(Boolean);
+  return directItems.length ? directItems : parsedItems;
+}
+
+function renderContactItems(post) {
+  return getContactItems(post).map((item) => `<span>${escapeHTML(item)}</span>`).join('');
+}
+
+function adminPostActions(postId) {
+  return String(getSession()?.role || '').toLowerCase() === 'admin'
+    ? `<button class="btn btn-danger admin-feed-delete" type="button" data-action="delete-post" data-id="${escapeHTML(postId)}">Deletar Post</button>`
+    : '';
 }
 
 async function uploadPostImage(file) {
@@ -551,9 +639,9 @@ function setupCreatePostForm() {
     Array.from(photoInput.files).slice(0, availableSlots).forEach((file) => {
       const error = validateImageFile(file);
       if (!error) selectedFiles.push(file);
-      else alert(error);
+      else showToast(error, 'error');
     });
-    if (photoInput.files.length > availableSlots) alert('Você pode adicionar no máximo 4 fotos.');
+    if (photoInput.files.length > availableSlots) showToast('Você pode adicionar no máximo 4 fotos.', 'error');
     photoInput.value = '';
     renderPhotoGallery();
   });
@@ -561,6 +649,10 @@ function setupCreatePostForm() {
 
   form.elements.phone.addEventListener('input', (event) => {
     event.target.value = formatPhoneNumber(event.target.value);
+  });
+
+  form.elements.instagram.addEventListener('input', (event) => {
+    event.target.value = event.target.value.replace(/[^a-z0-9._]/gi, '').slice(0, 30).toLowerCase();
   });
 
   const loadStates = async () => {
@@ -628,7 +720,7 @@ async function handleCreatePostSubmit(event) {
   
   const { data: userData } = await getSupabaseClient().auth.getUser();
   if (!userData.user) {
-    alert('Você precisa fazer login para criar uma publicação.');
+    showToast('Você precisa fazer login para criar uma publicação.', 'error');
     window.location.href = 'login.html';
     return;
   }
@@ -648,33 +740,33 @@ async function handleCreatePostSubmit(event) {
   const photoFiles = form.__selectedFiles || [];
 
   if (!photoFiles.length) {
-    alert('Adicione pelo menos uma foto do animal.');
+    showToast('Adicione pelo menos uma foto do animal.', 'error');
     return;
   }
 
   if (containsBannedWord(title) || containsBannedWord(description)) {
-    alert('Vamos manter um linguajar respeitoso para todos. Revise o título e a descrição antes de publicar.');
+    showToast('Vamos manter um linguajar respeitoso para todos. Revise o título e a descrição antes de publicar.', 'error');
     return;
   }
 
   if (!isValidInstagram(instagram)) {
-    alert('Informe apenas um @usuário ou link válido do Instagram.');
+    showToast('Informe apenas letras, números, pontos e underlines no Instagram.', 'error');
     return;
   }
 
   if (!title || !description || !animalType || !state || !city || !breed) {
-    alert('Preencha todos os campos obrigatórios.');
+    showToast('Preencha todos os campos obrigatórios.', 'error');
     return;
   }
 
   if (!phone && !email && !instagram) {
-    alert('Informe pelo menos um meio de contato externo.');
+    showToast('Informe pelo menos um meio de contato externo.', 'error');
     return;
   }
 
   try {
     const imageUrls = await Promise.all(photoFiles.map((file) => uploadPostImage(file)));
-    const contatoFinal = `Tel: ${phone || 'Não informado'} | Email: ${email || 'Não informado'} | IG: ${instagram || 'Não informado'}`;
+    const contatoFinal = [phone && `Tel: ${phone}`, email && `Email: ${email}`, instagram && `IG: @${instagram}`].filter(Boolean).join(' | ');
 
       const post = {
       user_id: userData.user.id,
@@ -694,10 +786,10 @@ async function handleCreatePostSubmit(event) {
     const { error } = await getSupabaseClient().from('posts').insert([post]).select().single();
     if (error) throw new Error(error.message);
     
-    alert('Publicação criada com sucesso!');
+    showToast('Publicação criada com sucesso.');
     window.location.href = 'index.html';
   } catch (error) {
-    alert(error.message || 'Erro ao criar a publicação.');
+    showToast(error.message || 'Erro ao criar a publicação.', 'error');
   }
 }
 
@@ -749,12 +841,13 @@ function renderFeed() {
           <p>${escapeHTML(post.description)}</p>
           <div class="feed-meta">
             <span><strong>Raça:</strong> ${escapeHTML(post.breed || 'Não informado')}</span>
-            <span><strong>Contato:</strong> ${escapeHTML(post.contact_info || 'Não informado')}</span>
+            <span><strong>Contato:</strong> ${escapeHTML(getContactItems(post).join(' | ') || 'Não informado')}</span>
           </div>
-          <div class="feed-contact-list">
-            ${post.contact_info ? `<span>💬 ${escapeHTML(post.contact_info)}</span>` : ''}
+          <div class="feed-contact-list">${renderContactItems(post)}</div>
+          <div class="post-action-row">
+            <button class="btn btn-primary" type="button" data-adoption-post="${post.id}">Quero Adotar!</button>
+            ${adminPostActions(post.id)}
           </div>
-          <button class="btn btn-primary full" style="margin-top: 16px;" type="button" data-adoption-post="${post.id}">Quero Adotar!</button>
         </div>
       </article>
     `);
@@ -782,7 +875,7 @@ function renderRecentPosts() {
             <h3>${escapeHTML(post.title)}</h3>
             <p>${escapeHTML(post.description)}</p>
             <span class="recent-post-location">📍 ${escapeHTML(post.city)}</span>
-            ${post.status === 'active' ? `<button class="btn btn-primary full" style="margin-top: 16px;" type="button" data-adoption-post="${post.id}">Quero Adotar!</button>` : ''}
+            ${post.status === 'active' ? `<div class="post-action-row"><button class="btn btn-primary" type="button" data-adoption-post="${post.id}">Quero Adotar!</button>${adminPostActions(post.id)}</div>` : ''}
           </div>
         </article>
       `).join('');
@@ -903,7 +996,7 @@ function generateImageCarouselHTML(imageUrls, altText) {
 }
 
 function getPostContact(post) {
-  const contacts = [post.phone, post.contact_phone, post.email, post.contact_email, post.contact_info].filter(Boolean);
+  const contacts = getContactItems(post);
   return contacts.length ? contacts.join(' | ') : 'Contato não informado';
 }
 
@@ -936,7 +1029,10 @@ async function renderCategoryFeed(animalType) {
         ${renderAuthorBar(post.profiles)}
         <h2>${escapeHTML(post.title)}</h2>
         <p class="category-pet-location">📍 ${escapeHTML(post.city || 'Localização não informada')}</p>
-        <button class="btn btn-primary full" type="button" data-adoption-post="${post.id}">Quero Adotar!</button>
+        <div class="post-action-row">
+          <button class="btn btn-primary" type="button" data-adoption-post="${post.id}">Quero Adotar!</button>
+          ${adminPostActions(post.id)}
+        </div>
       </div>
     </article>
   `);
@@ -974,7 +1070,7 @@ async function renderFavorites() {
         <h3>${escapeHTML(post.title)}</h3>
         <p>${escapeHTML(post.description)}</p>
         <span class="recent-post-location">📍 ${escapeHTML(post.city || 'Localização não informada')}</span>
-        ${post.status === 'active' ? `<button class="btn btn-primary full" style="margin-top: 16px;" type="button" data-adoption-post="${post.id}">Quero Adotar!</button>` : ''}
+        ${post.status === 'active' ? `<div class="post-action-row"><button class="btn btn-primary" type="button" data-adoption-post="${post.id}">Quero Adotar!</button>${adminPostActions(post.id)}</div>` : ''}
       </div>
     </article>
   `).join('');
@@ -1054,42 +1150,6 @@ function setupPostCarouselNavigation() {
   });
 }
 
-function setupFavoriteInteractions() {
-  document.body.addEventListener('click', async (event) => {
-    const button = event.target.closest('[data-favorite-id]');
-    if (!button) return;
-    event.preventDefault();
-    event.stopPropagation();
-    const postId = button.dataset.favoriteId;
-    if (!getSession()) {
-      const favorite = await toggleFavorite(postId);
-      document.querySelectorAll('[data-favorite-id]').forEach((favoriteButton) => {
-        if (favoriteButton.dataset.favoriteId !== postId) return;
-        favoriteButton.classList.toggle('is-favorite', favorite);
-        favoriteButton.innerHTML = '<svg class="favorite-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78L12 21.23l8.84-8.84a5.5 5.5 0 0 0 0-7.78Z"></path></svg>';
-        favoriteButton.setAttribute('aria-pressed', String(favorite));
-        favoriteButton.setAttribute('aria-label', favorite ? 'Remover dos favoritos' : 'Adicionar aos favoritos');
-      });
-      alert('Favorito salvo neste dispositivo. Faça login para sincronizar seus favoritos.');
-      return;
-    }
-    try {
-      const favorite = await toggleFavorite(postId);
-      document.querySelectorAll('[data-favorite-id]').forEach((favoriteButton) => {
-      if (favoriteButton.dataset.favoriteId !== postId) return;
-      favoriteButton.classList.toggle('is-favorite', favorite);
-      favoriteButton.innerHTML = '<svg class="favorite-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78L12 21.23l8.84-8.84a5.5 5.5 0 0 0 0-7.78Z"></path></svg>';
-      favoriteButton.setAttribute('aria-pressed', String(favorite));
-      favoriteButton.setAttribute('aria-label', favorite ? 'Remover dos favoritos' : 'Adicionar aos favoritos');
-      });
-      if (document.getElementById('favoritePosts')) renderFavorites();
-      if (document.getElementById('profileFavoritePosts')) renderProfileFavorites();
-    } catch (error) {
-      alert(error.message);
-    }
-  });
-}
-
 function setupFavoriteInteractionsV7() {
   document.body.addEventListener('click', async (event) => {
     const button = event.target.closest('[data-favorite-id]');
@@ -1099,16 +1159,64 @@ function setupFavoriteInteractionsV7() {
     try {
       const favorite = await toggleFavorite(button.dataset.favoriteId);
       document.querySelectorAll(`[data-favorite-id="${button.dataset.favoriteId}"]`).forEach((favoriteButton) => {
-        const svg = favoriteButton.querySelector('svg');
         favoriteButton.classList.toggle('is-favorite', favorite);
-        svg?.setAttribute('fill', favorite ? 'currentColor' : 'none');
+        favoriteButton.innerHTML = favorite ? '❤️' : '🤍';
         favoriteButton.setAttribute('aria-pressed', String(favorite));
       });
-      if (!getSession()) alert('Favorito salvo neste dispositivo. Faça login para sincronizar seus favoritos.');
+      if (!getSession()) showToast('Favorito salvo neste dispositivo. Faça login para sincronizar seus favoritos.');
       if (document.getElementById('profileFavoritePosts')) renderProfileFavorites();
     } catch (error) {
-      alert(error.message);
+      showToast(error.message, 'error');
     }
+  });
+}
+
+function generateRecoveryCode() {
+  return String(Math.floor(100000 + Math.random() * 900000));
+}
+
+function showRecoveryCodeModal(code, redirect) {
+  const modal = createDynamicModal(`<h2>Anote seu código de recuperação</h2><p>Guarde este código em um local seguro. Ele será necessário para redefinir sua senha.</p><div class="recovery-code">${escapeHTML(code)}</div><button type="button" class="btn btn-primary full" id="acknowledgeRecoveryCode" disabled>Entendi e anotei <span>(5)</span></button>`, 'recovery-code-modal');
+  const button = modal.querySelector('#acknowledgeRecoveryCode');
+  let seconds = 5;
+  const timer = window.setInterval(() => {
+    seconds -= 1;
+    button.querySelector('span').textContent = seconds ? `(${seconds})` : '';
+    if (!seconds) {
+      window.clearInterval(timer);
+      button.disabled = false;
+    }
+  }, 1000);
+  button.addEventListener('click', () => { closeDynamicModal(modal); window.location.href = redirect; });
+}
+
+function setupPasswordRecovery() {
+  document.getElementById('forgotPasswordButton')?.addEventListener('click', () => {
+    const modal = createDynamicModal(`<h2>Recuperar senha</h2><p>Informe o e-mail usado no cadastro.</p><form id="recoveryEmailForm"><label>E-mail<input type="email" id="recoveryEmail" required autocomplete="email"></label><button class="btn btn-primary" type="submit">Continuar</button></form>`);
+    modal.querySelector('#recoveryEmailForm').addEventListener('submit', (event) => {
+      event.preventDefault();
+      const email = modal.querySelector('#recoveryEmail').value.trim().toLowerCase();
+      if (!isValidEmail(email)) return showToast('Informe um e-mail válido.', 'error');
+      modal.querySelector('.dynamic-modal-panel').innerHTML = `<h2>Digite seu código</h2><p>Informe o código de 6 dígitos recebido no cadastro.</p><form id="recoveryCodeForm"><label>Código<input type="text" id="recoveryCode" inputmode="numeric" maxlength="6" required></label><button class="btn btn-primary" type="submit">Continuar</button></form>`;
+      modal.querySelector('#recoveryCode').addEventListener('input', (inputEvent) => { inputEvent.target.value = inputEvent.target.value.replace(/\D/g, '').slice(0, 6); });
+      modal.querySelector('#recoveryCodeForm').addEventListener('submit', (codeEvent) => {
+        codeEvent.preventDefault();
+        const code = modal.querySelector('#recoveryCode').value;
+        if (!/^\d{6}$/.test(code)) return showToast('Informe um código válido de 6 dígitos.', 'error');
+        modal.querySelector('.dynamic-modal-panel').innerHTML = `<h2>Crie uma nova senha</h2><p>Escolha uma senha forte para proteger sua conta.</p><form id="recoveryPasswordForm"><label>Nova senha<input type="password" id="recoveryPassword" minlength="8" required></label><label>Confirmar senha<input type="password" id="recoveryPasswordConfirmation" minlength="8" required></label><button class="btn btn-primary" type="submit">Redefinir senha</button></form>`;
+        modal.querySelector('#recoveryPasswordForm').addEventListener('submit', async (passwordEvent) => {
+          passwordEvent.preventDefault();
+          const newPass = modal.querySelector('#recoveryPassword').value;
+          const confirmation = modal.querySelector('#recoveryPasswordConfirmation').value;
+          if (newPass !== confirmation) return showToast('As senhas não coincidem.', 'error');
+          if (getPasswordStrength(newPass).score < 2) return showToast('Escolha uma senha mais forte.', 'error');
+          const { error } = await getSupabaseClient().rpc('reset_password_with_code', { p_email: email, p_code: code, p_new_password: newPass });
+          if (error) return showToast(error.message || 'Não foi possível redefinir a senha.', 'error');
+          closeDynamicModal(modal);
+          showToast('Senha redefinida com sucesso.');
+        });
+      });
+    });
   });
 }
 
@@ -1116,13 +1224,13 @@ async function handleLoginSubmit(event) {
   event.preventDefault();
   const email = document.getElementById('loginEmail').value.trim();
   const password = document.getElementById('loginPassword').value.trim();
-  if (email.toLowerCase() !== 'admin' && !isValidEmail(email)) return alert('Informe um e-mail válido.');
+  if (email.toLowerCase() !== 'admin' && !isValidEmail(email)) return showToast('Informe um e-mail válido.', 'error');
   try {
     const user = await loginWithSupabase(email, password);
     saveSession(user);
     window.location.href = 'index.html';
   } catch (error) {
-    alert(error.message || 'Erro ao entrar.');
+    showToast(error.message || 'Erro ao entrar.', 'error');
   }
 }
 
@@ -1142,19 +1250,19 @@ async function handleRegisterSubmit(event) {
   const termsAccepted = document.getElementById('registerTerms').checked;
   const parsedBirthDate = new Date(`${isoDate}T00:00:00`);
   if (!/^\d{2}\/\d{2}\/\d{4}$/.test(birthDateValue) || Number.isNaN(parsedBirthDate.getTime()) || parsedBirthDate.getDate() !== Number(birthDateParts[0]) || parsedBirthDate.getMonth() + 1 !== Number(birthDateParts[1]) || parsedBirthDate.getFullYear() !== Number(birthDateParts[2])) {
-    return alert('Informe uma data de nascimento válida no formato DD/MM/AAAA.');
+    return showToast('Informe uma data de nascimento válida no formato DD/MM/AAAA.', 'error');
   }
-  if (!termsAccepted) return alert('Você precisa concordar com os Termos de Uso e Privacidade.');
-  if (password !== confirm) return alert('As senhas não coincidem.');
+  if (!termsAccepted) return showToast('Você precisa concordar com os Termos de Uso e Privacidade.', 'error');
+  if (password !== confirm) return showToast('As senhas não coincidem.', 'error');
   try {
-    const user = await registerWithSupabase(name, username, email, password, isoDate, avatarFile);
+    const recoveryCode = generateRecoveryCode();
+    const user = await registerWithSupabase(name, username, email, password, isoDate, avatarFile, recoveryCode);
     const { data: sessionData } = await getSupabaseClient().auth.getSession();
     if (sessionData.session) saveSession(user);
-    alert('Conta criada com sucesso!');
     const redirect = new URLSearchParams(window.location.search).get('redirect');
-    window.location.href = redirect || 'index.html';
+    showRecoveryCodeModal(recoveryCode, redirect || 'index.html');
   } catch (error) {
-    alert(error.message || 'Erro ao criar conta.');
+    showToast(error.message || 'Erro ao criar conta.', 'error');
   }
 }
 
@@ -1163,7 +1271,7 @@ async function handleProfileUsernameSubmit(event) {
   const session = redirectIfLoggedOut();
   if (!session) return;
   const normalizedUsername = normalizeUsername(document.getElementById('profileUsername').value);
-  if (!normalizedUsername) return alert('Informe um nome de usuário válido.');
+  if (!normalizedUsername) return showToast('Informe um nome de usuário válido.', 'error');
   try {
     const { data: existingProfile, error: usernameCheckError } = await getSupabaseClient()
       .from('profiles')
@@ -1172,7 +1280,7 @@ async function handleProfileUsernameSubmit(event) {
       .neq('id', session.userId)
       .maybeSingle();
     if (usernameCheckError) throw usernameCheckError;
-    if (existingProfile) return alert('Este nome de usuário já está em uso. Escolha outro.');
+    if (existingProfile) return showToast('Este nome de usuário já está em uso. Escolha outro.', 'error');
 
     const { error } = await getSupabaseClient().from('profiles').update({ username: normalizedUsername }).eq('id', session.userId);
     if (error) {
@@ -1181,9 +1289,9 @@ async function handleProfileUsernameSubmit(event) {
     }
     saveSession({ ...session, id: session.userId, username: normalizedUsername });
     document.getElementById('profileUsername').value = normalizedUsername;
-    alert('Nome de usuário atualizado com sucesso.');
+    showToast('Nome de usuário atualizado com sucesso.');
   } catch (error) {
-    alert(`Não foi possível atualizar o nome de usuário: ${error.message}`);
+    showToast(`Não foi possível atualizar o nome de usuário: ${error.message}`, 'error');
   }
 }
 
@@ -1204,23 +1312,23 @@ async function handleAvatarUpdate(event) {
   event.preventDefault();
   const file = document.getElementById('profileAvatarInput').files[0];
   const session = redirectIfLoggedOut();
-  if (!session || !file) return alert('Selecione uma foto para continuar.');
+  if (!session || !file) return showToast('Selecione uma foto para continuar.', 'error');
   try {
     const avatarUrl = await uploadAvatar(file, session.userId);
     const { error } = await getSupabaseClient().from('profiles').update({ avatar_url: avatarUrl }).eq('id', session.userId);
     if (error) throw error;
     saveSession({ ...session, id: session.userId, avatar_url: avatarUrl });
     document.getElementById('profileAvatarPreview').src = avatarUrl;
-    alert('Foto de perfil atualizada com sucesso.');
+    showToast('Foto de perfil atualizada com sucesso.');
   } catch (error) {
-    alert(`Não foi possível atualizar a foto: ${error.message}`);
+    showToast(`Não foi possível atualizar a foto: ${error.message}`, 'error');
   }
 }
 
 async function handleProfileEmailSubmit(event) {
   event.preventDefault();
   const email = document.getElementById('profileEmail').value.trim().toLowerCase();
-  if (!isValidEmail(email)) return alert('Informe um e-mail válido.');
+  if (!isValidEmail(email)) return showToast('Informe um e-mail válido.', 'error');
   
   try {
     const { data, error } = await getSupabaseClient().auth.updateUser({ email });
@@ -1230,9 +1338,9 @@ async function handleProfileEmailSubmit(event) {
     await getSupabaseClient().from('profiles').update({ email }).eq('id', session.userId);
     saveSession({ ...session, id: session.userId, email: data.user?.email || email });
     
-    alert('Solicitação enviada! Por motivos de segurança, verifique a caixa de entrada do NOVO e do ANTIGO e-mail para confirmar a alteração. O login só mudará após a confirmação.');
+    showToast('Solicitação enviada. Verifique os e-mails para confirmar a alteração.');
   } catch (error) {
-    alert(`Não foi possível atualizar o e-mail: ${error.message}`);
+    showToast(`Não foi possível atualizar o e-mail: ${error.message}`, 'error');
   }
 }
 
@@ -1240,15 +1348,15 @@ async function handleProfilePasswordSubmit(event) {
   event.preventDefault();
   const password = document.getElementById('profilePassword').value;
   const confirmation = document.getElementById('profilePasswordConfirmation').value;
-  if (password !== confirmation) return alert('As senhas não coincidem.');
-  if (getPasswordStrength(password).score < 2) return alert('A senha deve ter pelo menos 8 caracteres e ser mais forte.');
+  if (password !== confirmation) return showToast('As senhas não coincidem.', 'error');
+  if (getPasswordStrength(password).score < 2) return showToast('A senha deve ter pelo menos 8 caracteres e ser mais forte.', 'error');
   try {
     const { error } = await getSupabaseClient().auth.updateUser({ password });
     if (error) throw error;
     event.currentTarget.reset();
-    alert('Senha atualizada com sucesso.');
+    showToast('Senha atualizada com sucesso.');
   } catch (error) {
-    alert(`Não foi possível atualizar a senha: ${error.message}`);
+    showToast(`Não foi possível atualizar a senha: ${error.message}`, 'error');
   }
 }
 
@@ -1262,14 +1370,14 @@ async function deleteAccount() {
     clearSession();
     window.location.href = 'index.html';
   } catch (error) {
-    alert(`Não foi possível excluir a conta. Configure a função RPC delete_user no Supabase: ${error.message}`);
+    showToast(`Não foi possível excluir a conta. Configure a função RPC delete_user no Supabase: ${error.message}`, 'error');
   }
 }
 
 async function updatePostStatus(postId) {
   const { error } = await getSupabaseClient().from('posts').update({ status: 'adopted' }).eq('id', postId).eq('user_id', getSession().userId);
   if (error) {
-    alert(`Não foi possível concluir a publicação: ${error.message}`);
+    showToast(`Não foi possível concluir a publicação: ${error.message}`, 'error');
     return;
   }
   renderUserPosts();
@@ -1333,7 +1441,7 @@ async function renderProfileFavorites() {
         <span class="mini-tag">${escapeHTML(post.animal_type)}</span>
         <h3>${escapeHTML(post.title)}</h3>
         <p>📍 ${escapeHTML(post.city || 'Localização não informada')}</p>
-        ${post.status === 'active' ? `<button class="btn btn-primary full" type="button" data-adoption-post="${post.id}">Quero Adotar!</button>` : ''}
+        ${post.status === 'active' ? `<div class="post-action-row"><button class="btn btn-primary" type="button" data-adoption-post="${post.id}">Quero Adotar!</button>${adminPostActions(post.id)}</div>` : ''}
       </div>
     </article>
   `).join('');
@@ -1384,6 +1492,7 @@ async function initializePage() {
   // configurações visuais e listeners globais
   setupPostCarouselNavigation();
   setupFavoriteInteractionsV7();
+  bindAdminActions();
   const page = document.body.dataset.page;
   updateHomeUserActions();
 
@@ -1399,6 +1508,7 @@ async function initializePage() {
     setupCategoryPage();
   } else if (page === 'login' && !getSession()) {
     document.getElementById('loginForm')?.addEventListener('submit', handleLoginSubmit);
+    setupPasswordRecovery();
   } else if (page === 'register') {
     setupRegisterBirthDateMask();
     document.getElementById('registerForm')?.addEventListener('submit', handleRegisterSubmit);
@@ -1417,7 +1527,7 @@ async function initializePage() {
     if (authData?.user) {
       const profile = await fetchProfileByUserId(authData.user.id);
       if (profile?.role !== 'admin') {
-        alert('Acesso negado. Essa tentativa foi registrada.');
+        showToast('Acesso negado. Essa tentativa foi registrada.', 'error');
         return (window.location.href = 'index.html');
       }
     } else {
@@ -1429,7 +1539,10 @@ async function initializePage() {
       getSupabaseClient().auth.signOut().then(() => { clearSession(); window.location.href = 'login.html'; });
     });
     document.getElementById('adminAccountForm')?.addEventListener('submit', handleAdminAccountSubmit);
-    bindAdminActions();
+    document.getElementById('adminUserSearchForm')?.addEventListener('submit', (event) => {
+      event.preventDefault();
+      searchAdminUsers(document.getElementById('adminUserSearch').value);
+    });
     renderAdminDashboard();
   }
 }

@@ -110,7 +110,11 @@
 
           <label>
             Instagram
-            <input type="text" name="instagram" placeholder="@usuario ou link do perfil" />
+            <span class="input-group">
+              <span class="input-group-prefix" aria-hidden="true">@</span>
+              <input type="text" name="instagram" placeholder="usuario" maxlength="30" autocomplete="off" />
+            </span>
+            <small>Use apenas letras, números, pontos e underlines.</small>
           </label>
 
           <div class="full-span photo-gallery-field">
@@ -135,6 +139,6 @@
       </form>
     </main>
 
-    <script type="module" src="script.js?v=11"></script>
+    <script type="module" src="script.js?v=12"></script>
   </body>
 </html>
