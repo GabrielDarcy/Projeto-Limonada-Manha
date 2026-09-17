@@ -6,7 +6,7 @@
     <title>Pet Amor | Gatos</title>
     <link rel="stylesheet" href="style.css" />
   </head>
-  <body>
+  <body data-page="category" data-animal-type="Gato">
     <header class="home-header">
       <div class="container home-nav">
         <a class="brand-row" href="index.html"><span class="brand-icon">🐾</span><span>Pet Amor</span></a>
@@ -18,10 +18,40 @@
         <span class="eyebrow">Adoção responsável</span>
         <h1>Gatos procurando um lar</h1>
         <p class="category-intro">Conheça gatos que esperam por uma família acolhedora e responsável.</p>
-        <div class="category-results">
-          <article class="category-result-card"><img src="https://images.unsplash.com/photo-1511044568932-338cba0ad803?auto=format&fit=crop&w=900&q=80" alt="Nina, gata para adoção" /><div><span class="mini-tag">Gato</span><h2>Nina</h2><p>Dócil, curiosa e muito carinhosa. Rio de Janeiro / RJ.</p><a class="btn btn-primary" href="index.html#recentes">Ver posts recentes</a></div></article>
+        <div class="feed-filters category-filters">
+          <label>
+            Estado
+            <select id="categoryState"><option value="">Todos os estados</option></select>
+          </label>
+          <label>
+            Cidade
+            <select id="categoryCity" disabled><option value="">Todas as cidades</option></select>
+          </label>
+          <label>
+            Raça
+            <select id="categoryBreed"><option value="">Todas as raças</option></select>
+          </label>
         </div>
+        <div class="category-results category-feed-grid" id="categoryPosts" aria-live="polite"></div>
       </div>
     </main>
+    <div class="adoption-modal" id="adoptionModal" role="dialog" aria-modal="true" aria-labelledby="modalPostTitle" hidden>
+      <div class="adoption-modal-backdrop" data-modal-close></div>
+      <article class="adoption-modal-content">
+        <button class="adoption-modal-close" type="button" aria-label="Fechar detalhes" data-modal-close>&times;</button>
+        <div id="modalImageContainer"></div>
+        <div class="adoption-modal-body">
+          <span class="mini-tag">Gato</span><h2 id="modalPostTitle"></h2>
+          <p class="modal-location" id="modalPostLocation"></p><p id="modalPostDescription"></p>
+          <section class="modal-genetics"><h3>Informações de genética</h3><dl>
+            <div><dt>Raça do animal</dt><dd id="modalBreed"></dd></div>
+            <div><dt>Raça da mãe</dt><dd id="modalMotherBreed"></dd></div>
+            <div><dt>Raça do pai</dt><dd id="modalFatherBreed"></dd></div>
+          </dl></section>
+          <section class="modal-contact"><h3>Contatos</h3><div id="modalPostContact"></div></section>
+        </div>
+      </article>
+    </div>
+    <script type="module" src="script.js"></script>
   </body>
 </html>

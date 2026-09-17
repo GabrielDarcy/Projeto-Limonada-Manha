@@ -685,6 +685,37 @@ function renderRecentPosts() {
     });
 }
 
+async function loadStates(stateField, cityField) {
+  if (!stateField || !cityField) return;
+  try {
+    const response = await fetch('https://servicodados.ibge.gov.br/api/v1/localidades/estados?orderBy=nome');
+    const states = await response.json();
+    stateField.innerHTML = '<option value="">Todos os estados</option>';
+    states.forEach((state) => {
+      stateField.insertAdjacentHTML('beforeend', `<option value="${escapeHTML(state.sigla)}">${escapeHTML(state.nome)}</option>`);
+    });
+  } catch (error) {
+    stateField.innerHTML = '<option value="">Estados indisponíveis</option>';
+  }
+}
+
+async function loadCities(stateField, cityField) {
+  if (!stateField || !cityField) return;
+  const state = stateField.value;
+  cityField.innerHTML = '<option value="">Todas as cidades</option>';
+  cityField.disabled = !state;
+  if (!state) return;
+  try {
+    const response = await fetch(`https://servicodados.ibge.gov.br/api/v1/localidades/estados/${state}/municipios`);
+    const cities = await response.json();
+    cities.forEach((city) => {
+      cityField.insertAdjacentHTML('beforeend', `<option value="${escapeHTML(city.nome)}">${escapeHTML(city.nome)}</option>`);
+    });
+  } catch (error) {
+    cityField.innerHTML = '<option value="">Cidades indisponíveis</option>';
+  }
+}
+
 function setupFeedFilters() {
   const typeField = document.getElementById('feedType');
   const breedField = document.getElementById('feedBreed');
@@ -693,33 +724,6 @@ function setupFeedFilters() {
   const cityField = document.getElementById('feedCity');
 
   if (!typeField || !breedField || !breedWrap || !stateField || !cityField) return;
-
-  const loadStates = async () => {
-    try {
-      const response = await fetch('https://servicodados.ibge.gov.br/api/v1/localidades/estados?orderBy=nome');
-      const states = await response.json();
-      stateField.innerHTML = '<option value="">Todos os estados</option>';
-      states.forEach((state) => {
-        stateField.insertAdjacentHTML('beforeend', `<option value="${escapeHTML(state.sigla)}">${escapeHTML(state.nome)}</option>`);
-      });
-    } catch (error) {
-      stateField.innerHTML = '<option value="">Estados indisponíveis</option>';
-    }
-  };
-
-  const loadCities = async () => {
-    const state = stateField.value;
-    cityField.innerHTML = '<option value="">Todas as cidades</option>';
-    cityField.disabled = !state;
-    if (!state) return;
-    try {
-      const response = await fetch(`https://servicodados.ibge.gov.br/api/v1/localidades/estados/${state}/municipios`);
-      const cities = await response.json();
-      cities.forEach((city) => {
-        cityField.insertAdjacentHTML('beforeend', `<option value="${escapeHTML(city.nome)}">${escapeHTML(city.nome)}</option>`);
-      });
-    } catch (error) {}
-  };
 
   const toggleBreedFilter = () => {
     const isVisible = typeField.value === 'Cachorro' || typeField.value === 'Gato';
@@ -739,10 +743,10 @@ function setupFeedFilters() {
   toggleBreedFilter();
   document.getElementById('applyFiltersBtn')?.addEventListener('click', renderFeed);
   breedField.addEventListener('change', renderFeed);
-  stateField.addEventListener('change', async () => { await loadCities(); renderFeed(); });
+  stateField.addEventListener('change', async () => { await loadCities(stateField, cityField); renderFeed(); });
   cityField.addEventListener('change', renderFeed);
   typeField.addEventListener('change', renderFeed);
-  loadStates();
+  loadStates(stateField, cityField);
   renderFeed();
 }
 
@@ -794,8 +798,15 @@ function getPostContact(post) {
 async function renderCategoryFeed(animalType) {
   const target = document.getElementById('categoryPosts');
   if (!target) return;
+  const stateField = document.getElementById('categoryState');
+  const cityField = document.getElementById('categoryCity');
+  const breedField = document.getElementById('categoryBreed');
   target.innerHTML = '<div class="empty-state">Carregando animais...</div>';
-  const { data, error } = await getSupabaseClient().from('posts').select('*').eq('animal_type', animalType).order('created_at', { ascending: false });
+  let query = getSupabaseClient().from('posts').select('*').eq('animal_type', animalType).order('created_at', { ascending: false });
+  if (stateField?.value) query = query.eq('state', stateField.value);
+  if (cityField?.value) query = query.eq('city', cityField.value);
+  if (breedField?.value) query = query.ilike('breed', `%${breedField.value}%`);
+  const { data, error } = await query;
 
   if (error) {
     target.innerHTML = `<div class="empty-state">Não foi possível carregar: ${escapeHTML(error.message)}</div>`;
@@ -847,7 +858,28 @@ function closeAdoptionModal() {
 }
 
 function setupCategoryPage() {
-  renderCategoryFeed('Cachorro');
+  const animalType = document.body.dataset.animalType;
+  const stateField = document.getElementById('categoryState');
+  const cityField = document.getElementById('categoryCity');
+  const breedField = document.getElementById('categoryBreed');
+  if (!animalType) return;
+  if (breedField && (animalType === 'Cachorro' || animalType === 'Gato')) {
+    const breeds = animalType === 'Cachorro' ? DOG_BREEDS : CAT_BREEDS;
+    breedField.innerHTML = '<option value="">Todas as raças</option>';
+    breeds.forEach((breed) => {
+      breedField.insertAdjacentHTML('beforeend', `<option value="${escapeHTML(breed)}">${escapeHTML(breed)}</option>`);
+    });
+  }
+  if (stateField && cityField) {
+    stateField.addEventListener('change', async () => {
+      await loadCities(stateField, cityField);
+      renderCategoryFeed(animalType);
+    });
+    cityField.addEventListener('change', () => renderCategoryFeed(animalType));
+    loadStates(stateField, cityField);
+  }
+  breedField?.addEventListener('change', () => renderCategoryFeed(animalType));
+  renderCategoryFeed(animalType);
   document.querySelectorAll('[data-modal-close]').forEach((element) => element.addEventListener('click', closeAdoptionModal));
   document.addEventListener('keydown', (event) => { if (event.key === 'Escape') closeAdoptionModal(); });
 }

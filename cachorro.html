@@ -10,7 +10,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
     <link rel="stylesheet" href="style.css" />
   </head>
-  <body data-page="category">
+  <body data-page="category" data-animal-type="Cachorro">
     <header class="home-header">
       <div class="container home-nav">
         <a class="brand-row" href="index.html"><span class="brand-icon">🐾</span><span>Pet Amor</span></a>
@@ -26,6 +26,20 @@
         <span class="eyebrow">Adoção responsável</span>
         <h1>Cachorros esperando por um lar</h1>
         <p class="category-intro">Encontre cachorros companheiros que estão esperando por uma nova chance.</p>
+        <div class="feed-filters category-filters">
+          <label>
+            Estado
+            <select id="categoryState"><option value="">Todos os estados</option></select>
+          </label>
+          <label>
+            Cidade
+            <select id="categoryCity" disabled><option value="">Todas as cidades</option></select>
+          </label>
+          <label id="categoryBreedWrap">
+            Raça
+            <select id="categoryBreed"><option value="">Todas as raças</option></select>
+          </label>
+        </div>
         <div class="category-results category-feed-grid" id="categoryPosts" aria-live="polite"></div>
       </div>
     </main>
