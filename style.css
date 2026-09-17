@@ -752,17 +752,21 @@ th {
   stroke: currentColor;
 }
 
+.header-favorite-link,
 .header-favorites-link {
-  display: grid;
-  place-items: center;
-  width: 44px;
-  height: 44px;
+  width: 46px;
+  height: 46px;
+  align-items: center;
+  justify-content: center;
+  display: flex;
   border-radius: 50%;
   background: #fce7f3;
   color: #db2777;
   transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
+.header-favorite-link:hover,
+.header-favorite-link:focus-visible,
 .header-favorites-link:hover,
 .header-favorites-link:focus-visible {
   transform: translateY(-2px);
@@ -791,6 +795,33 @@ th {
 
 .recent-post-body {
   padding: 20px;
+}
+
+.post-author-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.post-author-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+  border: 1px solid rgba(31, 27, 27, 0.08);
+}
+
+.post-author-name {
+  font-weight: 800;
+  color: var(--text);
+  font-size: 0.95rem;
+}
+
+.post-author-username {
+  color: var(--muted);
+  font-size: 0.82rem;
 }
 
 .recent-post-body h3 {

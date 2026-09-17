@@ -40,13 +40,19 @@
           </label>
 
           <label>
+            Nome de usuário
+            <input type="text" id="registerUsername" placeholder="@seuusuario" autocomplete="username" required />
+            <small>Use letras, números, ponto ou underscore.</small>
+          </label>
+
+          <label>
             E-mail
             <input type="email" id="registerEmail" placeholder="seu@email.com" required />
           </label>
 
           <label>
             Data de nascimento
-            <input type="date" id="registerBirthDate" required />
+            <input type="text" id="registerBirthDate" placeholder="DD/MM/AAAA" inputmode="numeric" maxlength="10" required />
           </label>
 
           <label class="file-field">
@@ -84,6 +90,6 @@
       </div>
     </div>
 
-    <script type="module" src="script.js?v=6"></script>
+    <script type="module" src="script.js?v=10"></script>
   </body>
 </html>

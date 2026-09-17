@@ -53,6 +53,15 @@
         </article>
 
         <div class="profile-settings">
+          <form id="profileUsernameForm" class="panel profile-form">
+            <div class="panel-header"><h2>Alterar nome de usuário</h2></div>
+            <label>
+              @username
+              <input type="text" id="profileUsername" placeholder="@seuusuario" autocomplete="username" required />
+            </label>
+            <button type="submit" class="btn btn-primary">Atualizar username</button>
+          </form>
+
           <form id="profileEmailForm" class="panel profile-form">
             <div class="panel-header"><h2>Alterar e-mail</h2></div>
             <label>
@@ -95,6 +104,6 @@
       </div>
     </footer>
 
-    <script type="module" src="script.js?v=6"></script>
+    <script type="module" src="script.js?v=10"></script>
   </body>
 </html>

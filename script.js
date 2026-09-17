@@ -58,6 +58,7 @@ function saveSession(user) {
     role: user.role || 'user',
     email: user.email,
     name: user.name || user.full_name || user.email,
+    username: user.username || null,
     birth_date: user.birth_date || null,
     avatar_url: user.avatar_url || null,
     favorite_posts: Array.isArray(user.favorite_posts) ? user.favorite_posts.map((id) => String(id)) : []
@@ -67,6 +68,10 @@ function saveSession(user) {
 
 function getSession() {
   return readStorage(STORAGE_KEYS.session, null);
+}
+
+function normalizeUsername(value) {
+  return String(value || '').trim().toLowerCase().replace(/^@+/, '').replace(/[^a-z0-9._]/g, '');
 }
 
 function getFavoriteIds() {
@@ -99,7 +104,15 @@ async function toggleFavorite(postId) {
 
 function favoriteButtonHTML(postId) {
   const favorite = isFavorite(postId);
-  return `<button class="favorite-button${favorite ? ' is-favorite' : ''}" type="button" data-favorite-id="${escapeHTML(postId)}" aria-label="${favorite ? 'Remover dos favoritos' : 'Adicionar aos favoritos'}" aria-pressed="${favorite}"><svg class="favorite-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78L12 21.23l8.84-8.84a5.5 5.5 0 0 0 0-7.78Z"></path></svg></button>`;
+  return `<button class="favorite-button${favorite ? ' is-favorite' : ''}" type="button" data-favorite-id="${escapeHTML(postId)}" aria-label="Favoritar" aria-pressed="${favorite}"><svg viewBox="0 0 24 24" width="22" height="22" stroke="currentColor" stroke-width="2" fill="${favorite ? 'currentColor' : 'none'}" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0 7.78 7.78l1.06-1.06L12 21.23l-7.78-7.78-1.06-1.06a5.5 5.5 0 0 0 7.78-7.78L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 0Z"></path></svg></button>`;
+}
+
+function renderAuthorBar(profile) {
+  const authorProfile = Array.isArray(profile) ? profile[0] : profile;
+  const firstName = authorProfile?.full_name?.split(' ')[0] || 'Usuário';
+  const username = authorProfile?.username ? `@${authorProfile.username.replace(/^@/, '')}` : '';
+  const avatarUrl = authorProfile?.avatar_url || 'https://placehold.co/56x56/ffe8ce/7a3d16?text=🐾';
+  return `<div class="post-author-bar"><img class="post-author-avatar" src="${escapeHTML(avatarUrl)}" alt="Foto de ${escapeHTML(firstName)}"><span class="post-author-name">${escapeHTML(firstName)}</span>${username ? `<span class="post-author-username">${escapeHTML(username)}</span>` : ''}</div>`;
 }
 
 function sortPostsByProximity(posts, cityValue) {
@@ -188,6 +201,7 @@ async function loginWithSupabase(email, password) {
     name: profile?.full_name || data.user.user_metadata?.full_name || data.user.email,
     role: profile?.role || 'user',
     status: profile?.status || 'active',
+    username: profile?.username || null,
     birth_date: profile?.birth_date || null,
     avatar_url: profile?.avatar_url || null,
     favorite_posts: profile?.favorite_posts || []
@@ -258,8 +272,10 @@ async function uploadAvatar(file, userId) {
   return `${publicUrlData.publicUrl}?t=${Date.now()}`;
 }
 
-async function registerWithSupabase(name, email, password, birthDate, avatarFile) {
+async function registerWithSupabase(name, username, email, password, birthDate, avatarFile) {
   if (!name || !name.trim()) throw new Error('Informe seu nome completo.');
+  const normalizedUsername = normalizeUsername(username);
+  if (!normalizedUsername) throw new Error('Informe um nome de usuário válido.');
   if (!isValidEmail(email)) throw new Error('Use um e-mail válido com domínio conhecido.');
   if (!birthDate) throw new Error('Informe sua data de nascimento.');
   if (new Date(`${birthDate}T00:00:00`) > new Date()) throw new Error('A data de nascimento não pode estar no futuro.');
@@ -270,6 +286,10 @@ async function registerWithSupabase(name, email, password, birthDate, avatarFile
   }
 
   const client = getSupabaseClient();
+  const { data: existingProfile, error: usernameCheckError } = await client.from('profiles').select('id').eq('username', normalizedUsername).maybeSingle();
+  if (usernameCheckError) throw new Error(`Não foi possível validar o nome de usuário: ${usernameCheckError.message}`);
+  if (existingProfile) throw new Error('Este nome de usuário já está em uso. Escolha outro.');
+
   const { data, error } = await client.auth.signUp({
     email,
     password,
@@ -285,6 +305,7 @@ async function registerWithSupabase(name, email, password, birthDate, avatarFile
     const { error: profileError } = await client.from('profiles').update({
       email,
       full_name: name.trim(),
+      username: normalizedUsername,
       birth_date: birthDate,
       avatar_url: avatarUrl,
       status: 'active'
@@ -296,6 +317,7 @@ async function registerWithSupabase(name, email, password, birthDate, avatarFile
     id: userId,
     email,
     name: name.trim(),
+    username: normalizedUsername,
     role: 'user',
     status: 'active',
     birth_date: birthDate,
@@ -329,6 +351,11 @@ function updateHomeUserActions() {
     <a href="profile.html" class="profile-avatar-link" aria-label="Abrir meu perfil"><img class="profile-avatar" src="${escapeHTML(avatarUrl)}" alt="Foto de perfil de ${escapeHTML(session.name)}"></a>
     <button class="btn btn-secondary" id="homeLogoutButton">Sair</button>
   `;
+
+  actionsNode.innerHTML = actionsNode.innerHTML.replace('header-favorites-link', 'header-favorite-link');
+  const headerFavoriteLink = actionsNode.querySelector('.header-favorite-link');
+  headerFavoriteLink?.classList.add('header-favorite-link');
+  headerFavoriteLink?.querySelector('svg')?.setAttribute('fill', 'currentColor');
 
   document.getElementById('homeLogoutButton')?.addEventListener('click', () => {
     getSupabaseClient().auth.signOut().finally(() => {
@@ -686,7 +713,7 @@ function renderFeed() {
   const breedValue = (breedField?.value || '').trim().toLowerCase();
   const breedLabel = breedField?.selectedOptions[0]?.textContent || breedValue;
 
-  let query = getSupabaseClient().from('posts').select('*').eq('status', 'active').order('created_at', { ascending: false });
+  let query = getSupabaseClient().from('posts').select('*, profiles(full_name, username, avatar_url)').eq('status', 'active').order('created_at', { ascending: false });
   
   if (stateValue) query = query.eq('state', stateValue);
   if (typeValue !== 'Todos') query = query.eq('animal_type', typeValue);
@@ -708,6 +735,7 @@ function renderFeed() {
         ${favoriteButtonHTML(post.id)}
         ${generateImageCarouselHTML(post.image_urls, post.title)}
         <div class="feed-card-body">
+          ${renderAuthorBar(post.profiles)}
           <div class="feed-card-header">
             <div>
               <span class="mini-tag">${escapeHTML(post.animal_type)}</span>
@@ -737,7 +765,7 @@ function renderRecentPosts() {
   const target = document.getElementById('recentPosts');
   if (!target) return;
 
-  getSupabaseClient().from('posts').select('*').eq('status', 'active').order('created_at', { ascending: false }).limit(3)
+  getSupabaseClient().from('posts').select('*, profiles(full_name, username, avatar_url)').eq('status', 'active').order('created_at', { ascending: false }).limit(3)
     .then(({ data, error }) => {
       if (error) throw error;
       target.innerHTML = (data || []).map((post) => `
@@ -746,6 +774,7 @@ function renderRecentPosts() {
             ${post.status === 'adopted' ? '<div class="adopted-ribbon">Já fui adotado! 🐾</div>' : ''}
           ${generateImageCarouselHTML(post.image_urls, post.title)}
           <div class="recent-post-body">
+            ${renderAuthorBar(post.profiles)}
             <span class="mini-tag">${escapeHTML(post.animal_type)}</span>
             <h3>${escapeHTML(post.title)}</h3>
             <p>${escapeHTML(post.description)}</p>
@@ -882,7 +911,7 @@ async function renderCategoryFeed(animalType) {
   const cityField = document.getElementById('categoryCity');
   const breedField = document.getElementById('categoryBreed');
   target.innerHTML = '<div class="empty-state">Carregando animais...</div>';
-  let query = getSupabaseClient().from('posts').select('*').eq('animal_type', animalType).eq('status', 'active').order('created_at', { ascending: false });
+  let query = getSupabaseClient().from('posts').select('*, profiles(full_name, username, avatar_url)').eq('animal_type', animalType).eq('status', 'active').order('created_at', { ascending: false });
   if (stateField?.value) query = query.eq('state', stateField.value);
   if (breedField?.value) query = query.ilike('breed', `%${breedField.value}%`);
   const { data, error } = await query;
@@ -901,6 +930,7 @@ async function renderCategoryFeed(animalType) {
       ${favoriteButtonHTML(post.id)}
       ${generateImageCarouselHTML(post.image_urls, post.title)}
       <div class="category-pet-card-body">
+        ${renderAuthorBar(post.profiles)}
         <h2>${escapeHTML(post.title)}</h2>
         <p class="category-pet-location">📍 ${escapeHTML(post.city || 'Localização não informada')}</p>
         <button class="btn btn-primary full" type="button" data-adoption-post="${post.id}">Quero Adotar!</button>
@@ -919,7 +949,7 @@ async function renderFavorites() {
     return;
   }
 
-  const { data, error } = await getSupabaseClient().from('posts').select('*').in('id', favoriteIds);
+  const { data, error } = await getSupabaseClient().from('posts').select('*, profiles(full_name, username, avatar_url)').in('id', favoriteIds);
   if (error) {
     target.innerHTML = `<div class="empty-state">Não foi possível carregar seus favoritos: ${escapeHTML(error.message)}</div>`;
     return;
@@ -936,6 +966,7 @@ async function renderFavorites() {
       ${post.status === 'adopted' ? '<div class="adopted-ribbon">Já fui adotado! 🐾</div>' : ''}
       ${generateImageCarouselHTML(post.image_urls, post.title)}
       <div class="recent-post-body">
+        ${renderAuthorBar(post.profiles)}
         <span class="mini-tag">${escapeHTML(post.animal_type)}</span>
         <h3>${escapeHTML(post.title)}</h3>
         <p>${escapeHTML(post.description)}</p>
@@ -1056,6 +1087,28 @@ function setupFavoriteInteractions() {
   });
 }
 
+function setupFavoriteInteractionsV7() {
+  document.body.addEventListener('click', async (event) => {
+    const button = event.target.closest('[data-favorite-id]');
+    if (!button) return;
+    event.preventDefault();
+    event.stopPropagation();
+    try {
+      const favorite = await toggleFavorite(button.dataset.favoriteId);
+      document.querySelectorAll(`[data-favorite-id="${button.dataset.favoriteId}"]`).forEach((favoriteButton) => {
+        const svg = favoriteButton.querySelector('svg');
+        favoriteButton.classList.toggle('is-favorite', favorite);
+        svg?.setAttribute('fill', favorite ? 'currentColor' : 'none');
+        favoriteButton.setAttribute('aria-pressed', String(favorite));
+      });
+      if (!getSession()) alert('Favorito salvo neste dispositivo. Faça login para sincronizar seus favoritos.');
+      if (document.getElementById('profileFavoritePosts')) renderProfileFavorites();
+    } catch (error) {
+      alert(error.message);
+    }
+  });
+}
+
 async function handleLoginSubmit(event) {
   event.preventDefault();
   const email = document.getElementById('loginEmail').value.trim();
@@ -1073,16 +1126,25 @@ async function handleLoginSubmit(event) {
 async function handleRegisterSubmit(event) {
   event.preventDefault();
   const name = document.getElementById('registerName').value.trim();
+  const username = document.getElementById('registerUsername').value.trim();
   const email = document.getElementById('registerEmail').value.trim();
-  const birthDate = document.getElementById('registerBirthDate').value;
+  const birthDateValue = document.getElementById('registerBirthDate').value.trim();
+  const birthDateParts = birthDateValue.split('/');
+  const isoDate = birthDateParts.length === 3
+    ? `${birthDateParts[2]}-${birthDateParts[1]}-${birthDateParts[0]}`
+    : '';
   const avatarFile = document.getElementById('registerAvatar').files[0];
   const password = document.getElementById('registerPassword').value.trim();
   const confirm = document.getElementById('registerConfirmPassword').value.trim();
   const termsAccepted = document.getElementById('registerTerms').checked;
+  const parsedBirthDate = new Date(`${isoDate}T00:00:00`);
+  if (!/^\d{2}\/\d{2}\/\d{4}$/.test(birthDateValue) || Number.isNaN(parsedBirthDate.getTime()) || parsedBirthDate.getDate() !== Number(birthDateParts[0]) || parsedBirthDate.getMonth() + 1 !== Number(birthDateParts[1]) || parsedBirthDate.getFullYear() !== Number(birthDateParts[2])) {
+    return alert('Informe uma data de nascimento válida no formato DD/MM/AAAA.');
+  }
   if (!termsAccepted) return alert('Você precisa concordar com os Termos de Uso e Privacidade.');
   if (password !== confirm) return alert('As senhas não coincidem.');
   try {
-    const user = await registerWithSupabase(name, email, password, birthDate, avatarFile);
+    const user = await registerWithSupabase(name, username, email, password, isoDate, avatarFile);
     const { data: sessionData } = await getSupabaseClient().auth.getSession();
     if (sessionData.session) saveSession(user);
     alert('Conta criada com sucesso!');
@@ -1091,6 +1153,48 @@ async function handleRegisterSubmit(event) {
   } catch (error) {
     alert(error.message || 'Erro ao criar conta.');
   }
+}
+
+async function handleProfileUsernameSubmit(event) {
+  event.preventDefault();
+  const session = redirectIfLoggedOut();
+  if (!session) return;
+  const normalizedUsername = normalizeUsername(document.getElementById('profileUsername').value);
+  if (!normalizedUsername) return alert('Informe um nome de usuário válido.');
+  try {
+    const { data: existingProfile, error: usernameCheckError } = await getSupabaseClient()
+      .from('profiles')
+      .select('id')
+      .eq('username', normalizedUsername)
+      .neq('id', session.userId)
+      .maybeSingle();
+    if (usernameCheckError) throw usernameCheckError;
+    if (existingProfile) return alert('Este nome de usuário já está em uso. Escolha outro.');
+
+    const { error } = await getSupabaseClient().from('profiles').update({ username: normalizedUsername }).eq('id', session.userId);
+    if (error) {
+      if (error.code === '23505') throw new Error('Este nome de usuário já está em uso. Escolha outro.');
+      throw error;
+    }
+    saveSession({ ...session, id: session.userId, username: normalizedUsername });
+    document.getElementById('profileUsername').value = normalizedUsername;
+    alert('Nome de usuário atualizado com sucesso.');
+  } catch (error) {
+    alert(`Não foi possível atualizar o nome de usuário: ${error.message}`);
+  }
+}
+
+function setupRegisterBirthDateMask() {
+  const field = document.getElementById('registerBirthDate');
+  if (!field) return;
+  field.addEventListener('input', (event) => {
+    const digits = event.target.value.replace(/\D/g, '').slice(0, 8);
+    const parts = [];
+    if (digits.length > 0) parts.push(digits.slice(0, 2));
+    if (digits.length > 2) parts.push(digits.slice(2, 4));
+    if (digits.length > 4) parts.push(digits.slice(4, 8));
+    event.target.value = parts.join('/');
+  });
 }
 
 async function handleAvatarUpdate(event) {
@@ -1173,7 +1277,7 @@ async function renderUserPosts() {
   const session = getSession();
   if (!target || !session) return;
   target.innerHTML = '<div class="empty-state">Carregando suas publicações...</div>';
-  const { data, error } = await getSupabaseClient().from('posts').select('*').eq('user_id', session.userId).order('created_at', { ascending: false });
+  const { data, error } = await getSupabaseClient().from('posts').select('*, profiles(full_name, username, avatar_url)').eq('user_id', session.userId).order('created_at', { ascending: false });
   if (error) {
     target.innerHTML = `<div class="empty-state">Não foi possível carregar suas publicações: ${escapeHTML(error.message)}</div>`;
     return;
@@ -1188,6 +1292,7 @@ async function renderUserPosts() {
       ${post.status === 'adopted' ? '<div class="adopted-ribbon">Concluído 🐾</div>' : ''}
       ${generateImageCarouselHTML(post.image_urls, post.title)}
       <div class="profile-post-card-body">
+        ${renderAuthorBar(post.profiles)}
         <span class="mini-tag">${escapeHTML(post.animal_type)}</span>
         <h3>${escapeHTML(post.title)}</h3>
         <p>📍 ${escapeHTML(post.city || 'Localização não informada')}</p>
@@ -1209,7 +1314,7 @@ async function renderProfileFavorites() {
     target.innerHTML = '<div class="empty-state">Você ainda não favoritou nenhum animal.</div>';
     return;
   }
-  const { data, error } = await getSupabaseClient().from('posts').select('*').in('id', favoriteIds);
+  const { data, error } = await getSupabaseClient().from('posts').select('*, profiles(full_name, username, avatar_url)').in('id', favoriteIds);
   if (error) {
     target.innerHTML = `<div class="empty-state">Não foi possível carregar seus favoritos: ${escapeHTML(error.message)}</div>`;
     return;
@@ -1221,6 +1326,7 @@ async function renderProfileFavorites() {
       ${post.status === 'adopted' ? '<div class="adopted-ribbon">Já fui adotado! 🐾</div>' : ''}
       ${generateImageCarouselHTML(post.image_urls, post.title)}
       <div class="profile-post-card-body">
+        ${renderAuthorBar(post.profiles)}
         <span class="mini-tag">${escapeHTML(post.animal_type)}</span>
         <h3>${escapeHTML(post.title)}</h3>
         <p>📍 ${escapeHTML(post.city || 'Localização não informada')}</p>
@@ -1238,6 +1344,8 @@ function setupProfilePage() {
   avatarPreview.src = session.avatar_url || 'https://placehold.co/160x160/ffe8ce/7a3d16?text=🐾';
   document.getElementById('profileName').textContent = session.name;
   document.getElementById('profileEmail').value = session.email || '';
+  document.getElementById('profileUsername').value = session.username || '';
+  document.getElementById('profileUsernameForm')?.addEventListener('submit', handleProfileUsernameSubmit);
   document.getElementById('profileAvatarForm')?.addEventListener('submit', handleAvatarUpdate);
   document.getElementById('profileEmailForm')?.addEventListener('submit', handleProfileEmailSubmit);
   document.getElementById('profilePasswordForm')?.addEventListener('submit', handleProfilePasswordSubmit);
@@ -1259,6 +1367,7 @@ async function initializePage() {
       id: data.user.id,
       email: data.user.email,
       name: profile?.full_name || data.user.user_metadata?.full_name || data.user.email,
+      username: profile?.username || null,
       role: profile?.role || 'user',
       status: profile?.status || 'active',
       birth_date: profile?.birth_date || null,
@@ -1271,7 +1380,7 @@ async function initializePage() {
 
   // configurações visuais e listeners globais
   setupPostCarouselNavigation();
-  setupFavoriteInteractions();
+  setupFavoriteInteractionsV7();
   const page = document.body.dataset.page;
   updateHomeUserActions();
 
@@ -1288,6 +1397,7 @@ async function initializePage() {
   } else if (page === 'login' && !getSession()) {
     document.getElementById('loginForm')?.addEventListener('submit', handleLoginSubmit);
   } else if (page === 'register') {
+    setupRegisterBirthDateMask();
     document.getElementById('registerForm')?.addEventListener('submit', handleRegisterSubmit);
   } else if (page === 'create-post' && redirectIfLoggedOut()) {
     setupCreatePostForm();
