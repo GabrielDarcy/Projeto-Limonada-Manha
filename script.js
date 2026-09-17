@@ -3,7 +3,8 @@ import { supabase } from './supabase.js';
 const STORAGE_KEYS = {
   users: 'petamor_users',
   ads: 'petamor_ads',
-  session: 'petamor_session'
+  session: 'petamor_session',
+  favorites: 'petamor_favorites'
 };
 
 const ALLOWED_EMAIL_DOMAINS = ['gmail.com', 'outlook.com', 'hotmail.com', 'yahoo.com', 'icloud.com', 'live.com'];
@@ -58,13 +59,74 @@ function saveSession(user) {
     email: user.email,
     name: user.name || user.full_name || user.email,
     birth_date: user.birth_date || null,
-    avatar_url: user.avatar_url || null
+    avatar_url: user.avatar_url || null,
+    favorite_posts: Array.isArray(user.favorite_posts) ? user.favorite_posts.map((id) => String(id)) : []
   };
   writeStorage(STORAGE_KEYS.session, payload);
 }
 
 function getSession() {
   return readStorage(STORAGE_KEYS.session, null);
+}
+
+function getFavoriteIds() {
+  const session = getSession();
+  if (session && Array.isArray(session.favorite_posts)) return session.favorite_posts.map((id) => String(id));
+  const favorites = readStorage(STORAGE_KEYS.favorites, []);
+  return Array.isArray(favorites) ? favorites.map((id) => String(id)) : [];
+}
+
+function isFavorite(postId) {
+  return getFavoriteIds().includes(String(postId));
+}
+
+async function toggleFavorite(postId) {
+  const normalizedId = String(postId);
+  const session = getSession();
+  const favorites = getFavoriteIds();
+  const nextFavorites = favorites.includes(normalizedId)
+    ? favorites.filter((id) => id !== normalizedId)
+    : [...favorites, normalizedId];
+  if (session) {
+    const { error } = await getSupabaseClient().from('profiles').update({ favorite_posts: nextFavorites }).eq('id', session.userId);
+    if (error) throw new Error(`Não foi possível atualizar seus favoritos: ${error.message}`);
+    saveSession({ ...session, id: session.userId, favorite_posts: nextFavorites });
+  } else {
+    writeStorage(STORAGE_KEYS.favorites, nextFavorites);
+  }
+  return nextFavorites.includes(normalizedId);
+}
+
+function favoriteButtonHTML(postId) {
+  const favorite = isFavorite(postId);
+  return `<button class="favorite-button${favorite ? ' is-favorite' : ''}" type="button" data-favorite-id="${escapeHTML(postId)}" aria-label="${favorite ? 'Remover dos favoritos' : 'Adicionar aos favoritos'}" aria-pressed="${favorite}">${favorite ? '♥' : '♡'}</button>`;
+}
+
+function sortPostsByProximity(posts, cityValue) {
+  if (!cityValue) return posts;
+  const normalizedCity = cityValue.trim().toLowerCase();
+  return [...posts].sort((firstPost, secondPost) => {
+    const firstIsNearby = String(firstPost.city || '').trim().toLowerCase() === normalizedCity;
+    const secondIsNearby = String(secondPost.city || '').trim().toLowerCase() === normalizedCity;
+    return Number(secondIsNearby) - Number(firstIsNearby);
+  });
+}
+
+function renderProximityDivider(posts, cityValue, renderCard) {
+  const cards = sortPostsByProximity(posts, cityValue).map((post, index, sortedPosts) => {
+    const isFirstOtherCity = cityValue && index > 0
+      && String(sortedPosts[index - 1].city || '').trim().toLowerCase() === cityValue.trim().toLowerCase()
+      && String(post.city || '').trim().toLowerCase() !== cityValue.trim().toLowerCase();
+    return `${isFirstOtherCity ? '<div class="proximity-divider">Animais próximos em outras cidades</div>' : ''}${renderCard(post)}`;
+  });
+  return cards.join('');
+}
+
+function bindAdoptionButtons(target, posts) {
+  const postsById = new Map(posts.map((post) => [String(post.id), post]));
+  target.querySelectorAll('[data-adoption-post]').forEach((button) => {
+    button.addEventListener('click', () => openAdoptionModal(postsById.get(button.dataset.adoptionPost)));
+  });
 }
 
 function isValidEmail(email) {
@@ -127,7 +189,8 @@ async function loginWithSupabase(email, password) {
     role: profile?.role || 'user',
     status: profile?.status || 'active',
     birth_date: profile?.birth_date || null,
-    avatar_url: profile?.avatar_url || null
+    avatar_url: profile?.avatar_url || null,
+    favorite_posts: profile?.favorite_posts || []
   };
 }
 
@@ -236,7 +299,8 @@ async function registerWithSupabase(name, email, password, birthDate, avatarFile
     role: 'user',
     status: 'active',
     birth_date: birthDate,
-    avatar_url: avatarUrl
+    avatar_url: avatarUrl,
+    favorite_posts: []
   };
 }
 
@@ -258,6 +322,7 @@ function updateHomeUserActions() {
   actionsNode.innerHTML = `
     ${isAdmin ? '<a href="admin.html" class="btn btn-primary">Dashboard admin</a>' : ''}
     <a href="create-post.html" class="btn btn-secondary">Criar publicação</a>
+    <a href="profile.html#publicacoes" class="btn btn-secondary">Minhas publicações</a>
     <a href="profile.html" class="profile-avatar-link" aria-label="Abrir meu perfil"><img class="profile-avatar" src="${escapeHTML(avatarUrl)}" alt="Foto de perfil de ${escapeHTML(session.name)}"></a>
     <button class="btn btn-secondary" id="homeLogoutButton">Sair</button>
   `;
@@ -276,6 +341,20 @@ function setupDonationRedirect() {
   button.addEventListener('click', (event) => {
     event.preventDefault();
     window.location.href = getSession() ? 'create-post.html' : 'register.html?redirect=create-post.html';
+  });
+}
+
+function setupSupportModal() {
+  const modal = document.getElementById('supportModal');
+  const openButton = document.getElementById('helpSiteButton');
+  if (!modal || !openButton) return;
+  openButton.addEventListener('click', () => { modal.hidden = false; });
+  modal.querySelectorAll('[data-support-close]').forEach((element) => {
+    element.addEventListener('click', () => { modal.hidden = true; });
+  });
+  document.getElementById('copySupportEmail')?.addEventListener('click', async () => {
+    await navigator.clipboard.writeText(document.getElementById('supportEmail').textContent);
+    document.getElementById('copySupportEmail').textContent = 'E-mail copiado';
   });
 }
 
@@ -564,7 +643,7 @@ async function handleCreatePostSubmit(event) {
     const imageUrls = await Promise.all(photoFiles.map((file) => uploadPostImage(file)));
     const contatoFinal = `Tel: ${phone || 'Não informado'} | Email: ${email || 'Não informado'} | IG: ${instagram || 'Não informado'}`;
 
-    const post = {
+      const post = {
       user_id: userData.user.id,
       title,
       description,
@@ -575,7 +654,8 @@ async function handleCreatePostSubmit(event) {
       breed: breed || 'Não informado',
       mother_breed: motherBreed,
       father_breed: fatherBreed,
-      image_urls: imageUrls
+      image_urls: imageUrls,
+      status: 'active'
     };
 
     const { error } = await getSupabaseClient().from('posts').insert([post]).select().single();
@@ -603,11 +683,9 @@ function renderFeed() {
   const breedValue = (breedField?.value || '').trim().toLowerCase();
   const breedLabel = breedField?.selectedOptions[0]?.textContent || breedValue;
 
-  let query = getSupabaseClient().from('posts').select('*').order('created_at', { ascending: false });
+  let query = getSupabaseClient().from('posts').select('*').eq('status', 'active').order('created_at', { ascending: false });
   
-  // Corrigido o bug do filtro de estado ser ignorado
   if (stateValue) query = query.eq('state', stateValue);
-  if (cityValue) query = query.eq('city', cityValue);
   if (typeValue !== 'Todos') query = query.eq('animal_type', typeValue);
   if (breedValue) query = query.ilike('breed', `%${breedValue}%`);
 
@@ -622,8 +700,9 @@ function renderFeed() {
       return;
     }
 
-    feedTarget.innerHTML = filteredPosts.map((post) => `
+    feedTarget.innerHTML = renderProximityDivider(filteredPosts, cityValue, (post) => `
       <article class="feed-card">
+        ${favoriteButtonHTML(post.id)}
         ${generateImageCarouselHTML(post.image_urls, post.title)}
         <div class="feed-card-body">
           <div class="feed-card-header">
@@ -644,12 +723,8 @@ function renderFeed() {
           <button class="btn btn-primary full" style="margin-top: 16px;" type="button" data-adoption-post="${post.id}">Quero Adotar!</button>
         </div>
       </article>
-    `).join('');
-
-    const postsById = new Map(filteredPosts.map((post) => [String(post.id), post]));
-    feedTarget.querySelectorAll('[data-adoption-post]').forEach((button) => {
-      button.addEventListener('click', () => openAdoptionModal(postsById.get(button.dataset.adoptionPost)));
-    });
+    `);
+    bindAdoptionButtons(feedTarget, filteredPosts);
   }).catch((error) => {
     feedTarget.innerHTML = `<div class="empty-state">Não foi possível carregar as publicações: ${escapeHTML(error.message)}</div>`;
   });
@@ -659,18 +734,20 @@ function renderRecentPosts() {
   const target = document.getElementById('recentPosts');
   if (!target) return;
 
-  getSupabaseClient().from('posts').select('*').order('created_at', { ascending: false }).limit(3)
+  getSupabaseClient().from('posts').select('*').eq('status', 'active').order('created_at', { ascending: false }).limit(3)
     .then(({ data, error }) => {
       if (error) throw error;
       target.innerHTML = (data || []).map((post) => `
-        <article class="recent-post-card">
+        <article class="recent-post-card ${post.status === 'adopted' ? 'adopted-card' : ''}">
+          ${favoriteButtonHTML(post.id)}
+            ${post.status === 'adopted' ? '<div class="adopted-ribbon">Já fui adotado! 🐾</div>' : ''}
           ${generateImageCarouselHTML(post.image_urls, post.title)}
           <div class="recent-post-body">
             <span class="mini-tag">${escapeHTML(post.animal_type)}</span>
             <h3>${escapeHTML(post.title)}</h3>
             <p>${escapeHTML(post.description)}</p>
             <span class="recent-post-location">📍 ${escapeHTML(post.city)}</span>
-            <button class="btn btn-primary full" style="margin-top: 16px;" type="button" data-adoption-post="${post.id}">Quero Adotar!</button>
+            ${post.status === 'active' ? `<button class="btn btn-primary full" style="margin-top: 16px;" type="button" data-adoption-post="${post.id}">Quero Adotar!</button>` : ''}
           </div>
         </article>
       `).join('');
@@ -802,9 +879,8 @@ async function renderCategoryFeed(animalType) {
   const cityField = document.getElementById('categoryCity');
   const breedField = document.getElementById('categoryBreed');
   target.innerHTML = '<div class="empty-state">Carregando animais...</div>';
-  let query = getSupabaseClient().from('posts').select('*').eq('animal_type', animalType).order('created_at', { ascending: false });
+  let query = getSupabaseClient().from('posts').select('*').eq('animal_type', animalType).eq('status', 'active').order('created_at', { ascending: false });
   if (stateField?.value) query = query.eq('state', stateField.value);
-  if (cityField?.value) query = query.eq('city', cityField.value);
   if (breedField?.value) query = query.ilike('breed', `%${breedField.value}%`);
   const { data, error } = await query;
 
@@ -817,8 +893,9 @@ async function renderCategoryFeed(animalType) {
     return;
   }
 
-  target.innerHTML = data.map((post) => `
+  target.innerHTML = renderProximityDivider(data, cityField?.value || '', (post) => `
     <article class="category-pet-card">
+      ${favoriteButtonHTML(post.id)}
       ${generateImageCarouselHTML(post.image_urls, post.title)}
       <div class="category-pet-card-body">
         <h2>${escapeHTML(post.title)}</h2>
@@ -826,12 +903,45 @@ async function renderCategoryFeed(animalType) {
         <button class="btn btn-primary full" type="button" data-adoption-post="${post.id}">Quero Adotar!</button>
       </div>
     </article>
-  `).join('');
+  `);
+  bindAdoptionButtons(target, data);
+}
 
-  const postsById = new Map(data.map((post) => [String(post.id), post]));
-  target.querySelectorAll('[data-adoption-post]').forEach((button) => {
-    button.addEventListener('click', () => openAdoptionModal(postsById.get(button.dataset.adoptionPost)));
-  });
+async function renderFavorites() {
+  const target = document.getElementById('favoritePosts');
+  if (!target) return;
+  const favoriteIds = getFavoriteIds();
+  if (!favoriteIds.length) {
+    target.innerHTML = '<div class="empty-state">Você ainda não favoritou nenhum animal.</div>';
+    return;
+  }
+
+  const { data, error } = await getSupabaseClient().from('posts').select('*').in('id', favoriteIds);
+  if (error) {
+    target.innerHTML = `<div class="empty-state">Não foi possível carregar seus favoritos: ${escapeHTML(error.message)}</div>`;
+    return;
+  }
+  if (!data?.length) {
+    target.innerHTML = '<div class="empty-state">Seus favoritos não estão mais disponíveis.</div>';
+    return;
+  }
+
+  const orderedPosts = favoriteIds.map((id) => data.find((post) => String(post.id) === id)).filter(Boolean);
+  target.innerHTML = orderedPosts.map((post) => `
+    <article class="recent-post-card ${post.status === 'adopted' ? 'adopted-card' : ''}">
+      ${favoriteButtonHTML(post.id)}
+      ${post.status === 'adopted' ? '<div class="adopted-ribbon">Já fui adotado! 🐾</div>' : ''}
+      ${generateImageCarouselHTML(post.image_urls, post.title)}
+      <div class="recent-post-body">
+        <span class="mini-tag">${escapeHTML(post.animal_type)}</span>
+        <h3>${escapeHTML(post.title)}</h3>
+        <p>${escapeHTML(post.description)}</p>
+        <span class="recent-post-location">📍 ${escapeHTML(post.city || 'Localização não informada')}</span>
+        ${post.status === 'active' ? `<button class="btn btn-primary full" style="margin-top: 16px;" type="button" data-adoption-post="${post.id}">Quero Adotar!</button>` : ''}
+      </div>
+    </article>
+  `).join('');
+  bindAdoptionButtons(target, orderedPosts.filter((post) => post.status === 'active'));
 }
 
 function openAdoptionModal(post) {
@@ -904,6 +1014,42 @@ function setupPostCarouselNavigation() {
       dot.classList.toggle('active', index === nextIndex);
       dot.setAttribute('aria-selected', String(index === nextIndex));
     });
+  });
+}
+
+function setupFavoriteInteractions() {
+  document.body.addEventListener('click', async (event) => {
+    const button = event.target.closest('[data-favorite-id]');
+    if (!button) return;
+    event.preventDefault();
+    event.stopPropagation();
+    const postId = button.dataset.favoriteId;
+    if (!getSession()) {
+      const favorite = await toggleFavorite(postId);
+      document.querySelectorAll('[data-favorite-id]').forEach((favoriteButton) => {
+        if (favoriteButton.dataset.favoriteId !== postId) return;
+        favoriteButton.classList.toggle('is-favorite', favorite);
+        favoriteButton.textContent = favorite ? '♥' : '♡';
+        favoriteButton.setAttribute('aria-pressed', String(favorite));
+        favoriteButton.setAttribute('aria-label', favorite ? 'Remover dos favoritos' : 'Adicionar aos favoritos');
+      });
+      alert('Favorito salvo neste dispositivo. Faça login para sincronizar seus favoritos.');
+      return;
+    }
+    try {
+      const favorite = await toggleFavorite(postId);
+      document.querySelectorAll('[data-favorite-id]').forEach((favoriteButton) => {
+      if (favoriteButton.dataset.favoriteId !== postId) return;
+      favoriteButton.classList.toggle('is-favorite', favorite);
+      favoriteButton.textContent = favorite ? '♥' : '♡';
+      favoriteButton.setAttribute('aria-pressed', String(favorite));
+      favoriteButton.setAttribute('aria-label', favorite ? 'Remover dos favoritos' : 'Adicionar aos favoritos');
+      });
+      if (document.getElementById('favoritePosts')) renderFavorites();
+      if (document.getElementById('profileFavoritePosts')) renderProfileFavorites();
+    } catch (error) {
+      alert(error.message);
+    }
   });
 }
 
@@ -1010,6 +1156,78 @@ async function deleteAccount() {
   }
 }
 
+async function updatePostStatus(postId) {
+  const { error } = await getSupabaseClient().from('posts').update({ status: 'adopted' }).eq('id', postId).eq('user_id', getSession().userId);
+  if (error) {
+    alert(`Não foi possível concluir a publicação: ${error.message}`);
+    return;
+  }
+  renderUserPosts();
+}
+
+async function renderUserPosts() {
+  const target = document.getElementById('userPosts');
+  const session = getSession();
+  if (!target || !session) return;
+  target.innerHTML = '<div class="empty-state">Carregando suas publicações...</div>';
+  const { data, error } = await getSupabaseClient().from('posts').select('*').eq('user_id', session.userId).order('created_at', { ascending: false });
+  if (error) {
+    target.innerHTML = `<div class="empty-state">Não foi possível carregar suas publicações: ${escapeHTML(error.message)}</div>`;
+    return;
+  }
+  if (!data?.length) {
+    target.innerHTML = '<div class="empty-state">Você ainda não criou nenhuma publicação.</div>';
+    return;
+  }
+  target.innerHTML = data.map((post) => `
+    <article class="profile-post-card ${post.status === 'adopted' ? 'adopted-card' : ''}">
+      ${favoriteButtonHTML(post.id)}
+      ${post.status === 'adopted' ? '<div class="adopted-ribbon">Concluído 🐾</div>' : ''}
+      ${generateImageCarouselHTML(post.image_urls, post.title)}
+      <div class="profile-post-card-body">
+        <span class="mini-tag">${escapeHTML(post.animal_type)}</span>
+        <h3>${escapeHTML(post.title)}</h3>
+        <p>📍 ${escapeHTML(post.city || 'Localização não informada')}</p>
+        ${post.status === 'active' ? `<div class="post-status-actions"><button class="btn btn-secondary" type="button" data-mark-adopted="${post.id}">Já doei</button><button class="btn btn-secondary" type="button" data-mark-adopted="${post.id}">Decidi ficar com ele</button></div>` : '<span class="completed-label">Concluído</span>'}
+      </div>
+    </article>
+  `).join('');
+  target.querySelectorAll('[data-mark-adopted]').forEach((button) => {
+    button.addEventListener('click', () => updatePostStatus(button.dataset.markAdopted));
+  });
+}
+
+async function renderProfileFavorites() {
+  const target = document.getElementById('profileFavoritePosts');
+  const session = getSession();
+  if (!target || !session) return;
+  const favoriteIds = getFavoriteIds();
+  if (!favoriteIds.length) {
+    target.innerHTML = '<div class="empty-state">Você ainda não favoritou nenhum animal.</div>';
+    return;
+  }
+  const { data, error } = await getSupabaseClient().from('posts').select('*').in('id', favoriteIds);
+  if (error) {
+    target.innerHTML = `<div class="empty-state">Não foi possível carregar seus favoritos: ${escapeHTML(error.message)}</div>`;
+    return;
+  }
+  const orderedPosts = favoriteIds.map((id) => data?.find((post) => String(post.id) === id)).filter(Boolean);
+  target.innerHTML = orderedPosts.map((post) => `
+    <article class="profile-post-card ${post.status === 'adopted' ? 'adopted-card' : ''}">
+      ${favoriteButtonHTML(post.id)}
+      ${post.status === 'adopted' ? '<div class="adopted-ribbon">Já fui adotado! 🐾</div>' : ''}
+      ${generateImageCarouselHTML(post.image_urls, post.title)}
+      <div class="profile-post-card-body">
+        <span class="mini-tag">${escapeHTML(post.animal_type)}</span>
+        <h3>${escapeHTML(post.title)}</h3>
+        <p>📍 ${escapeHTML(post.city || 'Localização não informada')}</p>
+        ${post.status === 'active' ? `<button class="btn btn-primary full" type="button" data-adoption-post="${post.id}">Quero Adotar!</button>` : ''}
+      </div>
+    </article>
+  `).join('');
+  bindAdoptionButtons(target, orderedPosts.filter((post) => post.status === 'active'));
+}
+
 function setupProfilePage() {
   const session = redirectIfLoggedOut();
   if (!session) return;
@@ -1021,6 +1239,9 @@ function setupProfilePage() {
   document.getElementById('profileEmailForm')?.addEventListener('submit', handleProfileEmailSubmit);
   document.getElementById('profilePasswordForm')?.addEventListener('submit', handleProfilePasswordSubmit);
   document.getElementById('deleteAccountButton')?.addEventListener('click', deleteAccount);
+  document.querySelectorAll('[data-modal-close]').forEach((element) => element.addEventListener('click', closeAdoptionModal));
+  renderUserPosts();
+  renderProfileFavorites();
 }
 
 async function initializePage() {
@@ -1028,6 +1249,12 @@ async function initializePage() {
   const { data } = await getSupabaseClient().auth.getUser();
   if (data.user) {
     const profile = await fetchProfileByUserId(data.user.id);
+    const localFavoriteIds = readStorage(STORAGE_KEYS.favorites, []);
+    const favoritePosts = [...new Set([...(profile?.favorite_posts || []), ...(Array.isArray(localFavoriteIds) ? localFavoriteIds : [])].map((id) => String(id)))];
+    if (localFavoriteIds?.length) {
+      await getSupabaseClient().from('profiles').update({ favorite_posts: favoritePosts }).eq('id', data.user.id);
+      localStorage.removeItem(STORAGE_KEYS.favorites);
+    }
     saveSession({
       id: data.user.id,
       email: data.user.email,
@@ -1035,7 +1262,8 @@ async function initializePage() {
       role: profile?.role || 'user',
       status: profile?.status || 'active',
       birth_date: profile?.birth_date || null,
-      avatar_url: profile?.avatar_url || null
+      avatar_url: profile?.avatar_url || null,
+      favorite_posts: favoritePosts
     });
   } else {
     clearSession();
@@ -1043,14 +1271,17 @@ async function initializePage() {
 
   // configurações visuais e listeners globais
   setupPostCarouselNavigation();
+  setupFavoriteInteractions();
   const page = document.body.dataset.page;
   updateHomeUserActions();
 
   // roteamento e Inicialização por Página
   if (page === 'home') {
     setupDonationRedirect();
+    setupSupportModal();
     document.querySelectorAll('[data-modal-close]').forEach((element) => element.addEventListener('click', closeAdoptionModal));
     renderRecentPosts();
+    renderFavorites();
     setupAdoptionCarousel();
     setupFeedFilters();
   } else if (page === 'category') {

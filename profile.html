@@ -38,7 +38,13 @@
         <p>Atualize seus dados e mantenha seu perfil pronto para a comunidade Pet Amor.</p>
       </section>
 
-      <section class="profile-grid" aria-label="Configurações da conta">
+      <nav class="profile-tabs" aria-label="Seções do perfil">
+        <a class="profile-tab active" href="#configuracoes">Configurações da Conta</a>
+        <a class="profile-tab" href="#publicacoes">Minhas Publicações</a>
+        <a class="profile-tab" href="#favoritos">Meus Favoritos</a>
+      </nav>
+
+      <section class="profile-grid" id="configuracoes" aria-label="Configurações da conta">
         <article class="panel profile-card">
           <img id="profileAvatarPreview" class="profile-avatar-large" src="https://placehold.co/160x160/ffe8ce/7a3d16?text=🐾" alt="Foto de perfil" />
           <h2 id="profileName">Meu perfil</h2>
@@ -85,7 +91,42 @@
           </section>
         </div>
       </section>
+
+      <section class="profile-section" id="publicacoes">
+        <div class="profile-section-heading">
+          <div><span class="eyebrow">Seu impacto</span><h2>Minhas Publicações</h2></div>
+          <a href="create-post.html" class="btn btn-primary">Nova publicação</a>
+        </div>
+        <div class="profile-post-grid" id="userPosts"></div>
+      </section>
+
+      <section class="profile-section" id="favoritos">
+        <div class="profile-section-heading">
+          <div><span class="eyebrow">Sua seleção</span><h2>Meus Favoritos</h2></div>
+        </div>
+        <div class="profile-post-grid" id="profileFavoritePosts"></div>
+      </section>
     </main>
+
+    <div class="adoption-modal" id="adoptionModal" role="dialog" aria-modal="true" aria-labelledby="modalPostTitle" hidden>
+      <div class="adoption-modal-backdrop" data-modal-close></div>
+      <article class="adoption-modal-content">
+        <button class="adoption-modal-close" type="button" aria-label="Fechar detalhes" data-modal-close>&times;</button>
+        <div id="modalImageContainer"></div>
+        <div class="adoption-modal-body">
+          <span class="mini-tag">Animal</span>
+          <h2 id="modalPostTitle"></h2>
+          <p class="modal-location" id="modalPostLocation"></p>
+          <p id="modalPostDescription"></p>
+          <section class="modal-genetics"><h3>Informações de genética</h3><dl>
+            <div><dt>Raça do animal</dt><dd id="modalBreed"></dd></div>
+            <div><dt>Raça da mãe</dt><dd id="modalMotherBreed"></dd></div>
+            <div><dt>Raça do pai</dt><dd id="modalFatherBreed"></dd></div>
+          </dl></section>
+          <section class="modal-contact"><h3>Contatos</h3><div id="modalPostContact"></div></section>
+        </div>
+      </article>
+    </div>
 
     <footer class="home-footer">
       <div class="container footer-row">
@@ -94,6 +135,6 @@
       </div>
     </footer>
 
-    <script type="module" src="script.js?v=2"></script>
+    <script type="module" src="script.js?v=4"></script>
   </body>
 </html>
