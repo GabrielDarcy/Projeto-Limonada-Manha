@@ -781,7 +781,7 @@ th {
   stroke-width: 1.5;
 }
 
-.recent-post-card img {
+.recent-post-card > img {
   width: 100%;
   height: 220px;
   object-fit: cover;
@@ -1013,7 +1013,7 @@ th {
   box-shadow: 0 14px 26px rgba(31, 27, 27, 0.04);
 }
 
-.feed-card img {
+.feed-card > img {
   width: 100%;
   height: 260px;
   object-fit: cover;

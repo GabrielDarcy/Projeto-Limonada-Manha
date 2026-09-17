@@ -310,7 +310,10 @@ async function registerWithSupabase(name, username, email, password, birthDate, 
       avatar_url: avatarUrl,
       status: 'active'
     }).eq('id', userId);
-    if (profileError) throw new Error(`Não foi possível salvar o perfil: ${profileError.message}`);
+    if (profileError) {
+      if (profileError.code === '23505') throw new Error('Este nome de usuário já está em uso. Escolha outro.');
+      throw new Error(`Não foi possível salvar o perfil: ${profileError.message}`);
+    }
   }
 
   return {
