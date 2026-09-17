@@ -3,37 +3,29 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Pet Amor | Gatos</title>
+    <title>Pet Amor | Meus Favoritos</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="stylesheet" href="style.css" />
   </head>
-  <body data-page="category" data-animal-type="Gato">
+  <body data-page="favorites">
     <header class="home-header">
       <div class="container home-nav">
         <a class="brand-row" href="index.html"><span class="brand-icon">🐾</span><span>Pet Amor</span></a>
-        <a class="btn btn-secondary" href="index.html#adoes">Voltar para adoção</a>
+        <nav class="home-links">
+          <a href="index.html">Início</a>
+          <a href="index.html#adoes">Adoções</a>
+          <a href="index.html#ajuda">Como ajudar</a>
+        </nav>
+        <div class="home-actions" id="homeUserActions"><a href="index.html" class="btn btn-secondary">Voltar</a></div>
       </div>
     </header>
-    <main class="category-page">
-      <div class="container">
-        <span class="eyebrow">Adoção responsável</span>
-        <h1>Gatos procurando um lar</h1>
-        <p class="category-intro">Conheça gatos que esperam por uma família acolhedora e responsável.</p>
-        <div class="feed-filters category-filters">
-          <label>
-            Estado
-            <select id="categoryState"><option value="">Todos os estados</option></select>
-          </label>
-          <label>
-            Cidade
-            <select id="categoryCity" disabled><option value="">Todas as cidades</option></select>
-          </label>
-          <label>
-            Raça
-            <select id="categoryBreed"><option value="">Todas as raças</option></select>
-          </label>
-        </div>
-        <div class="category-results category-feed-grid" id="categoryPosts" aria-live="polite"></div>
-      </div>
+    <main class="profile-layout">
+      <section class="profile-intro">
+        <span class="eyebrow">Sua seleção</span>
+        <h1>Meus Favoritos</h1>
+        <p>Guarde os animais que tocaram seu coração e acompanhe cada história.</p>
+      </section>
+      <div class="profile-post-grid" id="profileFavoritePosts"></div>
     </main>
     <div class="adoption-modal" id="adoptionModal" role="dialog" aria-modal="true" aria-labelledby="modalPostTitle" hidden>
       <div class="adoption-modal-backdrop" data-modal-close></div>
@@ -41,8 +33,10 @@
         <button class="adoption-modal-close" type="button" aria-label="Fechar detalhes" data-modal-close>&times;</button>
         <div id="modalImageContainer"></div>
         <div class="adoption-modal-body">
-          <span class="mini-tag">Gato</span><h2 id="modalPostTitle"></h2>
-          <p class="modal-location" id="modalPostLocation"></p><p id="modalPostDescription"></p>
+          <span class="mini-tag">Animal</span>
+          <h2 id="modalPostTitle"></h2>
+          <p class="modal-location" id="modalPostLocation"></p>
+          <p id="modalPostDescription"></p>
           <section class="modal-genetics"><h3>Informações de genética</h3><dl>
             <div><dt>Raça do animal</dt><dd id="modalBreed"></dd></div>
             <div><dt>Raça da mãe</dt><dd id="modalMotherBreed"></dd></div>
@@ -52,6 +46,9 @@
         </div>
       </article>
     </div>
+    <footer class="home-footer">
+      <div class="container footer-row"><span>© 2025 Pet Amor. Feito com carinho pelos animais.</span><div class="footer-links"><a href="index.html">Voltar ao início</a></div></div>
+    </footer>
     <script type="module" src="script.js?v=5"></script>
   </body>
 </html>

@@ -99,7 +99,7 @@ async function toggleFavorite(postId) {
 
 function favoriteButtonHTML(postId) {
   const favorite = isFavorite(postId);
-  return `<button class="favorite-button${favorite ? ' is-favorite' : ''}" type="button" data-favorite-id="${escapeHTML(postId)}" aria-label="${favorite ? 'Remover dos favoritos' : 'Adicionar aos favoritos'}" aria-pressed="${favorite}">${favorite ? '♥' : '♡'}</button>`;
+  return `<button class="favorite-button${favorite ? ' is-favorite' : ''}" type="button" data-favorite-id="${escapeHTML(postId)}" aria-label="${favorite ? 'Remover dos favoritos' : 'Adicionar aos favoritos'}" aria-pressed="${favorite}"><svg class="favorite-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78L12 21.23l8.84-8.84a5.5 5.5 0 0 0 0-7.78Z"></path></svg></button>`;
 }
 
 function sortPostsByProximity(posts, cityValue) {
@@ -321,8 +321,9 @@ function updateHomeUserActions() {
   const avatarUrl = session.avatar_url || 'https://placehold.co/96x96/ffe8ce/7a3d16?text=🐾';
   actionsNode.innerHTML = `
     ${isAdmin ? '<a href="admin.html" class="btn btn-primary">Dashboard admin</a>' : ''}
-    <a href="create-post.html" class="btn btn-secondary">Criar publicação</a>
-    <a href="profile.html#publicacoes" class="btn btn-secondary">Minhas publicações</a>
+    <a href="create-post.html" class="btn btn-primary">Criar publicação</a>
+    <a href="my-posts.html" class="btn btn-secondary">Minhas publicações</a>
+    <a href="favorites.html" class="header-favorites-link" aria-label="Abrir meus favoritos" title="Meus favoritos"><svg class="header-favorites-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78L12 21.23l8.84-8.84a5.5 5.5 0 0 0 0-7.78Z"></path></svg></a>
     <a href="profile.html" class="profile-avatar-link" aria-label="Abrir meu perfil"><img class="profile-avatar" src="${escapeHTML(avatarUrl)}" alt="Foto de perfil de ${escapeHTML(session.name)}"></a>
     <button class="btn btn-secondary" id="homeLogoutButton">Sair</button>
   `;
@@ -1029,7 +1030,7 @@ function setupFavoriteInteractions() {
       document.querySelectorAll('[data-favorite-id]').forEach((favoriteButton) => {
         if (favoriteButton.dataset.favoriteId !== postId) return;
         favoriteButton.classList.toggle('is-favorite', favorite);
-        favoriteButton.textContent = favorite ? '♥' : '♡';
+        favoriteButton.innerHTML = '<svg class="favorite-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78L12 21.23l8.84-8.84a5.5 5.5 0 0 0 0-7.78Z"></path></svg>';
         favoriteButton.setAttribute('aria-pressed', String(favorite));
         favoriteButton.setAttribute('aria-label', favorite ? 'Remover dos favoritos' : 'Adicionar aos favoritos');
       });
@@ -1041,7 +1042,7 @@ function setupFavoriteInteractions() {
       document.querySelectorAll('[data-favorite-id]').forEach((favoriteButton) => {
       if (favoriteButton.dataset.favoriteId !== postId) return;
       favoriteButton.classList.toggle('is-favorite', favorite);
-      favoriteButton.textContent = favorite ? '♥' : '♡';
+      favoriteButton.innerHTML = '<svg class="favorite-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78L12 21.23l8.84-8.84a5.5 5.5 0 0 0 0-7.78Z"></path></svg>';
       favoriteButton.setAttribute('aria-pressed', String(favorite));
       favoriteButton.setAttribute('aria-label', favorite ? 'Remover dos favoritos' : 'Adicionar aos favoritos');
       });
@@ -1239,9 +1240,6 @@ function setupProfilePage() {
   document.getElementById('profileEmailForm')?.addEventListener('submit', handleProfileEmailSubmit);
   document.getElementById('profilePasswordForm')?.addEventListener('submit', handleProfilePasswordSubmit);
   document.getElementById('deleteAccountButton')?.addEventListener('click', deleteAccount);
-  document.querySelectorAll('[data-modal-close]').forEach((element) => element.addEventListener('click', closeAdoptionModal));
-  renderUserPosts();
-  renderProfileFavorites();
 }
 
 async function initializePage() {
@@ -1294,6 +1292,11 @@ async function initializePage() {
     setupCreatePostForm();
   } else if (page === 'profile') {
     setupProfilePage();
+  } else if (page === 'my-posts' && redirectIfLoggedOut()) {
+    renderUserPosts();
+  } else if (page === 'favorites' && redirectIfLoggedOut()) {
+    document.querySelectorAll('[data-modal-close]').forEach((element) => element.addEventListener('click', closeAdoptionModal));
+    renderProfileFavorites();
   } else if (page === 'admin') {
     // verificação em tempo real direto no banco
     const { data: authData } = await getSupabaseClient().auth.getUser();
