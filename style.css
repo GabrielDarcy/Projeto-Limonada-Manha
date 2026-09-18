@@ -790,6 +790,43 @@ th {
   transform: scale(1.08);
 }
 
+.card-utility-actions {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  z-index: 4;
+  display: flex;
+  gap: 8px;
+}
+
+.card-utility-actions .favorite-button {
+  position: static;
+}
+
+.share-button {
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  padding: 9px;
+  border: 1px solid rgba(31, 27, 27, 0.08);
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.92);
+  color: var(--muted);
+  cursor: pointer;
+  box-shadow: 0 5px 14px rgba(31, 27, 27, 0.12);
+}
+
+.share-button:hover,
+.share-button:focus-visible {
+  background: #fff;
+  color: var(--primary-dark);
+  transform: scale(1.08);
+}
+
+.share-button svg { width: 100%; height: 100%; fill: currentColor; }
+.feed-load-more { grid-column: 1 / -1; justify-self: center; margin-top: 8px; }
+
 .favorite-button.is-favorite {
   color: #f43f5e;
 }

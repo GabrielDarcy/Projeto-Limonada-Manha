@@ -8,6 +8,8 @@ const STORAGE_KEYS = {
 };
 
 const ALLOWED_EMAIL_DOMAINS = ['gmail.com', 'outlook.com', 'hotmail.com', 'yahoo.com', 'icloud.com', 'live.com'];
+const FEED_PAGE_SIZE = 10;
+let feedCurrentPage = 0;
 
 const DOG_BREEDS = [
   'Vira-lata (SRD)', 'Golden Retriever', 'Labrador Retriever', 'Pastor Alemão',
@@ -108,6 +110,17 @@ function getFavoriteIds() {
   return Array.isArray(favorites) ? favorites.map((id) => String(id)) : [];
 }
 
+async function persistFavoriteIds(ids) {
+  const normalizedIds = ids.map((id) => String(id));
+  const session = getSession();
+  if (session) {
+    saveSession({ ...session, id: session.userId, favorite_posts: normalizedIds });
+    await getSupabaseClient().from('profiles').update({ favorite_posts: normalizedIds }).eq('id', session.userId);
+  } else {
+    writeStorage(STORAGE_KEYS.favorites, normalizedIds);
+  }
+}
+
 function isFavorite(postId) {
   return getFavoriteIds().includes(String(postId));
 }
@@ -132,6 +145,26 @@ async function toggleFavorite(postId) {
 function favoriteButtonHTML(postId) {
   const favorite = isFavorite(postId);
     return `<button class="favorite-button${favorite ? ' is-favorite' : ''}" type="button" data-favorite-id="${escapeHTML(postId)}" aria-label="${favorite ? 'Remover dos favoritos' : 'Adicionar aos favoritos'}" aria-pressed="${favorite}">${favorite ? '❤️' : '🤍'}</button>`;
+}
+
+function shareButtonHTML(post) {
+  return `<button class="share-button" type="button" data-share-post="${escapeHTML(post.id)}" data-share-title="${escapeHTML(post.title || 'Pet Amor')}" data-share-text="${escapeHTML(post.description || '')}" aria-label="Compartilhar publicação" title="Compartilhar"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 8a3 3 0 1 0-2.83-4A3 3 0 0 0 15 5c0 .18.02.36.05.53L8.91 9.05A3 3 0 1 0 9 12c0-.18-.02-.36-.05-.53l6.14-3.52c.52.65 1.32 1.05 2.22 1.05Zm0 8a3 3 0 0 0-2.83 2L9.03 14.5A3 3 0 1 0 8 16c.18 0 .36-.02.53-.05l6.14 3.52A3 3 0 1 0 18 16Z"></path></svg></button>`;
+}
+
+function getPostPhone(post) {
+  const directPhone = post.phone || post.contact_phone;
+  if (directPhone) return String(directPhone).replace(/\D/g, '');
+  const phoneMatch = String(post.contact_info || '').match(/(?:Tel|Telefone|WhatsApp):\s*([^|]+)/i);
+  return phoneMatch ? phoneMatch[1].replace(/\D/g, '') : '';
+}
+
+function postActionHTML(post) {
+  const phone = getPostPhone(post);
+  const title = encodeURIComponent(`Olá, vi o post do ${post.title || 'animal'} no Pet Amor e gostaria de saber mais!`);
+  const adoptionAction = phone
+    ? `<a class="btn btn-primary" href="https://wa.me/55${phone}?text=${title}" target="_blank" rel="noopener noreferrer">Conversar no WhatsApp</a>`
+    : `<button class="btn btn-primary" type="button" data-adoption-post="${escapeHTML(post.id)}">Quero Adotar!</button>`;
+  return `<div class="post-action-row">${adoptionAction}${adminPostActions(post.id)}</div>`;
 }
 
 function renderAuthorBar(profile) {
@@ -557,13 +590,13 @@ function bindAdminActions() {
 function validateImageFile(file) {
   if (!file) return 'Selecione uma imagem.';
   const name = file.name.toLowerCase();
-  const allowedExtensions = /\.(jpe?g|png)$/i;
-  const allowedTypes = ['image/jpeg', 'image/png'];
+  const allowedExtensions = /\.(jpe?g|png|webp)$/i;
+  const allowedTypes = ['image/jpeg', 'image/png', 'image/webp'];
   if (!allowedExtensions.test(name) || !allowedTypes.includes(file.type)) {
-    return 'Formato inválido. Envie apenas arquivos .jpg, .jpeg ou .png.';
+    return 'Só aceitamos fotos JPG/PNG/WebP de até 8MB.';
   }
-  if (file.size > 2 * 1024 * 1024) {
-    return 'A imagem deve ter no máximo 2MB.';
+  if (file.size > 8 * 1024 * 1024) {
+    return 'Só aceitamos fotos JPG/PNG/WebP de até 8MB.';
   }
   return null;
 }
@@ -604,6 +637,8 @@ function adminPostActions(postId) {
 
 async function uploadPostImage(file) {
   const client = getSupabaseClient();
+  const fileError = validateImageFile(file);
+  if (fileError) throw new Error(fileError);
   const extension = file.name.split('.').pop().toLowerCase();
   // Corrigido suporte a UUID em Live Previews HTTP para evitar telas brancas silenciosas
   const uuid = crypto?.randomUUID ? crypto.randomUUID() : Date.now() + '-' + Math.round(Math.random() * 1e9);
@@ -833,7 +868,7 @@ async function handleCreatePostSubmit(event) {
   }
 }
 
-function renderFeed() {
+function renderFeed(append = false) {
   const feedTarget = document.getElementById('feedPosts');
   const typeField = document.getElementById('feedType');
   const breedField = document.getElementById('feedBreed');
@@ -842,13 +877,15 @@ function renderFeed() {
 
   if (!feedTarget) return;
 
+  if (!append) feedCurrentPage = 0;
+  const page = feedCurrentPage;
   const stateValue = (stateField?.value || '').trim();
   const cityValue = (cityField?.value || '').trim();
   const typeValue = typeField?.value || 'Todos';
   const breedValue = (breedField?.value || '').trim().toLowerCase();
   const breedLabel = breedField?.selectedOptions[0]?.textContent || breedValue;
 
-  let query = getSupabaseClient().from('posts').select('*, profiles(full_name, username, avatar_url)').eq('status', 'active').order('created_at', { ascending: false });
+  let query = getSupabaseClient().from('posts').select('*, profiles(full_name, username, avatar_url)').eq('status', 'active').order('created_at', { ascending: false }).range(page * FEED_PAGE_SIZE, (page + 1) * FEED_PAGE_SIZE - 1);
   
   if (stateValue) query = query.eq('state', stateValue);
   if (typeValue !== 'Todos') query = query.eq('animal_type', typeValue);
@@ -858,16 +895,16 @@ function renderFeed() {
     if (error) throw error;
     const filteredPosts = data || [];
 
-    if (!filteredPosts.length) {
+    if (!filteredPosts.length && !append) {
       feedTarget.innerHTML = breedValue
         ? `<div class="empty-state">Poxa! No momento não temos nenhum ${escapeHTML(breedLabel)} precisando de um lar. Que tal dar uma chance a um Vira-lata ou conhecer outros animais incríveis?</div>`
         : '<div class="empty-state">Poxa! No momento não encontramos animais com esses filtros. Que tal tentar outra cidade ou conhecer outras categorias?</div>';
       return;
     }
 
-    feedTarget.innerHTML = renderProximityDivider(filteredPosts, cityValue, (post) => `
+    const cardsHTML = renderProximityDivider(filteredPosts, cityValue, (post) => `
       <article class="feed-card">
-        ${favoriteButtonHTML(post.id)}
+        <div class="card-utility-actions">${favoriteButtonHTML(post.id)}${shareButtonHTML(post)}</div>
         ${generateImageCarouselHTML(post.image_urls, post.title)}
         <div class="feed-card-body">
           ${renderAuthorBar(post.profiles)}
@@ -884,13 +921,20 @@ function renderFeed() {
             <span><strong>Contato:</strong> ${escapeHTML(getContactItems(post).join(' | ') || 'Não informado')}</span>
           </div>
           <div class="feed-contact-list">${renderContactItems(post)}</div>
-          <div class="post-action-row">
-            <button class="btn btn-primary" type="button" data-adoption-post="${post.id}">Quero Adotar!</button>
-            ${adminPostActions(post.id)}
-          </div>
+          ${postActionHTML(post)}
         </div>
       </article>
     `);
+    if (append) {
+      feedTarget.querySelector('.feed-load-more')?.remove();
+      feedTarget.insertAdjacentHTML('beforeend', cardsHTML);
+    } else {
+      feedTarget.innerHTML = cardsHTML;
+    }
+    if (filteredPosts.length === FEED_PAGE_SIZE) {
+      feedTarget.insertAdjacentHTML('beforeend', '<button class="btn btn-secondary feed-load-more" type="button">Carregar mais</button>');
+      feedTarget.querySelector('.feed-load-more')?.addEventListener('click', () => { feedCurrentPage += 1; renderFeed(true); }, { once: true });
+    }
     bindAdoptionButtons(feedTarget, filteredPosts);
   }).catch((error) => {
     feedTarget.innerHTML = `<div class="empty-state">Não foi possível carregar as publicações: ${escapeHTML(error.message)}</div>`;
@@ -906,7 +950,7 @@ function renderRecentPosts() {
       if (error) throw error;
       target.innerHTML = (data || []).map((post) => `
         <article class="recent-post-card ${post.status === 'adopted' ? 'adopted-card' : ''}">
-          ${favoriteButtonHTML(post.id)}
+          <div class="card-utility-actions">${favoriteButtonHTML(post.id)}${shareButtonHTML(post)}</div>
             ${post.status === 'adopted' ? '<div class="adopted-ribbon">Já fui adotado! 🐾</div>' : ''}
           ${generateImageCarouselHTML(post.image_urls, post.title)}
           <div class="recent-post-body">
@@ -915,7 +959,7 @@ function renderRecentPosts() {
             <h3>${escapeHTML(post.title)}</h3>
             <p>${escapeHTML(post.description)}</p>
             <span class="recent-post-location">📍 ${escapeHTML(post.city)}</span>
-            ${post.status === 'active' ? `<div class="post-action-row"><button class="btn btn-primary" type="button" data-adoption-post="${post.id}">Quero Adotar!</button>${adminPostActions(post.id)}</div>` : ''}
+            ${post.status === 'active' ? postActionHTML(post) : ''}
           </div>
         </article>
       `).join('');
@@ -1010,11 +1054,18 @@ function getPostImageUrl(post) {
   return image || 'https://images.unsplash.com/photo-1517849845537-4d257902454a?auto=format&fit=crop&w=900&q=80';
 }
 
+function getOptimizedImageUrl(url) {
+  if (!url || !String(url).includes('/storage/v1/object/public/pet_images/')) return url;
+  const path = decodeURIComponent(String(url).split('/storage/v1/object/public/pet_images/')[1].split('?')[0]);
+  const { data } = getSupabaseClient().storage.from('pet_images').getPublicUrl(path, { transform: { width: 400, quality: 80 } });
+  return data?.publicUrl || url;
+}
+
 function generateImageCarouselHTML(imageUrls, altText) {
   const normalizedUrls = (Array.isArray(imageUrls) ? imageUrls : imageUrls ? [imageUrls] : []).filter(Boolean);
   const safeAltText = escapeHTML(altText || 'Imagem do animal');
   const urls = normalizedUrls.length
-    ? normalizedUrls
+    ? normalizedUrls.map(getOptimizedImageUrl)
     : ['https://images.unsplash.com/photo-1517849845537-4d257902454a?auto=format&fit=crop&w=900&q=80'];
 
   if (urls.length === 1) {
@@ -1066,14 +1117,14 @@ async function renderCategoryFeed(animalType) {
 
   target.innerHTML = renderProximityDivider(data, cityField?.value || '', (post) => `
     <article class="category-pet-card">
-      ${favoriteButtonHTML(post.id)}
+      <div class="card-utility-actions">${favoriteButtonHTML(post.id)}${shareButtonHTML(post)}</div>
       ${generateImageCarouselHTML(post.image_urls, post.title)}
       <div class="category-pet-card-body">
         ${renderAuthorBar(post.profiles)}
         <h2>${escapeHTML(post.title)}</h2>
         <p class="category-pet-location">📍 ${escapeHTML(post.city || 'Localização não informada')}</p>
         <div class="post-action-row">
-          <button class="btn btn-primary" type="button" data-adoption-post="${post.id}">Quero Adotar!</button>
+          ${postActionHTML(post)}
           ${adminPostActions(post.id)}
         </div>
       </div>
@@ -1102,9 +1153,11 @@ async function renderFavorites() {
   }
 
   const orderedPosts = favoriteIds.map((id) => data.find((post) => String(post.id) === id)).filter(Boolean);
+  const validFavoriteIds = orderedPosts.map((post) => String(post.id));
+  if (validFavoriteIds.length !== favoriteIds.length) await persistFavoriteIds(validFavoriteIds);
   target.innerHTML = orderedPosts.map((post) => `
     <article class="recent-post-card ${post.status === 'adopted' ? 'adopted-card' : ''}">
-      ${favoriteButtonHTML(post.id)}
+      <div class="card-utility-actions">${favoriteButtonHTML(post.id)}${shareButtonHTML(post)}</div>
       ${post.status === 'adopted' ? '<div class="adopted-ribbon">Já fui adotado! 🐾</div>' : ''}
       ${generateImageCarouselHTML(post.image_urls, post.title)}
       <div class="recent-post-body">
@@ -1113,7 +1166,7 @@ async function renderFavorites() {
         <h3>${escapeHTML(post.title)}</h3>
         <p>${escapeHTML(post.description)}</p>
         <span class="recent-post-location">📍 ${escapeHTML(post.city || 'Localização não informada')}</span>
-        ${post.status === 'active' ? `<div class="post-action-row"><button class="btn btn-primary" type="button" data-adoption-post="${post.id}">Quero Adotar!</button>${adminPostActions(post.id)}</div>` : ''}
+        ${post.status === 'active' ? postActionHTML(post) : ''}
       </div>
     </article>
   `).join('');
@@ -1214,6 +1267,24 @@ function setupFavoriteInteractionsV7() {
   });
 }
 
+function setupShareInteractions() {
+  document.body.addEventListener('click', async (event) => {
+    const button = event.target.closest('[data-share-post]');
+    if (!button) return;
+    const shareData = { title: button.dataset.shareTitle, text: button.dataset.shareText, url: window.location.href };
+    try {
+      if (navigator.share) {
+        await navigator.share(shareData);
+      } else {
+        await navigator.clipboard.writeText(window.location.href);
+        showToast('Link copiado!');
+      }
+    } catch (error) {
+      if (error?.name !== 'AbortError') showToast('Não foi possível compartilhar a publicação.', 'error');
+    }
+  });
+}
+
 function generateRecoveryCode() {
   return String(Math.floor(100000 + Math.random() * 900000));
 }
@@ -1292,6 +1363,10 @@ async function handleRegisterSubmit(event) {
   const confirm = document.getElementById('registerConfirmPassword').value.trim();
   const termsAccepted = document.getElementById('registerTerms').checked;
   const parsedBirthDate = new Date(`${isoDate}T00:00:00`);
+  if (avatarFile) {
+    const avatarError = validateImageFile(avatarFile);
+    if (avatarError) return showToast(avatarError, 'error');
+  }
   if (!/^\d{2}\/\d{2}\/\d{4}$/.test(birthDateValue) || Number.isNaN(parsedBirthDate.getTime()) || parsedBirthDate.getDate() !== Number(birthDateParts[0]) || parsedBirthDate.getMonth() + 1 !== Number(birthDateParts[1]) || parsedBirthDate.getFullYear() !== Number(birthDateParts[2])) {
     return showToast('Informe uma data de nascimento válida no formato DD/MM/AAAA.', 'error');
   }
@@ -1442,7 +1517,7 @@ async function renderUserPosts() {
   }
   target.innerHTML = data.map((post) => `
     <article class="profile-post-card ${post.status === 'adopted' ? 'adopted-card' : ''}">
-      ${favoriteButtonHTML(post.id)}
+      <div class="card-utility-actions">${favoriteButtonHTML(post.id)}${shareButtonHTML(post)}</div>
       ${post.status === 'adopted' ? '<div class="adopted-ribbon">Concluído 🐾</div>' : ''}
       ${generateImageCarouselHTML(post.image_urls, post.title)}
       <div class="profile-post-card-body">
@@ -1474,9 +1549,11 @@ async function renderProfileFavorites() {
     return;
   }
   const orderedPosts = favoriteIds.map((id) => data?.find((post) => String(post.id) === id)).filter(Boolean);
+  const validFavoriteIds = orderedPosts.map((post) => String(post.id));
+  if (validFavoriteIds.length !== favoriteIds.length) await persistFavoriteIds(validFavoriteIds);
   target.innerHTML = orderedPosts.map((post) => `
     <article class="profile-post-card ${post.status === 'adopted' ? 'adopted-card' : ''}">
-      ${favoriteButtonHTML(post.id)}
+      <div class="card-utility-actions">${favoriteButtonHTML(post.id)}${shareButtonHTML(post)}</div>
       ${post.status === 'adopted' ? '<div class="adopted-ribbon">Já fui adotado! 🐾</div>' : ''}
       ${generateImageCarouselHTML(post.image_urls, post.title)}
       <div class="profile-post-card-body">
@@ -1484,7 +1561,7 @@ async function renderProfileFavorites() {
         <span class="mini-tag">${escapeHTML(post.animal_type)}</span>
         <h3>${escapeHTML(post.title)}</h3>
         <p>📍 ${escapeHTML(post.city || 'Localização não informada')}</p>
-        ${post.status === 'active' ? `<div class="post-action-row"><button class="btn btn-primary" type="button" data-adoption-post="${post.id}">Quero Adotar!</button>${adminPostActions(post.id)}</div>` : ''}
+        ${post.status === 'active' ? postActionHTML(post) : ''}
       </div>
     </article>
   `).join('');
@@ -1535,6 +1612,7 @@ async function initializePage() {
   // configurações visuais e listeners globais
   setupPostCarouselNavigation();
   setupFavoriteInteractionsV7();
+  setupShareInteractions();
   bindAdminActions();
   const page = document.body.dataset.page;
   updateHomeUserActions();
