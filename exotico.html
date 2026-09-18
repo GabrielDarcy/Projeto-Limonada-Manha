@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Pet Amor | Animais Exóticos</title>
+    <meta name="description" content="Animais exóticos esperando por um lar na Pet Amor." />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body data-page="category" data-animal-type="Exótico">
+    <header class="home-header"><div class="container home-nav"><a class="brand-row" href="index.html"><span class="brand-icon">🐾</span><span>Pet Amor</span></a><a class="btn btn-secondary" href="index.html#adoes">Voltar para adoção</a></div></header>
+    <main class="category-page"><div class="container">
+      <nav class="category-breadcrumb" aria-label="Navegação estrutural"><a href="index.html">Início</a><span aria-hidden="true">/</span><strong>Animais Exóticos</strong></nav>
+      <span class="eyebrow">Adoção responsável</span><h1>Animais Exóticos procurando um lar</h1>
+      <p class="category-intro">Encontre animais exóticos que precisam de cuidado especializado e uma família responsável.</p>
+      <div class="feed-filters category-filters"><label>Estado<select id="categoryState"><option value="">Todos os estados</option></select></label><label>Cidade<select id="categoryCity" disabled><option value="">Todas as cidades</option></select></label></div>
+      <div class="category-results category-feed-grid" id="categoryPosts" aria-live="polite"></div>
+    </div></main>
+    <div class="adoption-modal" id="adoptionModal" role="dialog" aria-modal="true" aria-labelledby="modalPostTitle" hidden><div class="adoption-modal-backdrop" data-modal-close></div><article class="adoption-modal-content"><button class="adoption-modal-close" type="button" aria-label="Fechar detalhes" data-modal-close>&times;</button><div id="modalImageContainer"></div><div class="adoption-modal-body"><span class="mini-tag">Animais Exóticos</span><h2 id="modalPostTitle"></h2><p class="modal-location" id="modalPostLocation"></p><p id="modalPostDescription"></p><section class="modal-genetics"><h3>Informações do animal</h3><dl><div><dt>Raça/Espécie</dt><dd id="modalBreed"></dd></div><div hidden><dt>Raça da mãe</dt><dd id="modalMotherBreed"></dd></div><div hidden><dt>Raça do pai</dt><dd id="modalFatherBreed"></dd></div></dl></section><section class="modal-contact"><h3>Contatos</h3><div id="modalPostContact"></div></section></div></article></div>
+    <footer class="home-footer"><div class="container footer-row"><p>© 2026 Pet Amor. Juntos por uma causa maior.</p><div class="footer-links" aria-label="Redes sociais"><a href="#">Instagram</a><a href="#">Twitter</a><a href="#">Facebook</a></div></div></footer>
+    <script type="module" src="script.js?v=15"></script>
+  </body>
+</html>

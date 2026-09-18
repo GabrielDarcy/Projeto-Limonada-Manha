@@ -3,14 +3,14 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Pet Amor | Outros animais</title>
-    <meta name="description" content="Outros animais esperando por um lar na Pet Amor." />
+    <title>Pet Amor | Animais de Fazenda</title>
+    <meta name="description" content="Animais de fazenda esperando por um lar na Pet Amor." />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
     <link rel="stylesheet" href="style.css" />
   </head>
-  <body data-page="category" data-animal-type="Outro">
+  <body data-page="category" data-animal-type="Fazenda">
     <header class="home-header">
       <div class="container home-nav">
         <a class="brand-row" href="index.html"><span class="brand-icon">🐾</span><span>Pet Amor</span></a>
@@ -19,21 +19,13 @@
     </header>
     <main class="category-page">
       <div class="container">
-        <nav class="category-breadcrumb" aria-label="Navegação estrutural">
-          <a href="index.html">Início</a><span aria-hidden="true">/</span><strong>Outros animais</strong>
-        </nav>
+        <nav class="category-breadcrumb" aria-label="Navegação estrutural"><a href="index.html">Início</a><span aria-hidden="true">/</span><strong>Animais de Fazenda</strong></nav>
         <span class="eyebrow">Adoção responsável</span>
-        <h1>Outros animais procurando um lar</h1>
-        <p class="category-intro">Veja outros animais que também precisam de cuidado, respeito e uma família.</p>
+        <h1>Animais de Fazenda procurando um lar</h1>
+        <p class="category-intro">Conheça animais de fazenda que esperam por cuidado, espaço e uma família responsável.</p>
         <div class="feed-filters category-filters">
-          <label>
-            Estado
-            <select id="categoryState"><option value="">Todos os estados</option></select>
-          </label>
-          <label>
-            Cidade
-            <select id="categoryCity" disabled><option value="">Todas as cidades</option></select>
-          </label>
+          <label>Estado<select id="categoryState"><option value="">Todos os estados</option></select></label>
+          <label>Cidade<select id="categoryCity" disabled><option value="">Todas as cidades</option></select></label>
         </div>
         <div class="category-results category-feed-grid" id="categoryPosts" aria-live="polite"></div>
       </div>
@@ -44,25 +36,14 @@
         <button class="adoption-modal-close" type="button" aria-label="Fechar detalhes" data-modal-close>&times;</button>
         <div id="modalImageContainer"></div>
         <div class="adoption-modal-body">
-          <span class="mini-tag">Outros animais</span><h2 id="modalPostTitle"></h2>
+          <span class="mini-tag">Animais de Fazenda</span><h2 id="modalPostTitle"></h2>
           <p class="modal-location" id="modalPostLocation"></p><p id="modalPostDescription"></p>
-          <section class="modal-genetics"><h3>Informações de genética</h3><dl>
-            <div><dt>Raça/Espécie</dt><dd id="modalBreed"></dd></div>
-            <div hidden><dt>Raça da mãe</dt><dd id="modalMotherBreed"></dd></div>
-            <div hidden><dt>Raça do pai</dt><dd id="modalFatherBreed"></dd></div>
-          </dl></section>
+          <section class="modal-genetics"><h3>Informações do animal</h3><dl><div><dt>Raça/Espécie</dt><dd id="modalBreed"></dd></div><div hidden><dt>Raça da mãe</dt><dd id="modalMotherBreed"></dd></div><div hidden><dt>Raça do pai</dt><dd id="modalFatherBreed"></dd></div></dl></section>
           <section class="modal-contact"><h3>Contatos</h3><div id="modalPostContact"></div></section>
         </div>
       </article>
     </div>
-    <footer class="home-footer">
-      <div class="container footer-row">
-        <p>© 2026 Pet Amor. Juntos por uma causa maior.</p>
-        <div class="footer-links" aria-label="Redes sociais">
-          <a href="#">Instagram</a><a href="#">Twitter</a><a href="#">Facebook</a>
-        </div>
-      </div>
-    </footer>
+    <footer class="home-footer"><div class="container footer-row"><p>© 2026 Pet Amor. Juntos por uma causa maior.</p><div class="footer-links" aria-label="Redes sociais"><a href="#">Instagram</a><a href="#">Twitter</a><a href="#">Facebook</a></div></div></footer>
     <script type="module" src="script.js?v=15"></script>
   </body>
 </html>
