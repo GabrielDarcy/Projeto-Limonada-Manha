@@ -918,7 +918,6 @@ function renderFeed(append = false) {
           <p>${escapeHTML(post.description)}</p>
           <div class="feed-meta">
             <span><strong>Raça:</strong> ${escapeHTML(post.breed || 'Não informado')}</span>
-            <span><strong>Contato:</strong> ${escapeHTML(getContactItems(post).join(' | ') || 'Não informado')}</span>
           </div>
           <div class="feed-contact-list">${renderContactItems(post)}</div>
           ${postActionHTML(post)}
