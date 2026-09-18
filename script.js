@@ -913,7 +913,7 @@ function renderFeed(append = false) {
               <span class="mini-tag">${escapeHTML(post.animal_type)}</span>
               <h3>${escapeHTML(post.title)}</h3>
             </div>
-            <span class="feed-location">📍 ${escapeHTML(post.city)}</span>
+            <span class="feed-location">📍 ${escapeHTML(formatPostLocation(post))}</span>
           </div>
           <p>${escapeHTML(post.description)}</p>
           <div class="feed-meta">
@@ -958,7 +958,7 @@ function renderRecentPosts() {
             <span class="mini-tag">${escapeHTML(post.animal_type)}</span>
             <h3>${escapeHTML(post.title)}</h3>
             <p>${escapeHTML(post.description)}</p>
-            <span class="recent-post-location">📍 ${escapeHTML(post.city)}</span>
+            <span class="recent-post-location">📍 ${escapeHTML(formatPostLocation(post))}</span>
             ${post.status === 'active' ? postActionHTML(post) : ''}
           </div>
         </article>
@@ -1057,8 +1057,15 @@ function getPostImageUrl(post) {
 function getOptimizedImageUrl(url) {
   if (!url || !String(url).includes('/storage/v1/object/public/pet_images/')) return url;
   const path = decodeURIComponent(String(url).split('/storage/v1/object/public/pet_images/')[1].split('?')[0]);
-  const { data } = getSupabaseClient().storage.from('pet_images').getPublicUrl(path, { transform: { width: 400, quality: 80 } });
+  const { data } = getSupabaseClient().storage.from('pet_images').getPublicUrl(path);
   return data?.publicUrl || url;
+}
+
+function formatPostLocation(post) {
+  const city = String(post?.city || '').trim();
+  const state = String(post?.state || post?.estado || '').trim().toUpperCase();
+  if (!city && !state) return 'Localização não informada';
+  return [city, state].filter(Boolean).join(', ');
 }
 
 function generateImageCarouselHTML(imageUrls, altText) {
@@ -1122,7 +1129,7 @@ async function renderCategoryFeed(animalType) {
       <div class="category-pet-card-body">
         ${renderAuthorBar(post.profiles)}
         <h2>${escapeHTML(post.title)}</h2>
-        <p class="category-pet-location">📍 ${escapeHTML(post.city || 'Localização não informada')}</p>
+        <p class="category-pet-location">📍 ${escapeHTML(formatPostLocation(post))}</p>
         <div class="post-action-row">
           ${postActionHTML(post)}
           ${adminPostActions(post.id)}
@@ -1165,7 +1172,7 @@ async function renderFavorites() {
         <span class="mini-tag">${escapeHTML(post.animal_type)}</span>
         <h3>${escapeHTML(post.title)}</h3>
         <p>${escapeHTML(post.description)}</p>
-        <span class="recent-post-location">📍 ${escapeHTML(post.city || 'Localização não informada')}</span>
+        <span class="recent-post-location">📍 ${escapeHTML(formatPostLocation(post))}</span>
         ${post.status === 'active' ? postActionHTML(post) : ''}
       </div>
     </article>
@@ -1179,7 +1186,7 @@ function openAdoptionModal(post) {
   document.getElementById('modalImageContainer').innerHTML = generateImageCarouselHTML(post.image_urls, post.title);
   // NOTA: Usar textContent já é seguro nativamente contra XSS
   document.getElementById('modalPostTitle').textContent = post.title;
-  document.getElementById('modalPostLocation').textContent = `📍 ${post.city || 'Localização não informada'}`;
+  document.getElementById('modalPostLocation').textContent = `📍 ${formatPostLocation(post)}`;
   document.getElementById('modalPostDescription').textContent = post.description || 'Descrição não informada.';
   document.getElementById('modalBreed').textContent = post.breed || 'SRD';
   document.getElementById('modalMotherBreed').textContent = post.mother_breed || 'Não informado';
@@ -1524,7 +1531,7 @@ async function renderUserPosts() {
         ${renderAuthorBar(post.profiles)}
         <span class="mini-tag">${escapeHTML(post.animal_type)}</span>
         <h3>${escapeHTML(post.title)}</h3>
-        <p>📍 ${escapeHTML(post.city || 'Localização não informada')}</p>
+        <p>📍 ${escapeHTML(formatPostLocation(post))}</p>
         ${post.status === 'active' ? `<div class="post-status-actions"><button class="btn btn-secondary" type="button" data-mark-adopted="${post.id}">Já doei</button><button class="btn btn-secondary" type="button" data-mark-adopted="${post.id}">Decidi ficar com ele</button></div>` : '<span class="completed-label">Concluído</span>'}
       </div>
     </article>
@@ -1560,7 +1567,7 @@ async function renderProfileFavorites() {
         ${renderAuthorBar(post.profiles)}
         <span class="mini-tag">${escapeHTML(post.animal_type)}</span>
         <h3>${escapeHTML(post.title)}</h3>
-        <p>📍 ${escapeHTML(post.city || 'Localização não informada')}</p>
+        <p>📍 ${escapeHTML(formatPostLocation(post))}</p>
         ${post.status === 'active' ? postActionHTML(post) : ''}
       </div>
     </article>
