@@ -170,7 +170,7 @@ function postActionHTML(post) {
 function renderAuthorBar(profile) {
   const authorProfile = Array.isArray(profile) ? profile[0] : profile;
   const firstName = authorProfile?.full_name?.split(' ')[0] || 'Usuário';
-  const username = authorProfile?.username ? `@${authorProfile.username.replace(/^@/, '')}` : '';
+  const username = authorProfile?.username ? `@${escapeHTML(authorProfile.username.replace(/^@/, ''))}` : '';
   const avatarUrl = authorProfile?.avatar_url || 'https://placehold.co/56x56/ffe8ce/7a3d16?text=🐾';
   return `<div class="post-author-bar"><img class="post-author-avatar" src="${escapeHTML(avatarUrl)}" alt="Foto de ${escapeHTML(firstName)}"><span class="post-author-name">${escapeHTML(firstName)}</span>${username ? `<span class="post-author-username">${escapeHTML(username)}</span>` : ''}</div>`;
 }
@@ -481,7 +481,7 @@ async function renderAdminDashboard() {
         <td>${escapeHTML(post.title)}</td>
         <td>${escapeHTML(post.animal_type || 'Não informado')}</td>
         <td>${escapeHTML(post.city || 'Não informada')}</td>
-        <td><button class="admin-btn danger" data-action="delete-post" data-id="${post.id}">Excluir</button></td>
+        <td><button class="admin-btn danger" data-action="delete-post" data-id="${escapeHTML(post.id)}">Excluir</button></td>
       </tr>
     `).join('') || '<tr><td colspan="4">Nenhum post publicado.</td></tr>';
   }
@@ -1531,7 +1531,7 @@ async function renderUserPosts() {
         <span class="mini-tag">${escapeHTML(post.animal_type)}</span>
         <h3>${escapeHTML(post.title)}</h3>
         <p>📍 ${escapeHTML(formatPostLocation(post))}</p>
-        ${post.status === 'active' ? `<div class="post-status-actions"><button class="btn btn-secondary" type="button" data-mark-adopted="${post.id}">Já doei</button><button class="btn btn-secondary" type="button" data-mark-adopted="${post.id}">Decidi ficar com ele</button></div>` : '<span class="completed-label">Concluído</span>'}
+        ${post.status === 'active' ? `<div class="post-status-actions"><button class="btn btn-secondary" type="button" data-mark-adopted="${escapeHTML(post.id)}">Já doei</button><button class="btn btn-secondary" type="button" data-mark-adopted="${escapeHTML(post.id)}">Decidi ficar com ele</button></div>` : '<span class="completed-label">Concluído</span>'}
       </div>
     </article>
   `).join('');
