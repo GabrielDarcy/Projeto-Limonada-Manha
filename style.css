@@ -1773,6 +1773,32 @@ body[data-animal-type="Cachorro"] .category-filters {
   padding: 20px;
 }
 
+.feed-card-body,
+.category-pet-card-body,
+.recent-post-body,
+.profile-post-card-body {
+  display: flex;
+  flex-direction: column;
+  flex-grow: 1;
+  gap: 12px;
+}
+
+.feed-card-body p,
+.category-pet-card-body p,
+.recent-post-body p,
+.profile-post-card-body p,
+.feed-card-header,
+.feed-location,
+.recent-post-location,
+.category-pet-location {
+  margin: 0;
+}
+
+.post-action-row {
+  margin-top: auto;
+  padding-top: 8px;
+}
+
 .adopted-card {
   position: relative;
   cursor: not-allowed;

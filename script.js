@@ -43,6 +43,14 @@ function escapeHTML(str) {
     .replace(/'/g, '&#39;');
 }
 
+function formatAnimalType(type) {
+  const normalized = String(type || '').trim();
+  if (normalized === 'Fazenda') return 'Animal de Fazenda';
+  if (normalized === 'Exótico') return 'Animal Exótico';
+  if (normalized === 'Marinho') return 'Animal Marinho';
+  return normalized;
+}
+
 function truncateText(text, maxLength = 80) {
   const value = String(text || '').trim();
   if (value.length <= maxLength) return value;
@@ -701,8 +709,8 @@ function setupCreatePostForm() {
   const geneticsFields = document.getElementById('postGeneticsFields');
   const speciesField = document.getElementById('postSpeciesField');
   const speciesInput = document.getElementById('postSpecies');
-  const sizeFieldWrap = document.getElementById('postSizeField');
-  const sizeField = document.getElementById('postSize');
+  const sizeField = document.getElementById('postSizeField');
+  const sizeInput = document.getElementById('postSize');
   const breedField = document.getElementById('postBreed');
   const motherBreedField = document.getElementById('postMotherBreed');
   const fatherBreedField = document.getElementById('postFatherBreed');
@@ -711,7 +719,7 @@ function setupCreatePostForm() {
   const photoGallery = document.getElementById('photoGallery');
   const photoCount = document.getElementById('photoCount');
 
-  if (!form || !typeField || !stateField || !cityField || !geneticsFields || !speciesField || !sizeFieldWrap || !sizeField || !photoInput || !photoAddButton || !photoGallery) return;
+  if (!form || !typeField || !stateField || !cityField || !geneticsFields || !speciesField || !sizeField || !sizeInput || !photoInput || !photoAddButton || !photoGallery) return;
 
   const selectedFiles = [];
 
@@ -793,9 +801,11 @@ function setupCreatePostForm() {
     geneticsFields.hidden = !isGeneticType;
     speciesField.hidden = isGeneticType || !typeField.value;
     speciesInput.disabled = isGeneticType || !isSpeciesSelectType;
-    sizeFieldWrap.hidden = !isDog;
-    sizeField.disabled = !isDog;
-    sizeField.required = isDog;
+    if (sizeField && sizeInput) {
+      sizeField.hidden = !isDog;
+      sizeInput.disabled = !isDog;
+      sizeInput.required = isDog;
+    }
     breedField.disabled = !isGeneticType;
     motherBreedField.disabled = !isGeneticType;
     fatherBreedField.disabled = !isGeneticType;
@@ -954,7 +964,7 @@ function renderFeed(append = false) {
           ${renderAuthorBar(post.profiles)}
           <div class="feed-card-header">
             <div>
-              <span class="mini-tag">${escapeHTML(post.animal_type)}</span>
+              <span class="mini-tag">${escapeHTML(formatAnimalType(post.animal_type))}</span>
               <h3>${escapeHTML(post.title)}</h3>
             </div>
             <span class="feed-location">📍 ${escapeHTML(formatPostLocation(post))}</span>
@@ -998,7 +1008,7 @@ function renderRecentPosts() {
           ${generateImageCarouselHTML(post.image_urls, post.title)}
           <div class="recent-post-body">
             ${renderAuthorBar(post.profiles)}
-            <span class="mini-tag">${escapeHTML(post.animal_type)}</span>
+            <span class="mini-tag">${escapeHTML(formatAnimalType(post.animal_type))}</span>
             <h3>${escapeHTML(post.title)}</h3>
             <p>${escapeHTML(truncateText(post.description))}</p>
             <span class="recent-post-location">📍 ${escapeHTML(formatPostLocation(post))}</span>
@@ -1219,7 +1229,7 @@ async function renderFavorites() {
       ${generateImageCarouselHTML(post.image_urls, post.title)}
       <div class="recent-post-body">
         ${renderAuthorBar(post.profiles)}
-        <span class="mini-tag">${escapeHTML(post.animal_type)}</span>
+        <span class="mini-tag">${escapeHTML(formatAnimalType(post.animal_type))}</span>
         <h3>${escapeHTML(post.title)}</h3>
         <p>${escapeHTML(truncateText(post.description))}</p>
         <span class="recent-post-location">📍 ${escapeHTML(formatPostLocation(post))}</span>
@@ -1603,7 +1613,7 @@ async function renderUserPosts() {
       ${generateImageCarouselHTML(post.image_urls, post.title)}
       <div class="profile-post-card-body">
         ${renderAuthorBar(post.profiles)}
-        <span class="mini-tag">${escapeHTML(post.animal_type)}</span>
+        <span class="mini-tag">${escapeHTML(formatAnimalType(post.animal_type))}</span>
         <h3>${escapeHTML(post.title)}</h3>
         <p>📍 ${escapeHTML(formatPostLocation(post))}</p>
         ${post.status === 'active' ? `<div class="post-status-actions"><button class="btn btn-secondary" type="button" data-mark-adopted="${escapeHTML(post.id)}">Já doei</button><button class="btn btn-secondary" type="button" data-mark-adopted="${escapeHTML(post.id)}">Decidi ficar com ele</button></div>` : '<span class="completed-label">Concluído</span>'}
@@ -1639,7 +1649,7 @@ async function renderProfileFavorites() {
       ${generateImageCarouselHTML(post.image_urls, post.title)}
       <div class="profile-post-card-body">
         ${renderAuthorBar(post.profiles)}
-        <span class="mini-tag">${escapeHTML(post.animal_type)}</span>
+        <span class="mini-tag">${escapeHTML(formatAnimalType(post.animal_type))}</span>
         <h3>${escapeHTML(post.title)}</h3>
         <p>📍 ${escapeHTML(formatPostLocation(post))}</p>
         ${post.status === 'active' ? postActionHTML(post) : ''}
