@@ -614,6 +614,43 @@ th {
   .auth-visual {
     min-height: 280px;
   }
+
+  body {
+    padding-bottom: 75px;
+  }
+
+  .home-links {
+    display: none;
+  }
+
+  .mobile-bottom-nav {
+    position: fixed;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    z-index: 100;
+    display: flex;
+    justify-content: space-around;
+    padding: 12px 0;
+    background: #fff;
+    box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.05);
+  }
+
+  .mobile-bottom-nav .nav-item {
+    color: var(--muted);
+    font-size: 1.15rem;
+    font-weight: 800;
+    line-height: 1.1;
+    text-align: center;
+  }
+
+  .mobile-bottom-nav .nav-item span {
+    font-size: 0.7rem;
+  }
+
+  .how-it-works-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
 .home-header {
@@ -752,6 +789,41 @@ th {
 
 .recent-posts-section {
   background: rgba(255, 255, 255, 0.62);
+}
+
+.how-it-works-section {
+  background: linear-gradient(180deg, #fffdfb 0%, #fff8f0 100%);
+}
+
+.how-it-works-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 20px;
+  text-align: center;
+}
+
+.how-it-works-step {
+  padding: 24px 18px;
+  border: 1px solid rgba(231, 108, 32, 0.1);
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.72);
+}
+
+.how-it-works-step > span {
+  display: block;
+  margin-bottom: 12px;
+  font-size: 2rem;
+}
+
+.how-it-works-step h3,
+.how-it-works-step p {
+  margin: 0;
+}
+
+.how-it-works-step p {
+  margin-top: 8px;
+  color: var(--muted);
+  line-height: 1.6;
 }
 
 .section-title-row {
@@ -1191,6 +1263,86 @@ body[data-animal-type="Cachorro"] .category-filters {
   color: var(--text);
 }
 
+.custom-select {
+  position: relative;
+  min-width: 0;
+}
+
+.custom-select-native {
+  display: none !important;
+}
+
+.custom-select-trigger {
+  width: 100%;
+  min-height: 48px;
+  padding: 0 14px;
+  border: 1px solid rgba(31, 27, 27, 0.12);
+  border-radius: 12px;
+  background: #fff;
+  color: var(--text);
+  cursor: pointer;
+  text-align: left;
+}
+
+.custom-select-trigger:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.custom-select.is-open .custom-select-trigger {
+  border-color: var(--primary-dark);
+  box-shadow: 0 0 0 3px rgba(231, 108, 32, 0.12);
+}
+
+.custom-select-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  left: 0;
+  z-index: 80;
+  overflow: hidden;
+  max-height: 250px;
+  border: 1px solid rgba(31, 27, 27, 0.12);
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: 0 16px 36px rgba(31, 27, 27, 0.16);
+}
+
+.custom-select-search {
+  width: calc(100% - 20px);
+  margin: 10px;
+  padding: 9px 10px;
+  border: 1px solid rgba(31, 27, 27, 0.12);
+  border-radius: 8px;
+}
+
+.custom-select-options {
+  max-height: 185px;
+  overflow-y: auto;
+  padding-bottom: 6px;
+}
+
+.custom-select-option {
+  display: block;
+  width: 100%;
+  padding: 10px 14px;
+  border: 0;
+  background: #fff;
+  color: var(--text);
+  cursor: pointer;
+  text-align: left;
+}
+
+.custom-select-option[hidden] {
+  display: none !important;
+}
+
+.custom-select-option:hover,
+.custom-select-option:focus-visible {
+  background: #fff4ea;
+  color: var(--primary-dark);
+}
+
 .feed-toolbar {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -1307,6 +1459,11 @@ body[data-animal-type="Cachorro"] .category-filters {
 }
 
 .post-action-row .btn { flex: 1 1 150px; }
+
+.mobile-bottom-nav {
+  display: none;
+}
+
 .admin-feed-delete { background: var(--danger); }
 .admin-feed-delete:hover,
 .admin-feed-delete:focus-visible { background: #991b1b; }
@@ -2105,33 +2262,75 @@ body[data-animal-type="Cachorro"] .category-filters {
 
 .modal-genetics dl {
   display: grid;
-  gap: 8px;
-  margin: 0;
+  grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+  gap: 12px;
+  margin-top: 12px;
 }
 
 .modal-genetics dl div {
   display: flex;
-  justify-content: space-between;
-  gap: 16px;
-  padding: 8px 0;
-  font-size: 0.9rem;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  padding: 14px;
+  border: 1px solid #e9ecef;
+  border-radius: 12px;
+  background: #f8f9fa;
 }
 
 .modal-genetics dt {
   color: var(--muted);
+  font-size: 0.75rem;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
 }
 
 .modal-genetics dd {
   margin: 0;
   font-weight: 800;
-  text-align: right;
+  font-size: 0.95rem;
+  color: var(--text);
+  text-align: left;
 }
 
 #modalPostContact {
-  color: var(--primary-dark);
-  font-weight: 800;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 12px;
+  padding: 16px;
+  border: 1px dashed var(--primary);
+  border-radius: 12px;
+  background: #fff4ea;
+  color: var(--text);
+  font-weight: 700;
   line-height: 1.7;
   overflow-wrap: anywhere;
+}
+
+.copy-contact-btn {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid rgba(231, 108, 32, 0.16);
+  border-radius: 10px;
+  background: #fff;
+  color: var(--text);
+  cursor: pointer;
+  font: inherit;
+  font-weight: 700;
+  text-align: left;
+  transition: background 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
+}
+
+.copy-contact-btn:hover,
+.copy-contact-btn:focus-visible {
+  border-color: var(--primary);
+  background: #fffaf4;
+  transform: translateY(-1px);
+}
+
+.contact-empty {
+  color: var(--muted);
 }
 
 .adoption-modal-close {
@@ -2559,6 +2758,46 @@ body[data-animal-type="Cachorro"] .category-filters {
   .profile-post-grid {
     grid-template-columns: 1fr;
   }
+}
+
+/* Protecao de layout dos cards: nenhum conteudo pode criar rolagem interna. */
+.feed-card,
+.category-pet-card,
+.recent-post-card,
+.profile-post-card,
+.feed-card-body,
+.category-pet-card-body,
+.recent-post-body,
+.profile-post-card-body {
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.feed-card h3,
+.category-pet-card h2,
+.category-pet-card h3,
+.recent-post-card h3,
+.profile-post-card h3 {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  text-overflow: ellipsis;
+}
+
+.feed-location,
+.category-pet-location,
+.category-pet-breed,
+.recent-post-location,
+.feed-meta span,
+.profile-post-card-body p {
+  display: block;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 @media (max-width: 560px) {

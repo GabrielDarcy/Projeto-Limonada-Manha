@@ -12,17 +12,29 @@ const FEED_PAGE_SIZE = 10;
 let feedCurrentPage = 0;
 
 const DOG_BREEDS = [
-  'Vira-lata (SRD)', 'Golden Retriever', 'Labrador Retriever', 'Pastor Alemão',
-  'Bulldogue Francês', 'Bulldogue Inglês', 'Poodle', 'Shih-tzu', 'Yorkshire Terrier',
-  'Rottweiler', 'Pitbull', 'Pinscher', 'Beagle', 'Boxer', 'Dachshund', 'Husky Siberiano',
-  'Border Collie', 'Cocker Spaniel', 'Chihuahua', 'Basset Hound', 'Doberman', 'Maltês',
-  'Akita', 'Pug', 'Schnauzer', 'Outra raça'
+  'Vira-lata (SRD)',
+  'Akita', 'Basset Hound', 'Beagle', 'Bichon Frisé', 'Boiadeiro Australiano',
+  'Border Collie', 'Boston Terrier', 'Boxer', 'Buldogue Francês', 'Buldogue Inglês',
+  'Bull Terrier', 'Cane Corso', 'Cavalier King Charles Spaniel', 'Chihuahua',
+  'Chow Chow', 'Cocker Spaniel', 'Collie', 'Corgi', 'Dachshund (Salsicha)',
+  'Dálmata', 'Doberman', 'Dogo Argentino', 'Fila Brasileiro', 'Golden Retriever',
+  'Husky Siberiano', 'Jack Russell Terrier', 'Labrador Retriever', 'Lhasa Apso',
+  'Lulu da Pomerânia (Spitz Alemão)', 'Maltês', 'Mastim Napolitano', 'Pastor Alemão',
+  'Pastor Australiano', 'Pastor Belga', 'Pastor Maremano', 'Pequinês', 'Pinscher',
+  'Pit Bull', 'Pointer', 'Poodle', 'Pug', 'Rottweiler', 'Samoieda', 'São Bernardo',
+  'Schnauzer', 'Shar-Pei', 'Shiba Inu', 'Shih Tzu', 'Staffordshire Bull Terrier',
+  'Terra Nova', 'Yorkshire Terrier',
+  'Outra raça'
 ];
 
 const CAT_BREEDS = [
-  'Vira-lata (SRD)', 'Siamês', 'Persa', 'Maine Coon', 'Ragdoll', 'Angorá', 'Bengal',
-  'British Shorthair', 'Sphynx', 'Scottish Fold', 'Abissínio', 'Birmanês', 'Azul Russo',
-  'Exótico de Pelo Curto', 'Himalaio', 'American Shorthair', 'Outra raça'
+  'Vira-lata (SRD)',
+  'Abissínio', 'American Shorthair', 'Angorá', 'Azul Russo', 'Bengal',
+  'Bobtail Japonês', 'Bombay', 'British Shorthair', 'Burmese', 'Chartreux',
+  'Cornish Rex', 'Devon Rex', 'Exótico de Pelo Curto', 'Himalaio', 'Maine Coon',
+  'Mau Egípcio', 'Munchkin', 'Norueguês da Floresta', 'Oriental', 'Persa',
+  'Ragdoll', 'Savannah', 'Scottish Fold', 'Siamês', 'Siberiano', 'Singapura', 'Sphynx',
+  'Outra raça'
 ];
 
 const FARM_BREEDS = ['Cavalo', 'Vaca', 'Porco', 'Ovelha', 'Cabra', 'Galinha', 'Pato', 'Outro'];
@@ -167,7 +179,8 @@ function favoriteButtonHTML(postId) {
 }
 
 function shareButtonHTML(post) {
-  return `<button class="share-button" type="button" data-share-post="${escapeHTML(post.id)}" data-share-title="${escapeHTML(post.title || 'Pet Amor')}" data-share-text="${escapeHTML(post.description || '')}" aria-label="Compartilhar publicação" title="Compartilhar"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 8a3 3 0 1 0-2.83-4A3 3 0 0 0 15 5c0 .18.02.36.05.53L8.91 9.05A3 3 0 1 0 9 12c0-.18-.02-.36-.05-.53l6.14-3.52c.52.65 1.32 1.05 2.22 1.05Zm0 8a3 3 0 0 0-2.83 2L9.03 14.5A3 3 0 1 0 8 16c.18 0 .36-.02.53-.05l6.14 3.52A3 3 0 1 0 18 16Z"></path></svg></button>`;
+  const postUrl = `${window.location.origin}${window.location.pathname}?post=${encodeURIComponent(post.id)}`;
+  return `<button class="share-button" type="button" data-share-post="${escapeHTML(post.id)}" data-share-title="${escapeHTML(post.title || 'Pet Amor')}" data-share-text="${escapeHTML(post.description || '')}" data-share-url="${escapeHTML(postUrl)}" aria-label="Compartilhar publicação" title="Compartilhar"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 8a3 3 0 1 0-2.83-4A3 3 0 0 0 15 5c0 .18.02.36.05.53L8.91 9.05A3 3 0 1 0 9 12c0-.18-.02-.36-.05-.53l6.14-3.52c.52.65 1.32 1.05 2.22 1.05Zm0 8a3 3 0 0 0-2.83 2L9.03 14.5A3 3 0 1 0 8 16c.18 0 .36-.02.53-.05l6.14 3.52A3 3 0 1 0 18 16Z"></path></svg></button>`;
 }
 
 function getPostPhone(post) {
@@ -658,6 +671,17 @@ function getContactItems(post) {
   return directItems.length ? directItems : parsedItems;
 }
 
+function renderCopyableContacts(post) {
+  return getContactItems(post).map((item) => {
+    const contact = String(item);
+    const match = contact.match(/^(Tel|Telefone|Email|E-mail|IG|Instagram)\s*:\s*(.+)$/i);
+    const kind = match?.[1]?.toLowerCase() || 'contato';
+    const value = match?.[2]?.trim() || contact;
+    const icon = kind.startsWith('tel') ? '📞' : kind.includes('mail') ? '✉️' : kind.startsWith('ig') || kind.startsWith('instagram') ? '📷' : '📋';
+    return `<button type="button" class="copy-contact-btn" data-copy="${escapeHTML(value)}">${icon} ${escapeHTML(contact)}</button>`;
+  }).join('') || '<span class="contact-empty">Contato não informado</span>';
+}
+
 function renderContactItems(post) {
   return getContactItems(post).map((item) => `<span>${escapeHTML(item)}</span>`).join('');
 }
@@ -910,7 +934,12 @@ async function handleCreatePostSubmit(event) {
     };
 
     const { error } = await getSupabaseClient().from('posts').insert([post]).select().single();
-    if (error) throw new Error(error.message);
+    if (error) {
+      if (error.message.includes('RATE_LIMIT_EXCEEDED')) {
+        throw new Error('Você excedeu os limites da nossa infraestrutura que é modesta. Você poderá postar mais daqui a uma hora.');
+      }
+      throw new Error(error.message);
+    }
     
     showToast('Publicação criada com sucesso.');
     window.location.href = 'index.html';
@@ -969,12 +998,13 @@ function renderFeed(append = false) {
             </div>
             <span class="feed-location">📍 ${escapeHTML(formatPostLocation(post))}</span>
           </div>
-          <p>${escapeHTML(truncateText(post.description))}</p>
           <div class="feed-meta">
             <span><strong>Raça:</strong> ${escapeHTML(post.breed || 'Não informado')}</span>
           </div>
-          <div class="feed-contact-list">${renderContactItems(post)}</div>
-          ${postActionButtonsHTML(post)}
+          <div class="post-action-row">
+            <button class="btn btn-secondary" type="button" data-post-details="${escapeHTML(post.id)}">Ver detalhes</button>
+            ${postActionButtonsHTML(post)}
+          </div>
         </div>
       </article>
     `);
@@ -989,6 +1019,10 @@ function renderFeed(append = false) {
       feedTarget.querySelector('.feed-load-more')?.addEventListener('click', () => { feedCurrentPage += 1; renderFeed(true); }, { once: true });
     }
     bindAdoptionButtons(feedTarget, filteredPosts);
+    const postsById = new Map(filteredPosts.map((post) => [String(post.id), post]));
+    feedTarget.querySelectorAll('[data-post-details]').forEach((button) => {
+      button.addEventListener('click', () => openAdoptionModal(postsById.get(button.dataset.postDetails)));
+    });
   }).catch((error) => {
     feedTarget.innerHTML = `<div class="empty-state">Não foi possível carregar as publicações: ${escapeHTML(error.message)}</div>`;
   });
@@ -1010,9 +1044,8 @@ function renderRecentPosts() {
             ${renderAuthorBar(post.profiles)}
             <span class="mini-tag">${escapeHTML(formatAnimalType(post.animal_type))}</span>
             <h3>${escapeHTML(post.title)}</h3>
-            <p>${escapeHTML(truncateText(post.description))}</p>
             <span class="recent-post-location">📍 ${escapeHTML(formatPostLocation(post))}</span>
-            ${post.status === 'active' ? postActionHTML(post) : ''}
+            ${post.status === 'active' ? `<div class="post-action-row"><button class="btn btn-secondary" type="button" data-post-details="${escapeHTML(post.id)}">Ver detalhes</button>${postActionButtonsHTML(post)}</div>` : ''}
           </div>
         </article>
       `).join('');
@@ -1020,6 +1053,9 @@ function renderRecentPosts() {
       const postsById = new Map((data || []).map((post) => [String(post.id), post]));
       target.querySelectorAll('[data-adoption-post]').forEach((button) => {
         button.addEventListener('click', () => openAdoptionModal(postsById.get(button.dataset.adoptionPost)));
+      });
+      target.querySelectorAll('[data-post-details]').forEach((button) => {
+        button.addEventListener('click', () => openAdoptionModal(postsById.get(button.dataset.postDetails)));
       });
     })
     .catch((error) => {
@@ -1231,13 +1267,16 @@ async function renderFavorites() {
         ${renderAuthorBar(post.profiles)}
         <span class="mini-tag">${escapeHTML(formatAnimalType(post.animal_type))}</span>
         <h3>${escapeHTML(post.title)}</h3>
-        <p>${escapeHTML(truncateText(post.description))}</p>
         <span class="recent-post-location">📍 ${escapeHTML(formatPostLocation(post))}</span>
-        ${post.status === 'active' ? postActionHTML(post) : ''}
+        ${post.status === 'active' ? `<div class="post-action-row"><button class="btn btn-secondary" type="button" data-post-details="${escapeHTML(post.id)}">Ver detalhes</button>${postActionButtonsHTML(post)}</div>` : ''}
       </div>
     </article>
   `).join('');
   bindAdoptionButtons(target, orderedPosts.filter((post) => post.status === 'active'));
+  const postsById = new Map(orderedPosts.map((post) => [String(post.id), post]));
+  target.querySelectorAll('[data-post-details]').forEach((button) => {
+    button.addEventListener('click', () => openAdoptionModal(postsById.get(button.dataset.postDetails)));
+  });
 }
 
 function openAdoptionModal(post) {
@@ -1257,7 +1296,7 @@ function openAdoptionModal(post) {
     modalSize.textContent = post.size || '';
     modalSizeSection.hidden = !post.size;
   }
-  document.getElementById('modalPostContact').textContent = getPostContact(post);
+  document.getElementById('modalPostContact').innerHTML = renderCopyableContacts(post);
   const additionalSection = document.getElementById('modalAdditionalDetails');
   const additionalDetails = document.getElementById('modalPostAdditionalDetails');
   const excludedFields = new Set(['id', 'user_id', 'profiles', 'image_urls', 'title', 'description', 'animal_type', 'state', 'city', 'breed', 'mother_breed', 'father_breed', 'phone', 'contact_phone', 'contact_info', 'status', 'created_at', 'updated_at']);
@@ -1345,7 +1384,7 @@ function setupFavoriteInteractionsV7() {
     event.stopPropagation();
     try {
       const favorite = await toggleFavorite(button.dataset.favoriteId);
-      document.querySelectorAll(`[data-favorite-id="${button.dataset.favoriteId}"]`).forEach((favoriteButton) => {
+      document.querySelectorAll(`[data-favorite-id="${CSS.escape(button.dataset.favoriteId)}"]`).forEach((favoriteButton) => {
         favoriteButton.classList.toggle('is-favorite', favorite);
         favoriteButton.innerHTML = favorite ? '❤️' : '🤍';
         favoriteButton.setAttribute('aria-pressed', String(favorite));
@@ -1362,18 +1401,129 @@ function setupShareInteractions() {
   document.body.addEventListener('click', async (event) => {
     const button = event.target.closest('[data-share-post]');
     if (!button) return;
-    const shareData = { title: button.dataset.shareTitle, text: button.dataset.shareText, url: window.location.href };
+    const shareUrl = button.dataset.shareUrl || window.location.href;
+    const shareData = { title: button.dataset.shareTitle, text: button.dataset.shareText, url: shareUrl };
     try {
       if (navigator.share) {
         await navigator.share(shareData);
       } else {
-        await navigator.clipboard.writeText(window.location.href);
+        await navigator.clipboard.writeText(shareUrl);
         showToast('Link copiado!');
       }
     } catch (error) {
       if (error?.name !== 'AbortError') showToast('Não foi possível compartilhar a publicação.', 'error');
     }
   });
+}
+
+function setupCopyContactInteractions() {
+  document.body.addEventListener('click', async (event) => {
+    const button = event.target.closest('.copy-contact-btn');
+    if (!button) return;
+    try {
+      await navigator.clipboard.writeText(button.dataset.copy || '');
+      showToast('Copiado!');
+    } catch (error) {
+      showToast('Não foi possível copiar o contato.', 'error');
+    }
+  });
+}
+
+function normalizeSelectSearch(value) {
+  return String(value || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+}
+
+function initCustomSelects() {
+  document.querySelectorAll('select').forEach((select) => {
+    if (select.closest('.custom-select') || select.dataset.customSelectReady === 'true') return;
+    select.dataset.customSelectReady = 'true';
+    select.classList.add('custom-select-native');
+
+    const wrapper = document.createElement('div');
+    wrapper.className = 'custom-select';
+    const trigger = document.createElement('button');
+    trigger.type = 'button';
+    trigger.className = 'custom-select-trigger';
+    trigger.setAttribute('aria-haspopup', 'listbox');
+    const menu = document.createElement('div');
+    menu.className = 'custom-select-menu';
+    menu.hidden = true;
+    const search = document.createElement('input');
+    search.type = 'search';
+    search.className = 'custom-select-search';
+    search.placeholder = 'Pesquisar...';
+    search.setAttribute('aria-label', 'Pesquisar opções');
+    const options = document.createElement('div');
+    options.className = 'custom-select-options';
+    menu.append(search, options);
+    select.parentNode.insertBefore(wrapper, select);
+    wrapper.append(select, trigger, menu);
+
+    const refresh = () => {
+      const selected = select.options[select.selectedIndex];
+      trigger.textContent = selected?.textContent || 'Selecione';
+      trigger.disabled = select.disabled;
+      options.innerHTML = '';
+      Array.from(select.options).forEach((option) => {
+        const item = document.createElement('button');
+        item.type = 'button';
+        item.className = 'custom-select-option';
+        item.textContent = option.textContent;
+        item.dataset.value = option.value;
+        item.hidden = option.hidden;
+        item.disabled = option.disabled;
+        item.setAttribute('role', 'option');
+        item.setAttribute('aria-selected', String(option.selected));
+        item.addEventListener('click', () => {
+          select.value = option.value;
+          select.dispatchEvent(new Event('change', { bubbles: true }));
+          close();
+        });
+        options.appendChild(item);
+      });
+    };
+    const close = () => {
+      menu.hidden = true;
+      wrapper.classList.remove('is-open');
+      search.value = '';
+      options.querySelectorAll('.custom-select-option').forEach((item) => { item.hidden = false; });
+    };
+    trigger.addEventListener('click', () => {
+      if (select.disabled) return;
+      const willOpen = menu.hidden;
+      document.querySelectorAll('.custom-select-menu:not([hidden])').forEach((openMenu) => { openMenu.hidden = true; openMenu.parentElement.classList.remove('is-open'); });
+      menu.hidden = !willOpen;
+      wrapper.classList.toggle('is-open', willOpen);
+      if (willOpen) search.focus();
+    });
+    search.addEventListener('input', () => {
+      const query = normalizeSelectSearch(search.value);
+      options.querySelectorAll('.custom-select-option').forEach((item) => {
+        item.hidden = !normalizeSelectSearch(item.textContent).includes(query);
+      });
+    });
+    select.addEventListener('change', refresh);
+    new MutationObserver(refresh).observe(select, { childList: true, subtree: true, attributes: true, attributeFilter: ['disabled'] });
+    refresh();
+  });
+  document.addEventListener('click', (event) => {
+    if (!event.target.closest('.custom-select')) document.querySelectorAll('.custom-select-menu:not([hidden])').forEach((menu) => { menu.hidden = true; menu.parentElement.classList.remove('is-open'); });
+  });
+}
+
+async function checkSharedPostOnLoad() {
+  const postId = new URLSearchParams(window.location.search).get('post');
+  if (!postId || !document.getElementById('adoptionModal')) return;
+  try {
+    const { data: post, error } = await getSupabaseClient()
+      .from('posts')
+      .select('*, profiles(full_name, username, avatar_url)')
+      .eq('id', postId)
+      .single();
+    if (post && !error) openAdoptionModal(post);
+  } catch (error) {
+    console.error('Erro ao carregar o post compartilhado:', error);
+  }
 }
 
 function generateRecoveryCode() {
@@ -1704,6 +1854,7 @@ async function initializePage() {
   setupPostCarouselNavigation();
   setupFavoriteInteractionsV7();
   setupShareInteractions();
+  setupCopyContactInteractions();
   bindAdminActions();
   const page = document.body.dataset.page;
   updateHomeUserActions();
@@ -1725,6 +1876,12 @@ async function initializePage() {
   } else if (page === 'register') {
     setupRegisterBirthDateMask();
     document.getElementById('registerForm')?.addEventListener('submit', handleRegisterSubmit);
+    const registerPasswordInput = document.getElementById('registerPassword');
+    if (registerPasswordInput) {
+      registerPasswordInput.addEventListener('input', (event) => {
+        updatePasswordStrength(event.target.value);
+      });
+    }
   } else if (page === 'create-post' && redirectIfLoggedOut()) {
     setupCreatePostForm();
   } else if (page === 'profile') {
@@ -1760,6 +1917,8 @@ async function initializePage() {
     });
     renderAdminDashboard();
   }
+  initCustomSelects();
+  await checkSharedPostOnLoad();
 }
 
 document.addEventListener('DOMContentLoaded', initializePage);
