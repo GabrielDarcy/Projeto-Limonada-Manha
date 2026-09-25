@@ -25,8 +25,8 @@ const CAT_BREEDS = [
   'Exótico de Pelo Curto', 'Himalaio', 'American Shorthair', 'Outra raça'
 ];
 
-const FARM_BREEDS = ['Cavalo', 'Vaca', 'Porco', 'Ovelha', 'Cabra', 'Galinha', 'Pato', 'Coelho', 'Burro', 'Outro animal de fazenda'];
-const MARINE_BREEDS = ['Peixe', 'Tartaruga', 'Caranguejo', 'Golfinho', 'Baleia', 'Cavalo-marinho', 'Polvo', 'Estrela-do-mar', 'Outro animal marinho'];
+const FARM_BREEDS = ['Cavalo', 'Vaca', 'Porco', 'Ovelha', 'Cabra', 'Galinha', 'Pato', 'Outro'];
+const MARINE_BREEDS = ['Tartaruga', 'Peixe', 'Caranguejo', 'Outro'];
 
 const BANNED_WORDS = [
   'merda', 'porra', 'caralho', 'puta', 'puto', 'viado', 'vadia', 'bosta', 'foder', 'fodase', 'desgracado', 'desgracada'
@@ -42,6 +42,14 @@ function escapeHTML(str) {
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#39;');
 }
+
+function truncateText(text, maxLength = 80) {
+  const value = String(text || '').trim();
+  if (value.length <= maxLength) return value;
+  return `${value.slice(0, Math.max(0, maxLength - 3)).trimEnd()}...`;
+}
+
+window.truncateText = truncateText;
 
 function readStorage(key, fallback) {
   const raw = localStorage.getItem(key);
@@ -693,6 +701,8 @@ function setupCreatePostForm() {
   const geneticsFields = document.getElementById('postGeneticsFields');
   const speciesField = document.getElementById('postSpeciesField');
   const speciesInput = document.getElementById('postSpecies');
+  const sizeFieldWrap = document.getElementById('postSizeField');
+  const sizeField = document.getElementById('postSize');
   const breedField = document.getElementById('postBreed');
   const motherBreedField = document.getElementById('postMotherBreed');
   const fatherBreedField = document.getElementById('postFatherBreed');
@@ -701,7 +711,7 @@ function setupCreatePostForm() {
   const photoGallery = document.getElementById('photoGallery');
   const photoCount = document.getElementById('photoCount');
 
-  if (!form || !typeField || !stateField || !cityField || !geneticsFields || !speciesField || !photoInput || !photoAddButton || !photoGallery) return;
+  if (!form || !typeField || !stateField || !cityField || !geneticsFields || !speciesField || !sizeFieldWrap || !sizeField || !photoInput || !photoAddButton || !photoGallery) return;
 
   const selectedFiles = [];
 
@@ -779,9 +789,13 @@ function setupCreatePostForm() {
   const updateBreedFields = () => {
     const isGeneticType = typeField.value === 'Cachorro' || typeField.value === 'Gato';
     const isSpeciesSelectType = typeField.value === 'Fazenda' || typeField.value === 'Marinho';
+    const isDog = typeField.value === 'Cachorro';
     geneticsFields.hidden = !isGeneticType;
     speciesField.hidden = isGeneticType || !typeField.value;
     speciesInput.disabled = isGeneticType || !isSpeciesSelectType;
+    sizeFieldWrap.hidden = !isDog;
+    sizeField.disabled = !isDog;
+    sizeField.required = isDog;
     breedField.disabled = !isGeneticType;
     motherBreedField.disabled = !isGeneticType;
     fatherBreedField.disabled = !isGeneticType;
@@ -828,7 +842,9 @@ async function handleCreatePostSubmit(event) {
   const description = form.description.value.trim();
   const animalType = form.animalType.value;
   const isGeneticType = animalType === 'Cachorro' || animalType === 'Gato';
+  const isDog = animalType === 'Cachorro';
   const breed = isGeneticType ? form.breed.value.trim() : form.species.value.trim();
+  const size = isDog ? form.size.value.trim() : null;
   const motherBreed = isGeneticType ? form.motherBreed.value.trim() : null;
   const fatherBreed = isGeneticType ? form.fatherBreed.value.trim() : null;
   const state = form.state.value.trim();
@@ -853,7 +869,7 @@ async function handleCreatePostSubmit(event) {
     return;
   }
 
-  if (!title || !description || !animalType || !state || !city || !breed) {
+  if (!title || !description || !animalType || !state || !city || !breed || (isDog && !size)) {
     showToast('Preencha todos os campos obrigatórios.', 'error');
     return;
   }
@@ -876,6 +892,7 @@ async function handleCreatePostSubmit(event) {
       city,
       animal_type: animalType,
       breed: breed || 'Não informado',
+      size,
       mother_breed: motherBreed,
       father_breed: fatherBreed,
       image_urls: imageUrls,
@@ -942,7 +959,7 @@ function renderFeed(append = false) {
             </div>
             <span class="feed-location">📍 ${escapeHTML(formatPostLocation(post))}</span>
           </div>
-          <p>${escapeHTML(post.description)}</p>
+          <p>${escapeHTML(truncateText(post.description))}</p>
           <div class="feed-meta">
             <span><strong>Raça:</strong> ${escapeHTML(post.breed || 'Não informado')}</span>
           </div>
@@ -983,7 +1000,7 @@ function renderRecentPosts() {
             ${renderAuthorBar(post.profiles)}
             <span class="mini-tag">${escapeHTML(post.animal_type)}</span>
             <h3>${escapeHTML(post.title)}</h3>
-            <p>${escapeHTML(post.description)}</p>
+            <p>${escapeHTML(truncateText(post.description))}</p>
             <span class="recent-post-location">📍 ${escapeHTML(formatPostLocation(post))}</span>
             ${post.status === 'active' ? postActionHTML(post) : ''}
           </div>
@@ -1130,10 +1147,12 @@ async function renderCategoryFeed(animalType) {
   const stateField = document.getElementById('categoryState');
   const cityField = document.getElementById('categoryCity');
   const breedField = document.getElementById('categoryBreed');
+  const sizeField = document.getElementById('categorySize');
   target.innerHTML = '<div class="empty-state">Carregando animais...</div>';
   let query = getSupabaseClient().from('posts').select('*, profiles(full_name, username, avatar_url)').eq('animal_type', animalType).eq('status', 'active').order('created_at', { ascending: false });
   if (stateField?.value) query = query.eq('state', stateField.value);
   if (breedField?.value) query = query.ilike('breed', `%${breedField.value}%`);
+  if (animalType === 'Cachorro' && sizeField?.value) query = query.eq('size', sizeField.value);
   const { data, error } = await query;
 
   if (error) {
@@ -1156,6 +1175,7 @@ async function renderCategoryFeed(animalType) {
         ${renderAuthorBar(post.profiles)}
         <h2>${escapeHTML(post.title)}</h2>
         <p class="category-pet-location">📍 ${escapeHTML(formatPostLocation(post))}</p>
+        <p class="category-pet-breed"><strong>Raça:</strong> ${escapeHTML(post.breed || 'Não informado')}${post.animal_type === 'Cachorro' && post.size ? ` · <strong>Porte:</strong> ${escapeHTML(post.size)}` : ''}</p>
         <div class="post-action-row">
           <button class="btn btn-secondary" type="button" data-post-details="${escapeHTML(post.id)}">Ver detalhes</button>
           ${postActionButtonsHTML(post)}
@@ -1201,7 +1221,7 @@ async function renderFavorites() {
         ${renderAuthorBar(post.profiles)}
         <span class="mini-tag">${escapeHTML(post.animal_type)}</span>
         <h3>${escapeHTML(post.title)}</h3>
-        <p>${escapeHTML(post.description)}</p>
+        <p>${escapeHTML(truncateText(post.description))}</p>
         <span class="recent-post-location">📍 ${escapeHTML(formatPostLocation(post))}</span>
         ${post.status === 'active' ? postActionHTML(post) : ''}
       </div>
@@ -1221,13 +1241,21 @@ function openAdoptionModal(post) {
   document.getElementById('modalBreed').textContent = post.breed || 'SRD';
   document.getElementById('modalMotherBreed').textContent = post.mother_breed || 'Não informado';
   document.getElementById('modalFatherBreed').textContent = post.father_breed || 'Não informado';
+  const modalSize = document.getElementById('modalSize');
+  const modalSizeSection = document.getElementById('modalSizeSection');
+  if (modalSize && modalSizeSection) {
+    modalSize.textContent = post.size || '';
+    modalSizeSection.hidden = !post.size;
+  }
   document.getElementById('modalPostContact').textContent = getPostContact(post);
   const additionalSection = document.getElementById('modalAdditionalDetails');
   const additionalDetails = document.getElementById('modalPostAdditionalDetails');
   const excludedFields = new Set(['id', 'user_id', 'profiles', 'image_urls', 'title', 'description', 'animal_type', 'state', 'city', 'breed', 'mother_breed', 'father_breed', 'phone', 'contact_phone', 'contact_info', 'status', 'created_at', 'updated_at']);
-  const details = Object.entries(post).filter(([key, value]) => !excludedFields.has(key) && value !== null && value !== undefined && value !== '');
-  additionalDetails.innerHTML = details.map(([key, value]) => `<div><dt>${escapeHTML(key.replace(/_/g, ' '))}</dt><dd>${escapeHTML(Array.isArray(value) ? value.join(', ') : value)}</dd></div>`).join('');
-  additionalSection.hidden = !details.length;
+  if (additionalSection && additionalDetails) {
+    const details = Object.entries(post).filter(([key, value]) => !excludedFields.has(key) && value !== null && value !== undefined && value !== '');
+    additionalDetails.innerHTML = details.map(([key, value]) => `<div><dt>${escapeHTML(key.replace(/_/g, ' '))}</dt><dd>${escapeHTML(Array.isArray(value) ? value.join(', ') : value)}</dd></div>`).join('');
+    additionalSection.hidden = !details.length;
+  }
   modal.hidden = false;
   document.body.classList.add('modal-open');
 }
@@ -1270,6 +1298,7 @@ function setupCategoryPage() {
     loadStates(stateField, cityField);
   }
   breedField?.addEventListener('change', () => renderCategoryFeed(animalType));
+  document.getElementById('categorySize')?.addEventListener('change', () => renderCategoryFeed(animalType));
   renderCategoryFeed(animalType);
   document.querySelectorAll('[data-modal-close]').forEach((element) => element.addEventListener('click', closeAdoptionModal));
   document.addEventListener('keydown', (event) => { if (event.key === 'Escape') closeAdoptionModal(); });
