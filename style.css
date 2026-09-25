@@ -391,6 +391,22 @@ button {
   background: #ffe8ce;
 }
 
+.brand-icon img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  border-radius: inherit;
+}
+
+.mission-section {
+  background: linear-gradient(180deg, #fffdfb 0%, #fff8f0 100%);
+}
+
+.mission-section + .home-section.alt {
+  padding-top: 68px;
+  background: linear-gradient(180deg, #fff8f0 0%, #fff4e8 100%);
+}
+
 .admin-content {
   width: min(1200px, calc(100% - 32px));
   margin: 0 auto;
@@ -1562,6 +1578,20 @@ th {
   overflow-wrap: anywhere;
 }
 
+.pix-placeholder {
+  display: grid;
+  place-items: center;
+  width: 180px;
+  aspect-ratio: 1;
+  margin: 20px auto;
+  border: 2px dashed var(--primary-dark);
+  border-radius: 12px;
+  background: repeating-linear-gradient(45deg, #fff4ea 0 8px, #fff 8px 16px);
+  color: var(--primary-dark);
+  font-weight: 800;
+  text-align: center;
+}
+
 .help-list {
   list-style: none;
   padding: 0;
@@ -2317,6 +2347,9 @@ th {
 }
 
 @media (max-width: 560px) {
+  .recent-posts-grid .recent-post-card:nth-child(n + 5) {
+    display: none;
+  }
   .container {
     width: calc(100% - 32px);
   }

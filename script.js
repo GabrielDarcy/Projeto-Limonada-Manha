@@ -25,6 +25,9 @@ const CAT_BREEDS = [
   'Exótico de Pelo Curto', 'Himalaio', 'American Shorthair', 'Outra raça'
 ];
 
+const FARM_BREEDS = ['Cavalo', 'Vaca', 'Porco', 'Ovelha', 'Cabra', 'Galinha', 'Pato', 'Coelho', 'Burro', 'Outro animal de fazenda'];
+const MARINE_BREEDS = ['Peixe', 'Tartaruga', 'Caranguejo', 'Golfinho', 'Baleia', 'Cavalo-marinho', 'Polvo', 'Estrela-do-mar', 'Outro animal marinho'];
+
 const BANNED_WORDS = [
   'merda', 'porra', 'caralho', 'puta', 'puto', 'viado', 'vadia', 'bosta', 'foder', 'fodase', 'desgracado', 'desgracada'
 ];
@@ -158,13 +161,17 @@ function getPostPhone(post) {
   return phoneMatch ? phoneMatch[1].replace(/\D/g, '') : '';
 }
 
-function postActionHTML(post) {
+function postActionButtonsHTML(post) {
   const phone = getPostPhone(post);
   const title = encodeURIComponent(`Olá, vi o post do ${post.title || 'animal'} no Pet Amor e gostaria de saber mais!`);
   const adoptionAction = phone
     ? `<a class="btn btn-primary" href="https://wa.me/55${phone}?text=${title}" target="_blank" rel="noopener noreferrer">Conversar no WhatsApp</a>`
     : `<button class="btn btn-primary" type="button" data-adoption-post="${escapeHTML(post.id)}">Quero Adotar!</button>`;
-  return `<div class="post-action-row">${adoptionAction}${adminPostActions(post.id)}</div>`;
+  return `${adoptionAction}${adminPostActions(post.id)}`;
+}
+
+function postActionHTML(post) {
+  return `<div class="post-action-row">${postActionButtonsHTML(post)}</div>`;
 }
 
 function renderAuthorBar(profile) {
@@ -443,14 +450,24 @@ function setupDonationRedirect() {
 function setupSupportModal() {
   const modal = document.getElementById('supportModal');
   const openButton = document.getElementById('helpSiteButton');
-  if (!modal || !openButton) return;
-  openButton.addEventListener('click', () => { modal.hidden = false; });
-  modal.querySelectorAll('[data-support-close]').forEach((element) => {
+  if (modal && openButton) openButton.addEventListener('click', () => { modal.hidden = false; });
+  document.querySelectorAll('[data-help-reason]').forEach((button) => {
+    button.addEventListener('click', () => {
+      const message = document.getElementById('supportModalMessage');
+      if (message) message.textContent = `Que lindo! Sua ajuda com ${button.dataset.helpReason} mantém o Pet Amor vivo. Obrigado por cuidar com a gente!`;
+      if (modal) modal.hidden = false;
+    });
+  });
+  const contactModal = document.getElementById('contactModal');
+  document.getElementById('supportContactLink')?.addEventListener('click', (event) => {
+    event.preventDefault();
+    if (contactModal) contactModal.hidden = false;
+  });
+  modal?.querySelectorAll('[data-support-close]').forEach((element) => {
     element.addEventListener('click', () => { modal.hidden = true; });
   });
-  document.getElementById('copySupportEmail')?.addEventListener('click', async () => {
-    await navigator.clipboard.writeText(document.getElementById('supportEmail').textContent);
-    document.getElementById('copySupportEmail').textContent = 'E-mail copiado';
+  contactModal?.querySelectorAll('[data-contact-close]').forEach((element) => {
+    element.addEventListener('click', () => { contactModal.hidden = true; });
   });
 }
 
@@ -761,9 +778,10 @@ function setupCreatePostForm() {
 
   const updateBreedFields = () => {
     const isGeneticType = typeField.value === 'Cachorro' || typeField.value === 'Gato';
+    const isSpeciesSelectType = typeField.value === 'Fazenda' || typeField.value === 'Marinho';
     geneticsFields.hidden = !isGeneticType;
     speciesField.hidden = isGeneticType || !typeField.value;
-    speciesInput.disabled = isGeneticType || !typeField.value;
+    speciesInput.disabled = isGeneticType || !isSpeciesSelectType;
     breedField.disabled = !isGeneticType;
     motherBreedField.disabled = !isGeneticType;
     fatherBreedField.disabled = !isGeneticType;
@@ -773,6 +791,12 @@ function setupCreatePostForm() {
       populateBreedSelect(breedField, breeds);
       populateBreedSelect(motherBreedField, ['Não sei informar', ...breeds.filter((breed) => breed !== 'Vira-lata (SRD)')]);
       populateBreedSelect(fatherBreedField, ['Não sei informar', ...breeds.filter((breed) => breed !== 'Vira-lata (SRD)')]);
+    } else if (isSpeciesSelectType) {
+      const species = typeField.value === 'Fazenda' ? FARM_BREEDS : MARINE_BREEDS;
+      populateBreedSelect(speciesInput, species, 'Selecione a espécie');
+      populateBreedSelect(breedField, ['Não se aplica']);
+      populateBreedSelect(motherBreedField, ['Não se aplica']);
+      populateBreedSelect(fatherBreedField, ['Não se aplica']);
     } else {
       populateBreedSelect(breedField, ['Não sei informar']);
       populateBreedSelect(motherBreedField, ['Não sei informar']);
@@ -877,7 +901,10 @@ function renderFeed(append = false) {
 
   if (!feedTarget) return;
 
-  if (!append) feedCurrentPage = 0;
+  if (!append) {
+    feedCurrentPage = 0;
+    feedTarget.innerHTML = '';
+  }
   const page = feedCurrentPage;
   const stateValue = (stateField?.value || '').trim();
   const cityValue = (cityField?.value || '').trim();
@@ -920,7 +947,7 @@ function renderFeed(append = false) {
             <span><strong>Raça:</strong> ${escapeHTML(post.breed || 'Não informado')}</span>
           </div>
           <div class="feed-contact-list">${renderContactItems(post)}</div>
-          ${postActionHTML(post)}
+          ${postActionButtonsHTML(post)}
         </div>
       </article>
     `);
@@ -944,7 +971,7 @@ function renderRecentPosts() {
   const target = document.getElementById('recentPosts');
   if (!target) return;
 
-  getSupabaseClient().from('posts').select('*, profiles(full_name, username, avatar_url)').eq('status', 'active').order('created_at', { ascending: false }).limit(3)
+  getSupabaseClient().from('posts').select('*, profiles(full_name, username, avatar_url)').eq('status', 'active').order('created_at', { ascending: false }).limit(12)
     .then(({ data, error }) => {
       if (error) throw error;
       target.innerHTML = (data || []).map((post) => `
@@ -1130,13 +1157,17 @@ async function renderCategoryFeed(animalType) {
         <h2>${escapeHTML(post.title)}</h2>
         <p class="category-pet-location">📍 ${escapeHTML(formatPostLocation(post))}</p>
         <div class="post-action-row">
-          ${postActionHTML(post)}
-          ${adminPostActions(post.id)}
+          <button class="btn btn-secondary" type="button" data-post-details="${escapeHTML(post.id)}">Ver detalhes</button>
+          ${postActionButtonsHTML(post)}
         </div>
       </div>
     </article>
   `);
   bindAdoptionButtons(target, data);
+  const postsById = new Map(data.map((post) => [String(post.id), post]));
+  target.querySelectorAll('[data-post-details]').forEach((button) => {
+    button.addEventListener('click', () => openAdoptionModal(postsById.get(button.dataset.postDetails)));
+  });
 }
 
 async function renderFavorites() {
@@ -1191,6 +1222,12 @@ function openAdoptionModal(post) {
   document.getElementById('modalMotherBreed').textContent = post.mother_breed || 'Não informado';
   document.getElementById('modalFatherBreed').textContent = post.father_breed || 'Não informado';
   document.getElementById('modalPostContact').textContent = getPostContact(post);
+  const additionalSection = document.getElementById('modalAdditionalDetails');
+  const additionalDetails = document.getElementById('modalPostAdditionalDetails');
+  const excludedFields = new Set(['id', 'user_id', 'profiles', 'image_urls', 'title', 'description', 'animal_type', 'state', 'city', 'breed', 'mother_breed', 'father_breed', 'phone', 'contact_phone', 'contact_info', 'status', 'created_at', 'updated_at']);
+  const details = Object.entries(post).filter(([key, value]) => !excludedFields.has(key) && value !== null && value !== undefined && value !== '');
+  additionalDetails.innerHTML = details.map(([key, value]) => `<div><dt>${escapeHTML(key.replace(/_/g, ' '))}</dt><dd>${escapeHTML(Array.isArray(value) ? value.join(', ') : value)}</dd></div>`).join('');
+  additionalSection.hidden = !details.length;
   modal.hidden = false;
   document.body.classList.add('modal-open');
 }
@@ -1208,9 +1245,18 @@ function setupCategoryPage() {
   const cityField = document.getElementById('categoryCity');
   const breedField = document.getElementById('categoryBreed');
   if (!animalType) return;
-  if (breedField && (animalType === 'Cachorro' || animalType === 'Gato')) {
-    const breeds = animalType === 'Cachorro' ? DOG_BREEDS : CAT_BREEDS;
-    breedField.innerHTML = '<option value="">Todas as raças</option>';
+  if (breedField) {
+    const breeds = animalType === 'Cachorro'
+      ? DOG_BREEDS
+      : animalType === 'Gato'
+        ? CAT_BREEDS
+        : animalType === 'Fazenda'
+          ? FARM_BREEDS
+          : animalType === 'Marinho'
+            ? MARINE_BREEDS
+            : [];
+    const label = animalType === 'Cachorro' || animalType === 'Gato' ? 'Todas as raças' : 'Todas as espécies';
+    breedField.innerHTML = `<option value="">${label}</option>`;
     breeds.forEach((breed) => {
       breedField.insertAdjacentHTML('beforeend', `<option value="${escapeHTML(breed)}">${escapeHTML(breed)}</option>`);
     });

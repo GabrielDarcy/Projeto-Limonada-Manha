@@ -20,15 +20,15 @@
     <header class="home-header">
       <div class="container home-nav">
         <a class="brand-row" href="index.html">
-          <span class="brand-icon">🐾</span>
+          <span class="brand-icon"><img src="https://placehold.co/42x42/ffe8ce/7a3d16?text=Logo" alt="Logo Pet Amor" /></span>
           <span>Pet Amor</span>
         </a>
 
         <nav class="home-links">
           <a href="#inicio">Início</a>
           <a href="#adoes">Adoção</a>
-          <a href="#ajuda">Como ajudar</a>
           <a href="#sobre">Sobre</a>
+          <a href="#ajuda">Como ajudar</a>
         </nav>
 
         <div class="home-actions" id="homeUserActions">
@@ -96,49 +96,6 @@
         </div>
       </section>
 
-      <section class="home-section" id="feed">
-        <div class="container">
-          <div class="section-title">
-            <span class="eyebrow">Busca</span>
-            <h2>Encontre um animal</h2>
-          </div>
-          <div class="feed-filters">
-            <label>
-              Estado
-              <select id="feedState">
-                <option value="">Todos os estados</option>
-              </select>
-            </label>
-            <label>
-              Cidade
-              <select id="feedCity" disabled>
-                <option value="">Todas as cidades</option>
-              </select>
-            </label>
-            <label>
-              Tipo de animal
-              <select id="feedType">
-                <option value="Todos">Todos os animais</option>
-                <option value="Cachorro">Cachorro</option>
-                <option value="Gato">Gato</option>
-                <option value="Fazenda">Animal de Fazenda</option>
-                <option value="Exótico">Animal Exótico</option>
-                <option value="Marinho">Animal Marinho</option>
-                <option value="Outro">Outro</option>
-              </select>
-            </label>
-            <label id="breedFilterWrap">
-              Raça
-              <select id="feedBreed" disabled>
-                <option value="">Selecione o tipo primeiro</option>
-              </select>
-            </label>
-            <button id="applyFiltersBtn" type="button" class="btn btn-primary">Buscar</button>
-          </div>
-          <div class="recent-posts-grid" id="feedPosts"></div>
-        </div>
-      </section>
-
       <section class="home-section" id="adoes">
         <div class="container">
           <div class="section-title">
@@ -199,6 +156,21 @@
         </div>
       </section>
 
+      <section class="home-section mission-section" id="sobre">
+        <div class="container home-about">
+          <div class="about-panel">
+            <span class="eyebrow">Nossa missão</span>
+            <h2>Dar uma segunda chance a quem precisa.</h2>
+          </div>
+          <div class="about-panel soft">
+            <p>
+              A Pet Amor promove resgates, cuidado, adoção e campanhas de arrecadação para
+              transformar a rotina de animais abandonados em um futuro seguro, saudável e cheio de amor.
+            </p>
+          </div>
+        </div>
+      </section>
+
       <section class="home-section alt" id="ajuda">
         <div class="container home-help-grid">
           <div>
@@ -220,56 +192,39 @@
           <div class="section-title section-title-row">
             <div>
               <span class="eyebrow">Apoie quem cuida</span>
-              <h2>Produtos Parceiros</h2>
+              <h2>Como ajudar nosso site</h2>
             </div>
-            <span class="text-link">Compras que ajudam</span>
+            <span class="text-link">Pequenos gestos, grande impacto</span>
           </div>
           <div class="recent-posts-grid partner-grid">
             <article class="partner-card">
-              <img src="https://images.unsplash.com/photo-1582798358481-d199fb7349bb?auto=format&fit=crop&w=800&q=80" alt="Spray educador para cães e gatos" />
               <div class="partner-card-body">
-                <span class="mini-tag">PET Soluções</span>
-                <h3>Spray Educador XOPIPI</h3>
-                <strong class="partner-price">R$ 39,90</strong>
-                <button class="btn btn-secondary" type="button">Comprar</button>
+                <span class="mini-tag">Infraestrutura</span>
+                <h3>Assinatura do Banco de Dados</h3>
+                <p>Mantenha os dados dos pets e das famílias sempre disponíveis.</p>
+                <button class="btn btn-secondary" type="button" data-help-reason="Assinatura do Banco de Dados">Eu quero ajudar!</button>
               </div>
             </article>
             <article class="partner-card">
-              <img src="https://images.unsplash.com/photo-1589924691106-073b6c5f9d4a?auto=format&fit=crop&w=800&q=80" alt="Ração premium para animais" />
               <div class="partner-card-body">
-                <span class="mini-tag">NutriPet</span>
-                <h3>Ração Premium</h3>
-                <strong class="partner-price">R$ 89,90</strong>
-                <button class="btn btn-secondary" type="button">Comprar</button>
+                <span class="mini-tag">Presença online</span>
+                <h3>Hospedagem</h3>
+                <p>Ajude o site a continuar no ar para conectar pets e adotantes.</p>
+                <button class="btn btn-secondary" type="button" data-help-reason="Hospedagem">Eu quero ajudar!</button>
               </div>
             </article>
             <article class="partner-card">
-              <img src="https://images.unsplash.com/photo-1558788353-f76d92427f16?auto=format&fit=crop&w=800&q=80" alt="Coleira personalizada para animais" />
               <div class="partner-card-body">
-                <span class="mini-tag">Pet Design</span>
-                <h3>Coleira Personalizada</h3>
-                <strong class="partner-price">R$ 54,90</strong>
-                <button class="btn btn-secondary" type="button">Comprar</button>
+                <span class="mini-tag">Cuidado contínuo</span>
+                <h3>Manutenção</h3>
+                <p>Contribua para melhorias, segurança e novas funcionalidades.</p>
+                <button class="btn btn-secondary" type="button" data-help-reason="Manutenção">Eu quero ajudar!</button>
               </div>
             </article>
           </div>
         </div>
       </section>
 
-      <section class="home-section" id="sobre">
-        <div class="container home-about">
-          <div class="about-panel">
-            <span class="eyebrow">Nossa missão</span>
-            <h2>Dar uma segunda chance a quem precisa.</h2>
-          </div>
-          <div class="about-panel soft">
-            <p>
-              A Pet Amor promove resgates, cuidado, adoção e campanhas de arrecadação para
-              transformar a rotina de animais abandonados em um futuro seguro, saudável e cheio de amor.
-            </p>
-          </div>
-        </div>
-      </section>
     </main>
 
     <div class="adoption-modal" id="adoptionModal" role="dialog" aria-modal="true" aria-labelledby="modalPostTitle" hidden>
@@ -290,6 +245,10 @@
               <div><dt>Raça do pai</dt><dd id="modalFatherBreed"></dd></div>
             </dl>
           </section>
+          <section class="modal-genetics" id="modalAdditionalDetails" aria-labelledby="additionalDetailsTitle" hidden>
+            <h3 id="additionalDetailsTitle">Mais informações</h3>
+            <dl id="modalPostAdditionalDetails"></dl>
+          </section>
           <section class="modal-contact" aria-labelledby="contactTitle">
             <h3 id="contactTitle">Contatos</h3>
             <div id="modalPostContact"></div>
@@ -304,9 +263,20 @@
         <button class="support-modal-close" type="button" aria-label="Fechar" data-support-close>&times;</button>
         <span class="eyebrow">Obrigado por apoiar</span>
         <h2 id="supportModalTitle">Cada gesto mantém essa rede viva.</h2>
-        <p>Para ajudar com a manutenção do Pet Amor, entre em contato pelo e-mail:</p>
+        <p id="supportModalMessage">Sua contribuição ajuda a manter cada encontro cheio de carinho.</p>
+        <div class="pix-placeholder" aria-label="Placeholder para QR Code do PIX">QR Code PIX</div>
         <strong class="support-email" id="supportEmail">doacoes@petamor.com.br</strong>
-        <button class="btn btn-secondary" id="copySupportEmail" type="button">Copiar e-mail</button>
+      </section>
+    </div>
+
+    <div class="support-modal" id="contactModal" role="dialog" aria-modal="true" aria-labelledby="contactModalTitle" hidden>
+      <div class="support-modal-backdrop" data-contact-close></div>
+      <section class="support-modal-content">
+        <button class="support-modal-close" type="button" aria-label="Fechar" data-contact-close>&times;</button>
+        <span class="eyebrow">Fale com a gente</span>
+        <h2 id="contactModalTitle">Precisa de ajuda?</h2>
+        <p>Envie sua mensagem para nossa equipe:</p>
+        <a class="support-email" href="mailto:suporte@adocaopets.com">suporte@adocaopets.com</a>
       </section>
     </div>
 
@@ -314,9 +284,7 @@
       <div class="container footer-row">
         <p>© 2026 Pet Amor. Juntos por uma causa maior.</p>
         <div class="footer-links" aria-label="Redes sociais">
-          <a href="#">Instagram</a>
-          <a href="#">Twitter</a>
-          <a href="#">Facebook</a>
+          <a href="#" id="supportContactLink">Suporte</a>
         </div>
       </div>
     </footer>
