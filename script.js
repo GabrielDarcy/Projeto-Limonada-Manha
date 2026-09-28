@@ -175,7 +175,8 @@ async function toggleFavorite(postId) {
 
 function favoriteButtonHTML(postId) {
   const favorite = isFavorite(postId);
-    return `<button class="favorite-button${favorite ? ' is-favorite' : ''}" type="button" data-favorite-id="${escapeHTML(postId)}" aria-label="${favorite ? 'Remover dos favoritos' : 'Adicionar aos favoritos'}" aria-pressed="${favorite}">${favorite ? '❤️' : '🤍'}</button>`;
+  const icon = `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1.1-1.1a5.5 5.5 0 0 0-7.8 7.8l1.4 1.4L12 21.2l7.5-7.4 1.3-1.4a5.5 5.5 0 0 0 0-7.8Z"></path></svg>`;
+  return `<button class="favorite-button${favorite ? ' is-favorite' : ''}" type="button" data-favorite-id="${escapeHTML(postId)}" aria-label="${favorite ? 'Remover dos favoritos' : 'Adicionar aos favoritos'}" aria-pressed="${favorite}">${icon}</button>`;
 }
 
 function shareButtonHTML(post) {
@@ -207,7 +208,7 @@ function renderAuthorBar(profile) {
   const authorProfile = Array.isArray(profile) ? profile[0] : profile;
   const firstName = authorProfile?.full_name?.split(' ')[0] || 'Usuário';
   const username = authorProfile?.username ? `@${escapeHTML(authorProfile.username.replace(/^@/, ''))}` : '';
-  const avatarUrl = authorProfile?.avatar_url || 'https://placehold.co/56x56/ffe8ce/7a3d16?text=🐾';
+  const avatarUrl = authorProfile?.avatar_url || 'https://placehold.co/56x56/ffe8ce/7a3d16?text=Pet';
   return `<div class="post-author-bar"><img class="post-author-avatar" src="${escapeHTML(avatarUrl)}" alt="Foto de ${escapeHTML(firstName)}"><span class="post-author-name">${escapeHTML(firstName)}</span>${username ? `<span class="post-author-username">${escapeHTML(username)}</span>` : ''}</div>`;
 }
 
@@ -444,7 +445,7 @@ function updateHomeUserActions() {
   }
 
   const isAdmin = String(session.role || '').toLowerCase() === 'admin';
-  const avatarUrl = session.avatar_url || 'https://placehold.co/96x96/ffe8ce/7a3d16?text=🐾';
+  const avatarUrl = session.avatar_url || 'https://placehold.co/96x96/ffe8ce/7a3d16?text=Pet';
   actionsNode.innerHTML = `
     ${isAdmin ? '<a href="admin.html" class="btn btn-primary">Dashboard admin</a>' : ''}
     <a href="create-post.html" class="btn btn-primary">Criar publicação</a>
@@ -675,10 +676,8 @@ function renderCopyableContacts(post) {
   return getContactItems(post).map((item) => {
     const contact = String(item);
     const match = contact.match(/^(Tel|Telefone|Email|E-mail|IG|Instagram)\s*:\s*(.+)$/i);
-    const kind = match?.[1]?.toLowerCase() || 'contato';
     const value = match?.[2]?.trim() || contact;
-    const icon = kind.startsWith('tel') ? '📞' : kind.includes('mail') ? '✉️' : kind.startsWith('ig') || kind.startsWith('instagram') ? '📷' : '📋';
-    return `<button type="button" class="copy-contact-btn" data-copy="${escapeHTML(value)}">${icon} ${escapeHTML(contact)}</button>`;
+    return `<button type="button" class="copy-contact-btn" data-copy="${escapeHTML(value)}">${escapeHTML(contact)}</button>`;
   }).join('') || '<span class="contact-empty">Contato não informado</span>';
 }
 
@@ -1041,7 +1040,7 @@ function renderRecentPosts() {
       target.innerHTML = (data || []).map((post) => `
         <article class="recent-post-card ${post.status === 'adopted' ? 'adopted-card' : ''}">
           <div class="card-utility-actions">${favoriteButtonHTML(post.id)}${shareButtonHTML(post)}</div>
-            ${post.status === 'adopted' ? '<div class="adopted-ribbon">Já fui adotado! 🐾</div>' : ''}
+            ${post.status === 'adopted' ? '<div class="adopted-ribbon">Adotado</div>' : ''}
           ${generateImageCarouselHTML(post.image_urls, post.title)}
           <div class="recent-post-body">
             ${renderAuthorBar(post.profiles)}
@@ -1264,7 +1263,7 @@ async function renderFavorites() {
   target.innerHTML = orderedPosts.map((post) => `
     <article class="recent-post-card ${post.status === 'adopted' ? 'adopted-card' : ''}">
       <div class="card-utility-actions">${favoriteButtonHTML(post.id)}${shareButtonHTML(post)}</div>
-      ${post.status === 'adopted' ? '<div class="adopted-ribbon">Já fui adotado! 🐾</div>' : ''}
+      ${post.status === 'adopted' ? '<div class="adopted-ribbon">Adotado</div>' : ''}
       ${generateImageCarouselHTML(post.image_urls, post.title)}
       <div class="recent-post-body">
         ${renderAuthorBar(post.profiles)}
@@ -1389,7 +1388,7 @@ function setupFavoriteInteractionsV7() {
       const favorite = await toggleFavorite(button.dataset.favoriteId);
       document.querySelectorAll(`[data-favorite-id="${CSS.escape(button.dataset.favoriteId)}"]`).forEach((favoriteButton) => {
         favoriteButton.classList.toggle('is-favorite', favorite);
-        favoriteButton.innerHTML = favorite ? '❤️' : '🤍';
+        favoriteButton.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1.1-1.1a5.5 5.5 0 0 0-7.8 7.8l1.4 1.4L12 21.2l7.5-7.4 1.3-1.4a5.5 5.5 0 0 0 0-7.8Z"></path></svg>';
         favoriteButton.setAttribute('aria-pressed', String(favorite));
       });
       if (!getSession()) showToast('Favorito salvo neste dispositivo. Faça login para sincronizar seus favoritos.');
@@ -1762,7 +1761,7 @@ async function renderUserPosts() {
   target.innerHTML = data.map((post) => `
     <article class="profile-post-card ${post.status === 'adopted' ? 'adopted-card' : ''}">
       <div class="card-utility-actions">${favoriteButtonHTML(post.id)}${shareButtonHTML(post)}</div>
-      ${post.status === 'adopted' ? '<div class="adopted-ribbon">Concluído 🐾</div>' : ''}
+      ${post.status === 'adopted' ? '<div class="adopted-ribbon">Concluído</div>' : ''}
       ${generateImageCarouselHTML(post.image_urls, post.title)}
       <div class="profile-post-card-body">
         ${renderAuthorBar(post.profiles)}
@@ -1798,7 +1797,7 @@ async function renderProfileFavorites() {
   target.innerHTML = orderedPosts.map((post) => `
     <article class="profile-post-card ${post.status === 'adopted' ? 'adopted-card' : ''}">
       <div class="card-utility-actions">${favoriteButtonHTML(post.id)}${shareButtonHTML(post)}</div>
-      ${post.status === 'adopted' ? '<div class="adopted-ribbon">Já fui adotado! 🐾</div>' : ''}
+      ${post.status === 'adopted' ? '<div class="adopted-ribbon">Adotado</div>' : ''}
       ${generateImageCarouselHTML(post.image_urls, post.title)}
       <div class="profile-post-card-body">
         ${renderAuthorBar(post.profiles)}
@@ -1816,7 +1815,7 @@ function setupProfilePage() {
   const session = redirectIfLoggedOut();
   if (!session) return;
   const avatarPreview = document.getElementById('profileAvatarPreview');
-  avatarPreview.src = session.avatar_url || 'https://placehold.co/160x160/ffe8ce/7a3d16?text=🐾';
+  avatarPreview.src = session.avatar_url || 'https://placehold.co/160x160/ffe8ce/7a3d16?text=Pet';
   document.getElementById('profileName').textContent = session.name;
   document.getElementById('profileEmail').value = session.email || '';
   document.getElementById('profileUsername').value = session.username || '';

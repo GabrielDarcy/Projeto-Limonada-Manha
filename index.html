@@ -27,7 +27,7 @@
       href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap"
       rel="stylesheet"
     />
-    <link rel="stylesheet" href="style.css" />
+    <link rel="stylesheet" href="style.css?v=23" />
   </head>
   <body data-page="home">
     <header class="home-header">
@@ -56,11 +56,8 @@
         <div class="container home-hero-grid">
           <div class="home-copy">
             <span class="badge">Resgate com amor</span>
-            <h1>Seu gesto pode dar uma nova chance a um animal.</h1>
-            <p>
-              A Pet Amor conecta pets em situação de vulnerabilidade com pessoas dispostas
-              a acolher, doar e transformar vidas com carinho, respeito e dedicação.
-            </p>
+            <h1>Um novo lar muda tudo.</h1>
+            <p>Conheça animais que precisam de uma família e encontre seu próximo companheiro.</p>
 
             <div class="home-actions-row">
               <a href="#adoes" class="btn btn-primary">Quero Adotar</a>
@@ -90,8 +87,8 @@
                 alt="Cachorro resgatado"
               />
             </div>
-            <div class="floating-tag tag-top">🏠 <span id="totalHomesStat">180</span> lares ao total</div>
-            <div class="floating-tag tag-bottom">💛 <span id="dailyDonationsStat">52</span> doações hoje</div>
+            <div class="floating-tag tag-top"><span id="totalHomesStat">180</span> lares ao total</div>
+            <div class="floating-tag tag-bottom"><span id="dailyDonationsStat">52</span> doações hoje</div>
           </div>
         </div>
       </section>
@@ -103,9 +100,9 @@
             <h2>Como funciona</h2>
           </div>
           <div class="how-it-works-grid">
-            <article class="how-it-works-step"><span aria-hidden="true">🔍</span><h3>Encontre um amigo</h3><p>Busque e filtre pets que combinam com sua família.</p></article>
-            <article class="how-it-works-step"><span aria-hidden="true">💬</span><h3>Fale com o responsável</h3><p>Entre em contato com segurança pelo WhatsApp, Instagram ou E-mail.</p></article>
-            <article class="how-it-works-step"><span aria-hidden="true">🏡</span><h3>Leve amor para casa</h3><p>Faça uma adoção responsável e transforme uma vida.</p></article>
+            <article class="how-it-works-step"><span class="step-number">01</span><h3>Encontre um amigo</h3><p>Filtre os pets disponíveis e conheça suas histórias.</p></article>
+            <article class="how-it-works-step"><span class="step-number">02</span><h3>Converse com a família</h3><p>Fale diretamente com quem cuida do animal.</p></article>
+            <article class="how-it-works-step"><span class="step-number">03</span><h3>Prepare o novo lar</h3><p>Combine os próximos passos para uma adoção responsável.</p></article>
           </div>
         </div>
       </section>
@@ -192,8 +189,7 @@
           </div>
           <div class="about-panel soft">
             <p>
-              A Pet Amor promove resgates, cuidado, adoção e campanhas de arrecadação para
-              transformar a rotina de animais abandonados em um futuro seguro, saudável e cheio de amor.
+              Conectamos animais que precisam de cuidado a pessoas prontas para acolher.
             </p>
           </div>
         </div>
@@ -204,13 +200,13 @@
           <div>
             <span class="eyebrow">Como ajudar</span>
             <h2>Anuncie, conecte e ajude a salvar vidas.</h2>
-            <p>Anuncie pets, conecte-se com famílias e ajude a salvar vidas. O Pet Amor é 100% gratuito e mantido por quem ama os animais.</p>
+            <p>Publique um pedido, encontre apoio e ajude um animal a chegar a um novo lar.</p>
             <button class="btn btn-help" id="helpSiteButton" type="button">Quero ajudar a manter o site</button>
           </div>
 
           <ul class="help-list">
-            <li>💰 Apoio financeiro para tratamentos</li>
-            <li>🤝 Voluntariado e acolhimento</li>
+            <li>Apoio financeiro para tratamentos</li>
+            <li>Voluntariado e acolhimento</li>
           </ul>
         </div>
       </section>
@@ -224,31 +220,19 @@
             </div>
             <span class="text-link">Pequenos gestos, grande impacto</span>
           </div>
-          <div class="recent-posts-grid partner-grid">
-            <article class="partner-card">
-              <div class="partner-card-body">
-                <span class="mini-tag">Infraestrutura</span>
-                <h3>Assinatura do Banco de Dados</h3>
-                <p>Mantenha os dados dos pets e das famílias sempre disponíveis.</p>
-                <button class="btn btn-secondary" type="button" data-help-reason="Assinatura do Banco de Dados">Eu quero ajudar!</button>
-              </div>
-            </article>
-            <article class="partner-card">
-              <div class="partner-card-body">
-                <span class="mini-tag">Presença online</span>
-                <h3>Hospedagem</h3>
-                <p>Ajude o site a continuar no ar para conectar pets e adotantes.</p>
-                <button class="btn btn-secondary" type="button" data-help-reason="Hospedagem">Eu quero ajudar!</button>
-              </div>
-            </article>
-            <article class="partner-card">
-              <div class="partner-card-body">
-                <span class="mini-tag">Cuidado contínuo</span>
-                <h3>Manutenção</h3>
-                <p>Contribua para melhorias, segurança e novas funcionalidades.</p>
-                <button class="btn btn-secondary" type="button" data-help-reason="Manutenção">Eu quero ajudar!</button>
-              </div>
-            </article>
+          <div class="support-story">
+            <img class="support-story-image" src="https://images.unsplash.com/photo-1548199973-03cce0bbc87b?auto=format&fit=crop&w=1200&q=85" alt="Dois cães juntos aguardando uma família" />
+            <div class="support-story-content">
+              <span class="mini-tag">Transparência</span>
+              <h3>Ajude a manter esta rede no ar</h3>
+              <p>As contribuições ajudam a cobrir custos essenciais do serviço.</p>
+              <ul class="maintenance-list">
+                <li><strong>Banco de dados</strong><span>Armazenamento seguro de publicações e perfis</span></li>
+                <li><strong>Hospedagem</strong><span>Acesso contínuo para famílias e protetores</span></li>
+                <li><strong>Manutenção</strong><span>Melhorias e segurança da plataforma</span></li>
+              </ul>
+              <button class="btn btn-primary" type="button" data-help-reason="manutenção do Pet Amor">Quero contribuir</button>
+            </div>
           </div>
         </div>
       </section>
@@ -318,12 +302,12 @@
     </footer>
 
     <nav class="mobile-bottom-nav" aria-label="Navegação mobile">
-      <a href="index.html" class="nav-item">🏠<br><span>Início</span></a>
-      <a href="favorites.html" class="nav-item">❤️<br><span>Favoritos</span></a>
-      <a href="create-post.html" class="nav-item">➕<br><span>Publicar</span></a>
-      <a href="profile.html" class="nav-item">👤<br><span>Perfil</span></a>
+      <a href="index.html" class="nav-item"><span>Início</span></a>
+      <a href="favorites.html" class="nav-item"><span>Favoritos</span></a>
+      <a href="create-post.html" class="nav-item"><span>Publicar</span></a>
+      <a href="profile.html" class="nav-item"><span>Perfil</span></a>
     </nav>
 
-    <script type="module" src="script.js?v=22"></script>
+    <script type="module" src="script.js?v=23"></script>
   </body>
 </html>
