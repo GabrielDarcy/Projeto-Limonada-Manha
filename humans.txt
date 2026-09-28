@@ -1,0 +1,17 @@
+/* TEAM */
+Autor: [Preencha com o nome do autor ou equipe]
+Contato: [Preencha com um e-mail de contato]
+Site: Pet Amor
+
+/* THANKS */
+Agradecimentos: colaboradores, protetores independentes e famílias adotantes.
+
+/* TECHNOLOGY */
+HTML5
+CSS3
+JavaScript Vanilla
+Supabase (PostgreSQL, Auth e Storage)
+
+/* SITE */
+Última atualização: 2026-09-28
+Idioma: pt-BR
