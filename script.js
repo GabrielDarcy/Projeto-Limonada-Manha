@@ -877,10 +877,10 @@ async function handleCreatePostSubmit(event) {
   const description = form.description.value.trim();
   const animalType = form.animalType.value;
   const isGeneticType = animalType === 'Cachorro' || animalType === 'Gato';
-  const breed = isGeneticType ? form.breed.value.trim() : '';
-  const size = isGeneticType ? form.size.value.trim() : null;
-  const motherBreed = isGeneticType ? form.motherBreed.value.trim() : null;
-  const fatherBreed = isGeneticType ? form.fatherBreed.value.trim() : null;
+  const breed = isGeneticType ? (form.elements.namedItem('breed')?.value || '').trim() || null : null;
+  const size = isGeneticType ? (form.elements.namedItem('size')?.value || '').trim() || null : null;
+  const motherBreed = isGeneticType ? (form.elements.namedItem('motherBreed')?.value || '').trim() || null : null;
+  const fatherBreed = isGeneticType ? (form.elements.namedItem('fatherBreed')?.value || '').trim() || null : null;
   const state = form.state.value.trim();
   const city = form.city.value.trim();
   const phone = form.phone.value.trim();
@@ -925,8 +925,8 @@ async function handleCreatePostSubmit(event) {
       state,
       city,
       animal_type: animalType,
-      breed: breed || null,
-      size,
+      breed,
+      size: size ?? null,
       mother_breed: motherBreed,
       father_breed: fatherBreed,
       image_urls: imageUrls,
@@ -935,10 +935,13 @@ async function handleCreatePostSubmit(event) {
 
     const { error } = await getSupabaseClient().from('posts').insert([post]).select().single();
     if (error) {
+      console.error(error);
       if (error.message.includes('RATE_LIMIT_EXCEEDED')) {
-        throw new Error('Você excedeu os limites da nossa infraestrutura que é modesta. Você poderá postar mais daqui a uma hora.');
+        showToast('Você excedeu os limites da nossa infraestrutura que é modesta. Você poderá postar mais daqui a uma hora.', 'error');
+        return;
       }
-      throw new Error(error.message);
+      showToast(error.message, 'error');
+      return;
     }
     
     showToast('Publicação criada com sucesso.');
