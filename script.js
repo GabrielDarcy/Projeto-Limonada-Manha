@@ -1,5 +1,35 @@
 import { supabase } from './supabase.js';
 
+const STORAGE_KEYS = {
+  users: 'petamor_users',
+  ads: 'petamor_ads',
+  session: 'petamor_session',
+  favorites: 'petamor_favorites'
+};
+
+const ALLOWED_EMAIL_DOMAINS = ['gmail.com', 'outlook.com', 'hotmail.com', 'yahoo.com', 'icloud.com', 'live.com'];
+const FEED_PAGE_SIZE = 10;
+let feedCurrentPage = 0;
+
+const BANNED_WORDS = [
+  'merda', 'porra', 'caralho', 'puta', 'puto', 'viado', 'vadia', 'bosta', 'foder', 'fodase', 'desgracado', 'desgracada'
+];
+
+// --- SISTEMA DE SEGURANÇA (Prevenção de XSS) ---
+function escapeHTML(str) {
+  if (str === null || str === undefined) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function formatAnimalType(type) {
+  const normalized = String(type || '').trim();
+  if (normalized === 'Fazenda') return 'Animal de Fazenda';
+  if (normalized === 'Exótico') return 'Animal Exótico';
   if (normalized === 'Marinho') return 'Animal Marinho';
   return normalized;
 }
