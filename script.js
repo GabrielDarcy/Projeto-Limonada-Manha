@@ -865,13 +865,6 @@ async function handleCreatePostSubmit(event) {
   
   // formulário em memória ANTES de pausar o código com o await
   const form = event.currentTarget;
-  
-  const { data: userData } = await getSupabaseClient().auth.getUser();
-  if (!userData.user) {
-    showToast('Você precisa fazer login para criar uma publicação.', 'error');
-    window.location.href = 'login.html';
-    return;
-  }
 
   const title = form.title.value.trim();
   const description = form.description.value.trim();
@@ -888,6 +881,18 @@ async function handleCreatePostSubmit(event) {
   const instagram = form.instagram.value.trim();
   const photoFiles = form.__selectedFiles || [];
 
+  if (!title || !description || !animalType || !state || !city || (isGeneticType && (!breed || !size))) {
+    showToast('Por favor, preencha todos os campos obrigatórios, incluindo a cidade.', 'error');
+    return;
+  }
+
+  const { data: userData } = await getSupabaseClient().auth.getUser();
+  if (!userData.user) {
+    showToast('Você precisa fazer login para criar uma publicação.', 'error');
+    window.location.href = 'login.html';
+    return;
+  }
+
   if (!photoFiles.length) {
     showToast('Adicione pelo menos uma foto do animal.', 'error');
     return;
@@ -900,11 +905,6 @@ async function handleCreatePostSubmit(event) {
 
   if (!isValidInstagram(instagram)) {
     showToast('Informe apenas letras, números, pontos e underlines no Instagram.', 'error');
-    return;
-  }
-
-  if (!title || !description || !animalType || !state || !city || (isGeneticType && (!breed || !size))) {
-    showToast('Preencha todos os campos obrigatórios.', 'error');
     return;
   }
 
