@@ -23,7 +23,7 @@
       href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap"
       rel="stylesheet"
     />
-    <link rel="stylesheet" href="style.css?v=23" />
+    <link rel="stylesheet" href="style.css?v=25" />
   </head>
   <body data-page="create-post">
     <header class="home-header">
@@ -52,17 +52,7 @@
           <h2>Publicar pet para adoção ou ajuda</h2>
         </div>
 
-        <div class="form-grid">
-          <label class="full-span">
-            Título da publicação
-            <input type="text" name="title" placeholder="Ex.: Bella precisa de um lar" />
-          </label>
-
-          <label class="full-span">
-            Descrição
-            <textarea name="description" placeholder="Conte um pouco sobre a história, comportamento e necessidades do animal."></textarea>
-          </label>
-
+        <div class="form-grid post-progressive-stage" id="postIntroStep">
           <label>
             Tipo de animal
             <select name="animalType">
@@ -73,50 +63,6 @@
               <option value="Exótico">Animal Exótico</option>
               <option value="Marinho">Animal Marinho</option>
             </select>
-          </label>
-
-          <label id="postSizeField" hidden>
-            Porte
-            <select name="size" id="postSize" disabled>
-              <option value="">Selecione o porte</option>
-              <option value="Pequeno">Pequeno</option>
-              <option value="Médio">Médio</option>
-              <option value="Grande">Grande</option>
-            </select>
-          </label>
-
-          <label>
-            Estado
-            <select name="state" id="postState">
-              <option value="">Carregando estados...</option>
-            </select>
-          </label>
-
-          <label>
-            Cidade
-            <select name="city" id="postCity" disabled>
-              <option value="">Selecione o estado primeiro</option>
-            </select>
-          </label>
-
-          <div class="full-span post-genetics-fields" id="postGeneticsFields" hidden>
-            <label>
-              Raça do animal
-              <select name="breed" id="postBreed"></select>
-            </label>
-            <label>
-              Raça da mãe
-              <select name="motherBreed" id="postMotherBreed"></select>
-            </label>
-            <label>
-              Raça do pai
-              <select name="fatherBreed" id="postFatherBreed"></select>
-            </label>
-          </div>
-
-          <label class="full-span" id="postSpeciesField" hidden>
-            Raça/Espécie
-            <select name="species" id="postSpecies"><option value="">Selecione a espécie</option></select>
           </label>
 
           <label>
@@ -137,7 +83,66 @@
             </span>
             <small>Use apenas letras, números, pontos e underlines.</small>
           </label>
+        </div>
 
+        <div class="form-grid post-progressive-stage" id="postDetailsStep" hidden>
+          <label class="full-span">
+            Título da publicação
+            <input type="text" name="title" placeholder="Ex.: Bella precisa de um lar" />
+          </label>
+
+          <label class="full-span">
+            Descrição
+            <textarea name="description" placeholder="Conte um pouco sobre a história, comportamento e necessidades do animal."></textarea>
+          </label>
+
+          <label>
+            Estado
+            <select name="state" id="postState">
+              <option value="">Carregando estados...</option>
+            </select>
+          </label>
+
+          <label>
+            Cidade
+            <select name="city" id="postCity" disabled>
+              <option value="">Selecione o estado primeiro</option>
+            </select>
+          </label>
+
+          <label id="postSizeField" hidden>
+            Porte
+            <select name="size" id="postSize" disabled>
+              <option value="">Selecione o porte</option>
+              <option value="Pequeno">Pequeno</option>
+              <option value="Médio">Médio</option>
+              <option value="Grande">Grande</option>
+            </select>
+          </label>
+
+          <div class="full-span post-genetics-fields" id="postGeneticsFields" hidden>
+            <label>
+              Raça/Espécie do animal
+              <input type="text" name="breed" id="postBreed" autocomplete="off" />
+            </label>
+            <label>
+              Raça/Espécie da Mãe
+              <input type="text" name="motherBreed" id="motherBreed" placeholder="Digite ou informe Desconhecido" autocomplete="off" />
+            </label>
+            <label>
+              Raça/Espécie do Pai
+              <input type="text" name="fatherBreed" id="fatherBreed" placeholder="Digite ou informe Desconhecido" autocomplete="off" />
+            </label>
+          </div>
+
+          <datalist id="list-cachorro"></datalist>
+          <datalist id="list-gato"></datalist>
+          <datalist id="list-fazenda"></datalist>
+          <datalist id="list-exotico"></datalist>
+          <datalist id="list-marinho"></datalist>
+        </div>
+
+        <div class="form-grid post-progressive-stage" id="postMediaStep" hidden>
           <div class="full-span photo-gallery-field">
             <div class="photo-gallery-heading">
               <div>
@@ -154,12 +159,12 @@
         </div>
 
         <div class="home-actions-row" style="margin-top: 24px;">
-          <button type="submit" class="btn btn-primary">Salvar publicação</button>
+          <button type="submit" class="btn btn-primary" id="createPostSubmit" hidden>Salvar publicação</button>
           <a href="index.html" class="btn btn-secondary">Cancelar</a>
         </div>
       </form>
     </main>
 
-    <script type="module" src="script.js?v=23"></script>
+    <script type="module" src="script.js?v=25"></script>
   </body>
 </html>

@@ -1924,6 +1924,15 @@ body[data-animal-type="Cachorro"] .category-filters {
   display: none;
 }
 
+.post-progressive-stage[hidden],
+#createPostSubmit[hidden] {
+  display: none !important;
+}
+
+.post-progressive-stage.is-revealing {
+  animation: fadeInUP 0.38s ease both;
+}
+
 .admin-account-form {
   display: grid;
   grid-template-columns: 1fr 1fr auto;
