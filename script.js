@@ -820,35 +820,36 @@ function setupCreatePostForm() {
 
   const updateBreedFields = () => {
     const isGeneticType = typeField.value === 'Cachorro' || typeField.value === 'Gato';
-    const isSpeciesSelectType = typeField.value === 'Fazenda' || typeField.value === 'Marinho';
-    const isDog = typeField.value === 'Cachorro';
     geneticsFields.hidden = !isGeneticType;
     speciesField.hidden = isGeneticType || !typeField.value;
-    speciesInput.disabled = isGeneticType || !isSpeciesSelectType;
+    speciesInput.disabled = isGeneticType || !typeField.value;
+    if (speciesInput.disabled) speciesInput.value = '';
     if (sizeField && sizeInput) {
-      sizeField.hidden = !isDog;
-      sizeInput.disabled = !isDog;
-      sizeInput.required = isDog;
+      sizeField.hidden = !isGeneticType;
+      sizeInput.disabled = !isGeneticType;
+      sizeInput.required = false;
+      if (!isGeneticType) sizeInput.value = '';
     }
     breedField.disabled = !isGeneticType;
     motherBreedField.disabled = !isGeneticType;
     fatherBreedField.disabled = !isGeneticType;
+    breedField.required = false;
+    if (!isGeneticType) {
+      breedField.value = '';
+      motherBreedField.value = '';
+      fatherBreedField.value = '';
+    }
 
     if (isGeneticType) {
       const breeds = typeField.value === 'Cachorro' ? DOG_BREEDS : CAT_BREEDS;
       populateBreedSelect(breedField, breeds);
       populateBreedSelect(motherBreedField, ['Não sei informar', ...breeds.filter((breed) => breed !== 'Vira-lata (SRD)')]);
       populateBreedSelect(fatherBreedField, ['Não sei informar', ...breeds.filter((breed) => breed !== 'Vira-lata (SRD)')]);
-    } else if (isSpeciesSelectType) {
-      const species = typeField.value === 'Fazenda' ? FARM_BREEDS : MARINE_BREEDS;
-      populateBreedSelect(speciesInput, species, 'Selecione a espécie');
+    } else {
       populateBreedSelect(breedField, ['Não se aplica']);
       populateBreedSelect(motherBreedField, ['Não se aplica']);
       populateBreedSelect(fatherBreedField, ['Não se aplica']);
-    } else {
-      populateBreedSelect(breedField, ['Não sei informar']);
-      populateBreedSelect(motherBreedField, ['Não sei informar']);
-      populateBreedSelect(fatherBreedField, ['Não sei informar']);
+      speciesInput.innerHTML = '<option value="">Não se aplica</option>';
     }
   };
 
@@ -876,9 +877,8 @@ async function handleCreatePostSubmit(event) {
   const description = form.description.value.trim();
   const animalType = form.animalType.value;
   const isGeneticType = animalType === 'Cachorro' || animalType === 'Gato';
-  const isDog = animalType === 'Cachorro';
-  const breed = isGeneticType ? form.breed.value.trim() : form.species.value.trim();
-  const size = isDog ? form.size.value.trim() : null;
+  const breed = isGeneticType ? form.breed.value.trim() : '';
+  const size = isGeneticType ? form.size.value.trim() : null;
   const motherBreed = isGeneticType ? form.motherBreed.value.trim() : null;
   const fatherBreed = isGeneticType ? form.fatherBreed.value.trim() : null;
   const state = form.state.value.trim();
@@ -903,7 +903,7 @@ async function handleCreatePostSubmit(event) {
     return;
   }
 
-  if (!title || !description || !animalType || !state || !city || !breed || (isDog && !size)) {
+  if (!title || !description || !animalType || !state || !city || (isGeneticType && (!breed || !size))) {
     showToast('Preencha todos os campos obrigatórios.', 'error');
     return;
   }
@@ -925,7 +925,7 @@ async function handleCreatePostSubmit(event) {
       state,
       city,
       animal_type: animalType,
-      breed: breed || 'Não informado',
+      breed: breed || null,
       size,
       mother_breed: motherBreed,
       father_breed: fatherBreed,
