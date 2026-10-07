@@ -1938,6 +1938,7 @@ async function initializePage() {
   bindAdminActions();
   const page = document.body.dataset.page;
   updateHomeUserActions();
+  initCustomSelects();
 
   // roteamento e Inicialização por Página
   if (page === 'home') {
@@ -1997,7 +1998,6 @@ async function initializePage() {
     });
     renderAdminDashboard();
   }
-  initCustomSelects();
   await checkSharedPostOnLoad();
 }
 
