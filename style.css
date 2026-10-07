@@ -1354,6 +1354,10 @@ body[data-animal-type="Cachorro"] .category-filters {
   min-width: 0;
 }
 
+.custom-select.is-open {
+  z-index: 81;
+}
+
 .custom-select-native {
   display: none !important;
 }
@@ -1934,7 +1938,7 @@ body[data-animal-type="Cachorro"] .category-filters {
 }
 
 .post-progressive-stage.is-revealing > * {
-  animation: post-field-reveal 0.42s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+  animation: post-field-reveal 0.42s cubic-bezier(0.2, 0.7, 0.2, 1) backwards;
 }
 
 .post-progressive-stage.is-revealing > *:nth-child(2) { animation-delay: 45ms; }
