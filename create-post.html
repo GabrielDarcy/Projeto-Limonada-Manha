@@ -66,7 +66,7 @@
           </label>
 
           <label>
-            WhatsApp / Telefone
+            WhatsApp ou Telefone
             <input type="tel" name="phone" inputmode="numeric" maxlength="15" placeholder="(11) 99999-0000" />
           </label>
 
@@ -123,23 +123,26 @@
           <div class="full-span post-genetics-fields" id="postGeneticsFields" hidden>
             <label>
               Raça/Espécie do animal
-              <input type="text" name="breed" id="postBreed" autocomplete="off" />
+              <select name="breed" id="postBreed" disabled>
+                <option value="">Selecione a raça ou espécie</option>
+              </select>
+              <small>Escolha a raça ou espécie que melhor descreve o animal.</small>
             </label>
             <label>
-              Raça/Espécie da Mãe
-              <input type="text" name="motherBreed" id="motherBreed" placeholder="Digite ou informe Desconhecido" autocomplete="off" />
+              Raça ou Espécie da Mãe
+              <select name="motherBreed" id="motherBreed" disabled>
+                <option value="">Selecione a raça ou espécie</option>
+              </select>
+              <small>Se não souber, selecione “Desconhecido”.</small>
             </label>
             <label>
               Raça/Espécie do Pai
-              <input type="text" name="fatherBreed" id="fatherBreed" placeholder="Digite ou informe Desconhecido" autocomplete="off" />
+              <select name="fatherBreed" id="fatherBreed" disabled>
+                <option value="">Selecione a raça ou espécie</option>
+              </select>
+              <small>Um dos pais deve ter a mesma raça ou espécie do animal.</small>
             </label>
           </div>
-
-          <datalist id="list-cachorro"></datalist>
-          <datalist id="list-gato"></datalist>
-          <datalist id="list-fazenda"></datalist>
-          <datalist id="list-exotico"></datalist>
-          <datalist id="list-marinho"></datalist>
         </div>
 
         <div class="form-grid post-progressive-stage" id="postMediaStep" hidden>

@@ -15,7 +15,7 @@ const BANNED_WORDS = [
   'merda', 'porra', 'caralho', 'puta', 'puto', 'viado', 'vadia', 'bosta', 'foder', 'fodase', 'desgracado', 'desgracada'
 ];
 
-// --- SISTEMA DE SEGURANÇA (Prevenção de XSS) ---
+// prevenção de XSS
 function escapeHTML(str) {
   if (str === null || str === undefined) return '';
   return String(str)
@@ -684,59 +684,75 @@ async function uploadPostImage(file) {
   return publicUrlData.publicUrl;
 }
 
-function populateBreedSelect(select, breeds, placeholder) {
-  select.innerHTML = '';
-  const options = breeds || ['Não sei informar'];
-  options.forEach((breed) => {
-    select.insertAdjacentHTML('beforeend', `<option value="${escapeHTML(breed)}">${escapeHTML(breed)}</option>`);
+const BREED_CATALOGS = {
+  Cachorro: `Affenpinscher|Afghan Hound|Airedale Terrier|Akita|Akita Americano|American Bully|American Staffordshire Terrier|Australian Cattle Dog|Australian Shepherd|Basenji|Basset Hound|Beagle|Bearded Collie|Bernese Mountain Dog|Bichon Frisé|Bloodhound|Border Collie|Boston Terrier|Boxer|Buldogue Francês|Buldogue Inglês|Bull Terrier|Bullmastiff|Cane Corso|Cão de Crista Chinês|Cavalier King Charles Spaniel|Chihuahua|Chow Chow|Cocker Spaniel|Collie|Dachshund|Dálmata|Doberman|Dogo Argentino|Dogue Alemão|Fila Brasileiro|Golden Retriever|Greyhound|Husky Siberiano|Jack Russell Terrier|Labrador Retriever|Lhasa Apso|Lulu da Pomerânia|Malamute do Alasca|Maltês|Mastiff|Pastor Alemão|Pastor Australiano|Pastor de Shetland|Pastor Belga|Pequinês|Pinscher|Pit Bull|Pointer Inglês|Poodle|Pug|Rottweiler|Schnauzer|Setter Irlandês|Shar-Pei|Shiba Inu|Shih Tzu|Staffordshire Bull Terrier|São Bernardo|Terrier Brasileiro|Vira-lata (SRD)|Weimaraner|Welsh Corgi|West Highland White Terrier|Whippet|Yorkshire Terrier`,
+  Gato: `Abissínio|American Shorthair|Angorá|Azul Russo|Balinês|Bengal|Birmanês|Bombaim|British Shorthair|Burmês|Chartreux|Cornish Rex|Devon Rex|Exótico de Pelo Curto|Himalaio|Maine Coon|Munchkin|Manx|Norueguês da Floresta|Oriental|Persa|Ragdoll|Sagrado da Birmânia|Savannah|Scottish Fold|Siamês|Siberiano|Sphynx|Tonquinês|Turco Van|Vira-lata (SRD)`,
+  Fazenda: `Abelha|Alpaca|Asinino|Búfalo|Boi|Boi Angus|Boi Nelore|Cabra|Cabra Boer|Cabra Saanen|Cavalo|Cavalo Árabe|Cavalo Crioulo|Cavalo Mangalarga|Codorna|Coelho|Coelho Angorá|Coelho Mini Lop|Égua|Galinha|Galinha caipira|Ganso|Marreco|Ovelha|Ovelha Dorper|Ovelha Santa Inês|Pato|Pavão|Peru|Porco|Porco caipira|Pônei|Vaca|Vaca Girolando|Vaca Holandesa`,
+  Exótico: `Agapornis|Axolote|Camaleão|Calopsita|Canário|Cacatua|Chinchila|Cobra|Cobra-do-milho|Cágado|Dragão-barbudo|Esquilo-da-Mongólia|Escorpião|Furão|Gecko-leopardo|Gerbil|Hamster|Iguana|Jabuti|Jabuti-piranga|Lagartixa|Lagarto|Maritaca|Mini pig|Pogona|Periquito|Porquinho-da-índia|Rato|Rato twister|Sagui|Salamandra|Serpente|Tarântula|Tartaruga|Teiú|Tigre-d'água|Tritão|Ouriço-cacheiro|Outro`,
+  Marinho: `Anêmona-do-mar|Baiacu|Baleia|Camarão|Caranguejo|Cavalo-marinho|Cavalo-marinho-anão|Coral|Coral-cérebro|Donzela|Estrela-do-mar|Golfinho|Lagosta|Leão-marinho|Lula|Manta|Medusa|Ostra|Peixe|Peixe-betta|Peixe-cirurgião|Peixe-dourado|Peixe-leão|Peixe-lua|Peixe-palhaço|Peixe-papagaio|Pepino-do-mar|Pinguim|Polvo|Raia|Robalo|Sardinha|Tartaruga-de-pente|Tartaruga-marinha|Tartaruga-verde|Tubarão|Tubarão-baleia|Água-viva|Outro`
+};
+
+const breedOptionsCache = new Map();
+
+function uniqueBreedOptions(breeds) {
+  const uniqueBreeds = new Map();
+  breeds.forEach((breed) => {
+    const normalizedBreed = String(breed || '').trim();
+    const key = normalizedBreed.toLocaleLowerCase('pt-BR');
+    if (key && !uniqueBreeds.has(key)) uniqueBreeds.set(key, normalizedBreed);
   });
-  if (placeholder) {
-    select.insertAdjacentHTML('afterbegin', `<option value="" selected>${escapeHTML(placeholder)}</option>`);
-  }
+  return [...uniqueBreeds.values()];
 }
 
-async function loadDynamicBreedOptions(animalType, selectElement, defaultLabel) {
-  if (!selectElement) return [];
-  const isDatalist = selectElement.tagName === 'DATALIST';
-  selectElement.replaceChildren();
-  if (!isDatalist) {
-    const defaultOption = document.createElement('option');
-    defaultOption.value = '';
-    defaultOption.textContent = defaultLabel;
-    selectElement.appendChild(defaultOption);
-    selectElement.value = '';
-  }
+function populateBreedSelect(select, breeds, placeholder, extraOptions = []) {
+  select.replaceChildren();
+  const placeholderOption = document.createElement('option');
+  placeholderOption.value = '';
+  placeholderOption.textContent = placeholder;
+  select.appendChild(placeholderOption);
 
-  if (!animalType) {
-    selectElement.dispatchEvent(new Event('customselect:refresh', { bubbles: true }));
-    return [];
-  }
-
-  const { data, error } = await getSupabaseClient().rpc('get_active_breeds', {
-    p_animal_type: animalType
-  });
-  if (error) {
-    console.error('Não foi possível carregar as raças disponíveis:', error);
-    showToast('Não foi possível carregar as raças/espécies disponíveis.', 'error');
-    selectElement.dispatchEvent(new Event('customselect:refresh', { bubbles: true }));
-    return [];
-  }
-
-  (data || []).forEach((item) => {
-    if (!item?.breed) return;
-    if (isDatalist) {
-      const option = document.createElement('option');
-      option.value = item.breed;
-      selectElement.appendChild(option);
-      return;
-    }
+  uniqueBreedOptions([...breeds, ...extraOptions]).forEach((breed) => {
     const option = document.createElement('option');
-    option.value = item.breed;
-    option.textContent = item.breed;
-    selectElement.appendChild(option);
+    option.value = breed;
+    option.textContent = breed;
+    select.appendChild(option);
   });
-  selectElement.dispatchEvent(new Event('customselect:refresh', { bubbles: true }));
-  return data || [];
+  select.dispatchEvent(new Event('customselect:refresh', { bubbles: true }));
+}
+
+function getBreedOptions(animalType) {
+  if (!breedOptionsCache.has(animalType)) {
+    const catalog = (BREED_CATALOGS[animalType] || '').split('|').filter(Boolean);
+    const request = getSupabaseClient().rpc('get_active_breeds', { p_animal_type: animalType })
+      .then(({ data, error }) => {
+        if (error) throw error;
+        const activeBreeds = (data || []).map((item) => item?.breed).filter(Boolean);
+        return uniqueBreedOptions([...catalog, ...activeBreeds]).sort((first, second) => first.localeCompare(second, 'pt-BR'));
+      })
+      .catch((error) => {
+        console.warn(`Usando catálogo local de raças para ${animalType}:`, error);
+        return uniqueBreedOptions(catalog).sort((first, second) => first.localeCompare(second, 'pt-BR'));
+      });
+    breedOptionsCache.set(animalType, request);
+  }
+  return breedOptionsCache.get(animalType);
+}
+
+async function loadDynamicBreedOptions(animalType, selectElement, defaultLabel, extraOptions = []) {
+  if (!selectElement) return [];
+  selectElement.dataset.animalType = animalType || '';
+  const catalog = (BREED_CATALOGS[animalType] || '').split('|').filter(Boolean);
+  populateBreedSelect(selectElement, catalog, defaultLabel, extraOptions);
+  if (!animalType) return [];
+
+  const breeds = await getBreedOptions(animalType);
+  if (selectElement.dataset.animalType !== animalType) return breeds;
+  const selectedValue = selectElement.value;
+  populateBreedSelect(selectElement, breeds, defaultLabel, extraOptions);
+  if (selectedValue && [...selectElement.options].some((option) => option.value === selectedValue)) {
+    selectElement.value = selectedValue;
+  }
+  return breeds;
 }
 
 function setupCreatePostForm() {
@@ -835,19 +851,9 @@ function setupCreatePostForm() {
 
   const updateBreedFields = () => {
     const animalType = typeField.value;
-    const listIdByType = {
-      Cachorro: 'list-cachorro',
-      Gato: 'list-gato',
-      Fazenda: 'list-fazenda',
-      Exótico: 'list-exotico',
-      Marinho: 'list-marinho'
-    };
-    const listId = listIdByType[animalType] || '';
     geneticsFields.hidden = !animalType;
-    [breedField, motherBreedField, fatherBreedField].forEach((input) => {
-      input.disabled = !animalType;
-      if (listId) input.setAttribute('list', listId);
-      else input.removeAttribute('list');
+    [breedField, motherBreedField, fatherBreedField].forEach((select) => {
+      select.disabled = !animalType;
     });
     const animalName = {
       Cachorro: 'cachorro', Gato: 'gato', Fazenda: 'animal de fazenda',
@@ -865,14 +871,13 @@ function setupCreatePostForm() {
     sizeInput.required = false;
     if (animalType !== 'Cachorro') sizeInput.value = '';
 
-    if (animalType) {
-      const datalist = document.getElementById(listId);
-      if (datalist) void loadDynamicBreedOptions(animalType, datalist, '').then(updateProgressiveStages);
-    } else {
-      ['list-cachorro', 'list-gato', 'list-fazenda', 'list-exotico', 'list-marinho'].forEach((id) => {
-        document.getElementById(id)?.replaceChildren();
-      });
-    }
+    const parentOptions = ['Desconhecido', 'Não informado'];
+    void Promise.all([
+      loadDynamicBreedOptions(animalType, breedField, 'Selecione a raça/espécie'),
+      loadDynamicBreedOptions(animalType, motherBreedField, 'Selecione a raça/espécie', parentOptions),
+      loadDynamicBreedOptions(animalType, fatherBreedField, 'Selecione a raça/espécie', parentOptions)
+    ])
+      .then(updateProgressiveStages);
     updateProgressiveStages();
   };
 
