@@ -694,6 +694,70 @@ const BREED_CATALOGS = {
 
 const breedOptionsCache = new Map();
 
+const SPECIES_OPTIONS = {
+  Fazenda: `Abelha|Alpaca|Asinino|Búfalo|Boi|Cabra|Cavalo|Codorna|Coelho|Égua|Galinha|Ganso|Marreco|Ovelha|Pato|Pavão|Peru|Porco|Pônei|Vaca|Outro`.split('|'),
+  Exótico: `Agapornis|Axolote|Camaleão|Calopsita|Canário|Cacatua|Chinchila|Cobra|Cobra-do-milho|Cágado|Dragão-barbudo|Esquilo-da-Mongólia|Escorpião|Furão|Gecko-leopardo|Gerbil|Hamster|Iguana|Jabuti|Jabuti-piranga|Lagartixa|Lagarto|Maritaca|Mini pig|Pogona|Periquito|Porquinho-da-índia|Rato|Rato twister|Sagui|Salamandra|Serpente|Tarântula|Tartaruga|Teiú|Tigre-d'água|Tritão|Ouriço-cacheiro|Outro`.split('|'),
+  Marinho: `Anêmona-do-mar|Baiacu|Baleia|Camarão|Caranguejo|Cavalo-marinho|Coral|Estrela-do-mar|Golfinho|Lagosta|Leão-marinho|Lula|Medusa|Ostra|Peixe|Pinguim|Polvo|Raia|Robalo|Sardinha|Tartaruga-marinha|Tubarão|Água-viva|Outro`.split('|')
+};
+
+const BREEDS_BY_SPECIES = {
+  Abelha: `Africana|Africanizada|Carniolana|Caucasiana|Italiana`,
+  Asinino: `Andaluz|Baudet du Poitou|Catalão|Pêga`,
+  Alpaca: `Huacaya|Suri`,
+  Búfalo: `Mediterrâneo|Murrah|Jafarabadi`,
+  Boi: `Angus|Brahman|Charolês|Hereford|Holandês|Jersey|Nelore|Pardo-Suíço|Simmental`,
+  Cabra: `Anglo-Nubiana|Boer|Mambrina|Saanen|Toggenburg`,
+  Cavalo: `Andaluz|Árabe|Appaloosa|Brasileiro de Hipismo|Bretão|Campolina|Clydesdale|Crioulo|Frísio|Hanoveriano|Lusitano|Mangalarga|Mangalarga Marchador|Morgan|Mustang|Paint Horse|Percheron|Pônei Brasileiro|Puro Sangue Inglês|Quarto de Milha|Shetland|Welsh`,
+  Égua: `Andaluz|Árabe|Appaloosa|Brasileiro de Hipismo|Bretã|Campolina|Clydesdale|Crioula|Frísia|Hanoveriana|Lusitana|Mangalarga|Mangalarga Marchador|Morgan|Mustang|Paint Horse|Percheron|Pônei Brasileiro|Puro Sangue Inglês|Quarto de Milha|Shetland|Welsh`,
+  Codorna: `Bobwhite|Chinesa|Japonesa`,
+  Coelho: `Angorá|Californiano|Chinchila|Fuzzy Lop|Holandês|Lionhead|Mini Lop|Nova Zelândia|Rex`,
+  Galinha: `Australorp|Brahma|Cochinchina|Plymouth Rock|Rhode Island Red|Sedosa|Sussex`,
+  Ganso: `Africano|Chinês|Embden|Toulouse`,
+  Marreco: `Call Duck|Muscovy|Pequim|Rouen`,
+  Ovelha: `Dorper|Hampshire Down|Merino|Santa Inês|Suffolk`,
+  Pato: `Call Duck|Muscovy|Pequim|Rouen`,
+  Pavão: `Azul-indiano|Branco|Verde`,
+  Porco: `Duroc|Landrace|Large White|Pietrain`,
+  Pônei: `Falabella|Pônei Brasileiro|Shetland|Welsh`,
+  Peru: `Bourbon Red|Bronzeado|Narragansett|Branco de peito largo`,
+  Vaca: `Angus|Brahman|Charolês|Girolando|Holandesa|Hereford|Jersey|Nelore|Pardo-Suíço|Simmental`,
+  Agapornis: `Personatus|Roseicollis|Fischeri`,
+  Axolote: `Albino|Arlequim|Dourado|Leucístico|Selvagem`,
+  Camaleão: `Do Iêmen|Do Quênia|Pantera`,
+  Calopsita: `Arlequim|Cara-branca|Canela|Lutino|Pérola|Silvestre`,
+  Canário: `Belga|Harzer Roller|Timbrado Espanhol|Waterslager`,
+  Chinchila: `Bege|Branca|Cinza-padrão|Ebony|Violeta`,
+  ['Cobra-do-milho']: `Âmbar|Anery|Amelanística|Caramelo|Okeetee|Snow`,
+  ['Gecko-leopardo']: `Albino|Banded|Blizzard|Mack Snow|Tangerine`,
+  Furão: `Albino|Canela|Sable`,
+  Iguana: `Azul|Comum|Verde`,
+  ['Porquinho-da-índia']: `Abissínio|Coroado Americano|Coroado Inglês|Peruano|Rex|Sheltie|Teddy|Texel`,
+  Hamster: `Anão-russo|Chinês|Roborovski|Sírio`,
+  Peixe: `Betta|Carpa koi|Kinguio|Peixe-palhaço`
+};
+
+function getSpeciesBreedOptions(species) {
+  return (BREEDS_BY_SPECIES[species] || '').split('|').filter(Boolean);
+}
+
+function populateSpeciesSelect(select, animalType) {
+  const previousValue = select.value;
+  const speciesOptions = SPECIES_OPTIONS[animalType] || [];
+  select.replaceChildren();
+  const placeholder = document.createElement('option');
+  placeholder.value = '';
+  placeholder.textContent = 'Selecione a espécie';
+  select.appendChild(placeholder);
+  speciesOptions.forEach((species) => {
+    const option = document.createElement('option');
+    option.value = species;
+    option.textContent = species;
+    select.appendChild(option);
+  });
+  select.value = speciesOptions.includes(previousValue) ? previousValue : '';
+  select.dispatchEvent(new Event('customselect:refresh', { bubbles: true }));
+}
+
 function uniqueBreedOptions(breeds) {
   const uniqueBreeds = new Map();
   breeds.forEach((breed) => {
@@ -708,6 +772,12 @@ function hasMatchingParentBreed(animalBreed, motherBreed, fatherBreed) {
   const normalizedAnimalBreed = normalizeSelectSearch(animalBreed);
   return Boolean(normalizedAnimalBreed && [motherBreed, fatherBreed]
     .some((parentBreed) => normalizeSelectSearch(parentBreed) === normalizedAnimalBreed));
+}
+
+function formatSpeciesBreed(species, breed) {
+  if (!species || !breed) return breed;
+  if (['desconhecido', 'nao informado'].includes(normalizeSelectSearch(breed))) return breed;
+  return `${species} - ${breed}`;
 }
 
 function populateBreedSelect(select, breeds, placeholder, extraOptions = []) {
@@ -770,6 +840,8 @@ function setupCreatePostForm() {
   const detailsStep = document.getElementById('postDetailsStep');
   const mediaStep = document.getElementById('postMediaStep');
   const submitButton = document.getElementById('createPostSubmit');
+  const speciesField = document.getElementById('postSpecies');
+  const speciesLabel = document.getElementById('postSpeciesField');
   const sizeField = document.getElementById('postSizeField');
   const sizeInput = document.getElementById('postSize');
   const breedField = document.getElementById('postBreed');
@@ -780,7 +852,7 @@ function setupCreatePostForm() {
   const photoGallery = document.getElementById('photoGallery');
   const photoCount = document.getElementById('photoCount');
 
-  if (!form || !typeField || !stateField || !cityField || !geneticsFields || !detailsStep || !mediaStep || !submitButton || !sizeField || !sizeInput || !breedField || !motherBreedField || !fatherBreedField || !photoInput || !photoAddButton || !photoGallery) return;
+  if (!form || !typeField || !stateField || !cityField || !geneticsFields || !detailsStep || !mediaStep || !submitButton || !speciesField || !speciesLabel || !sizeField || !sizeInput || !breedField || !motherBreedField || !fatherBreedField || !photoInput || !photoAddButton || !photoGallery) return;
 
   const selectedFiles = [];
 
@@ -857,33 +929,61 @@ function setupCreatePostForm() {
 
   const updateBreedFields = () => {
     const animalType = typeField.value;
-    geneticsFields.hidden = !animalType;
+    const speciesOptions = SPECIES_OPTIONS[animalType] || [];
+    const needsSpecies = Boolean(speciesOptions.length);
+    const typeChanged = typeField.dataset.previousValue !== animalType;
+    if (typeChanged) {
+      speciesField.value = '';
+      breedField.value = '';
+      motherBreedField.value = '';
+      fatherBreedField.value = '';
+      typeField.dataset.previousValue = animalType;
+      speciesField.dataset.previousValue = '';
+    }
+    populateSpeciesSelect(speciesField, animalType);
+    const species = needsSpecies ? speciesField.value : '';
+    if (speciesField.dataset.previousValue !== species) {
+      breedField.value = '';
+      motherBreedField.value = '';
+      fatherBreedField.value = '';
+      speciesField.dataset.previousValue = species;
+    }
+    const canChooseBreed = Boolean(animalType && (!needsSpecies || (species && BREEDS_BY_SPECIES[species])));
+    speciesLabel.hidden = !needsSpecies;
+    speciesField.disabled = !needsSpecies;
+    geneticsFields.hidden = !canChooseBreed;
     [breedField, motherBreedField, fatherBreedField].forEach((select) => {
-      select.disabled = !animalType;
+      select.disabled = !canChooseBreed;
     });
     const animalName = {
       Cachorro: 'cachorro', Gato: 'gato', Fazenda: 'animal de fazenda',
       Exótico: 'animal exótico', Marinho: 'animal marinho'
     }[animalType] || 'animal';
-    breedField.closest('label').firstChild.textContent = `Qual a raça/espécie do ${animalName}? `;
-    if (typeField.dataset.previousValue !== animalType) {
-      breedField.value = '';
-      motherBreedField.value = '';
-      fatherBreedField.value = '';
-      typeField.dataset.previousValue = animalType;
-    }
+    breedField.closest('label').firstChild.textContent = `${species ? `Raça da espécie ${species}` : `Qual a raça/espécie do ${animalName}?`} `;
+    motherBreedField.closest('label').firstChild.textContent = `${species ? `Raça da mãe (${species})` : 'Raça ou Espécie da Mãe'} `;
+    fatherBreedField.closest('label').firstChild.textContent = `${species ? `Raça do pai (${species})` : 'Raça/Espécie do Pai'} `;
     sizeField.hidden = animalType !== 'Cachorro';
     sizeInput.disabled = animalType !== 'Cachorro';
     sizeInput.required = false;
     if (animalType !== 'Cachorro') sizeInput.value = '';
 
     const parentOptions = ['Desconhecido', 'Não informado'];
-    void Promise.all([
-      loadDynamicBreedOptions(animalType, breedField, 'Selecione a raça/espécie'),
-      loadDynamicBreedOptions(animalType, motherBreedField, 'Selecione a raça/espécie', parentOptions),
-      loadDynamicBreedOptions(animalType, fatherBreedField, 'Selecione a raça/espécie', parentOptions)
-    ])
-      .then(updateProgressiveStages);
+    if (canChooseBreed && needsSpecies) {
+      const breeds = getSpeciesBreedOptions(species);
+      populateBreedSelect(breedField, breeds, 'Selecione a raça');
+      populateBreedSelect(motherBreedField, breeds, 'Selecione a raça', parentOptions);
+      populateBreedSelect(fatherBreedField, breeds, 'Selecione a raça', parentOptions);
+    } else if (canChooseBreed) {
+      void Promise.all([
+        loadDynamicBreedOptions(animalType, breedField, 'Selecione a raça/espécie'),
+        loadDynamicBreedOptions(animalType, motherBreedField, 'Selecione a raça/espécie', parentOptions),
+        loadDynamicBreedOptions(animalType, fatherBreedField, 'Selecione a raça/espécie', parentOptions)
+      ]).then(updateProgressiveStages);
+    } else {
+      populateBreedSelect(breedField, [], 'Selecione a espécie primeiro');
+      populateBreedSelect(motherBreedField, [], 'Selecione a espécie primeiro', parentOptions);
+      populateBreedSelect(fatherBreedField, [], 'Selecione a espécie primeiro', parentOptions);
+    }
     updateProgressiveStages();
   };
 
@@ -901,17 +1001,20 @@ function setupCreatePostForm() {
 
   function updateProgressiveStages() {
     const hasType = Boolean(typeField.value);
+    const needsSpecies = Boolean(SPECIES_OPTIONS[typeField.value]?.length);
+    const hasSpecies = !needsSpecies || Boolean(speciesField.value);
+    const requiresGenetics = !needsSpecies || Boolean(BREEDS_BY_SPECIES[speciesField.value]);
     revealStep(detailsStep, hasType);
     const parentMatches = hasMatchingParentBreed(breedField.value, motherBreedField.value, fatherBreedField.value);
     const geneticsError = document.getElementById('postGeneticsError');
     const geneticsComplete = Boolean(breedField.value && motherBreedField.value && fatherBreedField.value);
-    if (geneticsError) geneticsError.hidden = !geneticsComplete || parentMatches;
+    if (geneticsError) geneticsError.hidden = !requiresGenetics || !geneticsComplete || parentMatches;
     const hasContact = Boolean(form.phone.value.trim() || form.email.value.trim() || form.instagram.value.trim());
-    const geneticReady = Boolean(breedField.value.trim() && parentMatches);
+    const geneticReady = !requiresGenetics || Boolean(breedField.value.trim() && parentMatches
+      && motherBreedField.value.trim() && fatherBreedField.value.trim());
     const detailsReady = Boolean(
-      hasType && form.title.value.trim() && form.description.value.trim()
+      hasType && hasSpecies && form.title.value.trim() && form.description.value.trim()
       && stateField.value && cityField.value && geneticReady
-      && motherBreedField.value.trim() && fatherBreedField.value.trim()
       && (typeField.value !== 'Cachorro' || sizeInput.value)
       && hasContact
     );
@@ -921,6 +1024,7 @@ function setupCreatePostForm() {
 
   stateField.addEventListener('change', loadCities);
   typeField.addEventListener('change', updateBreedFields);
+  speciesField.addEventListener('change', updateBreedFields);
   form.addEventListener('input', updateProgressiveStages);
   form.addEventListener('change', updateProgressiveStages);
   updateBreedFields();
@@ -938,10 +1042,15 @@ async function handleCreatePostSubmit(event) {
   const description = form.description.value.trim();
   const animalType = form.animalType.value;
   const isDog = animalType === 'Cachorro';
-  const breed = (form.elements.namedItem('breed')?.value || '').trim() || null;
+  const species = (form.elements.namedItem('species')?.value || '').trim();
+  const breedValue = (form.elements.namedItem('breed')?.value || '').trim();
+  const requiresGenetics = !SPECIES_OPTIONS[animalType]?.length || Boolean(BREEDS_BY_SPECIES[species]);
   const size = isDog ? (form.elements.namedItem('size')?.value || '').trim() || null : null;
-  const motherBreed = (form.elements.namedItem('motherBreed')?.value || '').trim() || null;
-  const fatherBreed = (form.elements.namedItem('fatherBreed')?.value || '').trim() || null;
+  const motherBreedValue = (form.elements.namedItem('motherBreed')?.value || '').trim();
+  const fatherBreedValue = (form.elements.namedItem('fatherBreed')?.value || '').trim();
+  const breed = requiresGenetics ? formatSpeciesBreed(species, breedValue) || null : species || null;
+  const motherBreed = requiresGenetics ? formatSpeciesBreed(species, motherBreedValue) || null : null;
+  const fatherBreed = requiresGenetics ? formatSpeciesBreed(species, fatherBreedValue) || null : null;
   const state = form.state.value.trim();
   const city = form.city.value.trim();
   const phone = form.phone.value.trim();
@@ -949,13 +1058,13 @@ async function handleCreatePostSubmit(event) {
   const instagram = form.instagram.value.trim();
   const photoFiles = form.__selectedFiles || [];
 
-  if (!title || !description || !animalType || !state || !city || !breed || (isDog && !size)) {
+  if (!title || !description || !animalType || !state || !city || (requiresGenetics && !breedValue) || (SPECIES_OPTIONS[animalType]?.length && !species) || (isDog && !size)) {
     showToast('Por favor, preencha todos os campos obrigatórios, incluindo a cidade.', 'error');
     return;
   }
 
-  const hasMatchingParent = hasMatchingParentBreed(breed, motherBreed, fatherBreed);
-  if (!motherBreed || !fatherBreed || !hasMatchingParent) {
+  const hasMatchingParent = hasMatchingParentBreed(breedValue, motherBreedValue, fatherBreedValue);
+  if (requiresGenetics && (!motherBreedValue || !fatherBreedValue || !hasMatchingParent)) {
     showToast('Erro genético: Pelo menos um dos pais deve ser da mesma raça/espécie do animal doado.', 'error');
     return;
   }

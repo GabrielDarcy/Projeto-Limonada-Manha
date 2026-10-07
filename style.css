@@ -1924,7 +1924,8 @@ body[data-animal-type="Cachorro"] .category-filters {
 }
 
 .post-genetics-fields[hidden],
-#postSpeciesField[hidden] {
+#postSpeciesField[hidden],
+#postSizeField[hidden] {
   display: none;
 }
 
