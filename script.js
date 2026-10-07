@@ -704,6 +704,12 @@ function uniqueBreedOptions(breeds) {
   return [...uniqueBreeds.values()];
 }
 
+function hasMatchingParentBreed(animalBreed, motherBreed, fatherBreed) {
+  const normalizedAnimalBreed = normalizeSelectSearch(animalBreed);
+  return Boolean(normalizedAnimalBreed && [motherBreed, fatherBreed]
+    .some((parentBreed) => normalizeSelectSearch(parentBreed) === normalizedAnimalBreed));
+}
+
 function populateBreedSelect(select, breeds, placeholder, extraOptions = []) {
   select.replaceChildren();
   const placeholderOption = document.createElement('option');
@@ -896,14 +902,12 @@ function setupCreatePostForm() {
   function updateProgressiveStages() {
     const hasType = Boolean(typeField.value);
     revealStep(detailsStep, hasType);
-    const normalizedUnknown = ['desconhecido', 'não informado'];
-    const parentUnknown = [motherBreedField.value, fatherBreedField.value].some((value) =>
-      normalizedUnknown.includes(String(value || '').trim().toLocaleLowerCase('pt-BR'))
-    );
-    const parentMatches = motherBreedField.value.trim() === breedField.value.trim()
-      || fatherBreedField.value.trim() === breedField.value.trim();
+    const parentMatches = hasMatchingParentBreed(breedField.value, motherBreedField.value, fatherBreedField.value);
+    const geneticsError = document.getElementById('postGeneticsError');
+    const geneticsComplete = Boolean(breedField.value && motherBreedField.value && fatherBreedField.value);
+    if (geneticsError) geneticsError.hidden = !geneticsComplete || parentMatches;
     const hasContact = Boolean(form.phone.value.trim() || form.email.value.trim() || form.instagram.value.trim());
-    const geneticReady = Boolean(breedField.value.trim() && (parentMatches || parentUnknown));
+    const geneticReady = Boolean(breedField.value.trim() && parentMatches);
     const detailsReady = Boolean(
       hasType && form.title.value.trim() && form.description.value.trim()
       && stateField.value && cityField.value && geneticReady
@@ -950,12 +954,8 @@ async function handleCreatePostSubmit(event) {
     return;
   }
 
-  const unknownParentValues = ['desconhecido', 'não informado'];
-  const hasUnknownParent = [motherBreed, fatherBreed].some((parentBreed) =>
-    unknownParentValues.includes(String(parentBreed || '').trim().toLocaleLowerCase('pt-BR'))
-  );
-  const hasMatchingParent = motherBreed === breed || fatherBreed === breed;
-  if (!motherBreed || !fatherBreed || (!hasMatchingParent && !hasUnknownParent)) {
+  const hasMatchingParent = hasMatchingParentBreed(breed, motherBreed, fatherBreed);
+  if (!motherBreed || !fatherBreed || !hasMatchingParent) {
     showToast('Erro genético: Pelo menos um dos pais deve ser da mesma raça/espécie do animal doado.', 'error');
     return;
   }
