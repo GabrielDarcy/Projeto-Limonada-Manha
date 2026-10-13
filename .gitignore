@@ -26,3 +26,6 @@ Desktop.ini
 .vscode/
 .idea/
 *.swp
+
+# Backups locais
+*.bak

@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="pt-BR">
+<html lang="pt-BR" class="js">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -27,14 +27,14 @@
       href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap"
       rel="stylesheet"
     />
-    <link rel="stylesheet" href="css/index.css" />
+    <link rel="stylesheet" href="css/index.css?v=1" />
   </head>
   <body data-page="home">
-    <a class="skip-link" href="#conteudo">Pular para o conteúdo</a>
+    <a class="skip-link" href="#conteudo" hidden onfocus="this.removeAttribute('hidden')" onblur="this.setAttribute('hidden','')">Pular para o conteúdo</a>
     <header class="home-header">
       <div class="container home-nav">
         <a class="brand-row" href="index.html">
-          <img class="brand-icon" src="https://placehold.co/42x42/ffe8ce/7a3d16?text=Logo" alt="Pet Amor Logo" />
+          <svg class="brand-mark" viewBox="0 0 32 32" width="34" height="34" role="img" aria-label="Pet Amor" focusable="false"><circle cx="16" cy="16" r="15" fill="none" stroke="currentColor" stroke-width="1.6" opacity=".28"/><ellipse cx="16" cy="20.4" rx="6" ry="5" fill="currentColor"/><ellipse cx="8.9" cy="13.4" rx="2.5" ry="3.1" fill="currentColor"/><ellipse cx="14.2" cy="10" rx="2.5" ry="3.3" fill="currentColor"/><ellipse cx="19.9" cy="10.4" rx="2.5" ry="3.3" fill="currentColor" transform="rotate(12 19.9 10.4)"/><ellipse cx="24" cy="14.6" rx="2.4" ry="3" fill="currentColor" transform="rotate(28 24 14.6)"/></svg>
           <span>Pet Amor</span>
         </a>
 
@@ -55,7 +55,7 @@
     <main id="conteudo" tabindex="-1">
       <section class="home-hero" id="inicio">
         <div class="container home-hero-grid">
-          <div class="home-copy">
+          <div class="home-copy" data-reveal-stagger>
             <span class="badge">Resgate com amor</span>
             <h1>Um novo lar muda tudo.</h1>
             <p>Conheça animais que precisam de uma família e encontre seu próximo companheiro.</p>
@@ -83,9 +83,9 @@
 
           <div class="home-visual">
             <div class="home-card-image">
-              <img
-                src="https://images.unsplash.com/photo-1517849845537-4d257902454a?auto=format&fit=crop&w=900&q=80"
-                alt="Cachorro resgatado"
+              <img loading="lazy" decoding="async"
+                src="https://images.unsplash.com/photo-1591160690555-5debfba289f0?auto=format&fit=crop&w=1600&q=72"
+                alt="Filhote de golden retriever olhando para a câmera"
               />
             </div>
             <div class="floating-tag tag-top"><span id="totalHomesStat">180</span> lares ao total</div>
@@ -94,13 +94,13 @@
         </div>
       </section>
 
-      <section class="home-section how-it-works-section" id="como-funciona">
+      <section class="home-section" id="como-funciona" data-reveal>
         <div class="container">
           <div class="section-title">
             <span class="eyebrow">Passo a passo</span>
             <h2>Como funciona</h2>
           </div>
-          <div class="how-it-works-grid">
+          <div class="how-it-works-grid" data-reveal-stagger>
             <article class="how-it-works-step"><span class="step-number">01</span><h3>Encontre um amigo</h3><p>Filtre os pets disponíveis e conheça suas histórias.</p></article>
             <article class="how-it-works-step"><span class="step-number">02</span><h3>Converse com a família</h3><p>Fale diretamente com quem cuida do animal.</p></article>
             <article class="how-it-works-step"><span class="step-number">03</span><h3>Prepare o novo lar</h3><p>Combine os próximos passos para uma adoção responsável.</p></article>
@@ -108,7 +108,7 @@
         </div>
       </section>
 
-      <section class="home-section recent-posts-section" id="recentes">
+      <section class="home-section" id="recentes" data-reveal>
         <div class="container">
           <div class="section-title section-title-row">
             <div>
@@ -122,7 +122,7 @@
         </div>
       </section>
 
-      <section class="home-section" id="adoes">
+      <section class="home-section" id="adoes" data-reveal>
         <div class="container">
           <div class="section-title">
             <span class="eyebrow">Adoção responsável</span>
@@ -133,7 +133,7 @@
             <button class="carousel-control" type="button" id="previousCategory" aria-label="Categoria anterior">&#8592;</button>
             <div class="pet-showcase adoption-categories" id="adoptionCarousel">
               <a class="pet-box category-card" href="animais/gato.html">
-              <img src="https://images.unsplash.com/photo-1511044568932-338cba0ad803?auto=format&fit=crop&w=800&q=80" alt="Gato disponível para adoção" />
+              <img loading="lazy" decoding="async" src="https://plus.unsplash.com/premium_photo-1673967831980-1d377baaded2?auto=format&fit=crop&w=1600&q=72" alt="Gato de olhos claros em close" />
               <div class="pet-box-body">
                 <h3>Gato</h3>
                 <p>Encontre gatos esperando por uma família.</p>
@@ -142,7 +142,7 @@
               </a>
 
               <a class="pet-box category-card" href="animais/cachorro.html">
-              <img src="https://images.unsplash.com/photo-1548199973-03cce0bbc87b?auto=format&fit=crop&w=800&q=80" alt="Cachorro disponível para adoção" />
+              <img loading="lazy" decoding="async" src="https://images.unsplash.com/photo-1558929996-da64ba858215?auto=format&fit=crop&w=1600&q=72" alt="Cachorro resgatado recebendo carinho" />
               <div class="pet-box-body">
                 <h3>Cachorro</h3>
                 <p>Conheça cachorros em busca de um lar.</p>
@@ -151,7 +151,7 @@
               </a>
 
               <a class="pet-box category-card" href="animais/fazenda.html">
-              <img src="https://images.unsplash.com/photo-1585110396000-c9ffd4e4b308?auto=format&fit=crop&w=800&q=80" alt="Coelho fofo disponível para adoção" />
+              <img loading="lazy" decoding="async" src="https://plus.unsplash.com/premium_photo-1663133581871-a882b2ec818b?auto=format&fit=crop&w=1600&q=72" alt="Cachorro aguardando adoção em abrigo" />
               <div class="pet-box-body">
                 <h3>Animais de Fazenda</h3>
                 <p>Conheça animais de fazenda que precisam de cuidado e espaço.</p>
@@ -160,7 +160,7 @@
               </a>
 
               <a class="pet-box category-card" href="animais/exotico.html">
-              <img src="https://images.unsplash.com/photo-1425082661705-1834bfd09dca?auto=format&fit=crop&w=800&q=80" alt="Hamster fofo disponível para adoção" />
+              <img loading="lazy" decoding="async" src="https://images.unsplash.com/photo-1544923408-75c5cef46f14?auto=format&fit=crop&w=1600&q=72" alt="Arara vermelha pousada em galho" />
               <div class="pet-box-body">
                 <h3>Animais Exóticos</h3>
                 <p>Encontre cuidados responsáveis para animais exóticos.</p>
@@ -169,7 +169,7 @@
               </a>
 
               <a class="pet-box category-card" href="animais/marinho.html">
-              <img src="https://images.unsplash.com/photo-1544551763-46a013bb70d5?auto=format&fit=crop&w=800&q=80" alt="Animais marinhos disponíveis para adoção" />
+              <img loading="lazy" decoding="async" src="https://plus.unsplash.com/premium_photo-1765362253321-edc56e2adf2b?auto=format&fit=crop&w=1600&q=72" alt="Peixe-palhaço entre corais coloridos" />
               <div class="pet-box-body">
                 <h3>Animais Marinhos</h3>
                 <p>Descubra formas de proteger e apoiar a vida marinha.</p>
@@ -182,7 +182,7 @@
         </div>
       </section>
 
-      <section class="home-section mission-section" id="sobre">
+      <section class="home-section" id="sobre" data-reveal>
         <div class="container home-about">
           <div class="about-panel">
             <span class="eyebrow">Nossa missão</span>
@@ -196,7 +196,7 @@
         </div>
       </section>
 
-      <section class="home-section alt" id="ajuda">
+      <section class="home-section" id="ajuda" data-reveal>
         <div class="container home-help-grid">
           <div>
             <span class="eyebrow">Como ajudar</span>
@@ -212,7 +212,7 @@
         </div>
       </section>
 
-      <section class="home-section partner-section" id="parceiros">
+      <section class="home-section" id="parceiros" data-reveal>
         <div class="container">
           <div class="section-title section-title-row">
             <div>
@@ -222,7 +222,7 @@
             <span class="text-link">Pequenos gestos, grande impacto</span>
           </div>
           <div class="support-story">
-            <img class="support-story-image" src="https://images.unsplash.com/photo-1548199973-03cce0bbc87b?auto=format&fit=crop&w=1200&q=85" alt="Dois cães juntos aguardando uma família" />
+            <img loading="lazy" decoding="async" class="support-story-image" src="https://images.unsplash.com/photo-1597046835715-16f81ac132c0?auto=format&fit=crop&w=1600&q=72" alt="Cachorro resgatado recebendo carinho" />
             <div class="support-story-content">
               <span class="mini-tag">Transparência</span>
               <h3>Ajude a manter esta rede no ar</h3>

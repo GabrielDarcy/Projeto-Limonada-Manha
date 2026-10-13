@@ -15,7 +15,7 @@ const BANNED_WORDS = [
   'merda', 'porra', 'caralho', 'puta', 'puto', 'viado', 'vadia', 'bosta', 'foder', 'fodase', 'desgracado', 'desgracada'
 ];
 
-// prevenção de XSS
+// escapa texto antes de entrar em innerHTML
 function escapeHTML(str) {
   if (str === null || str === undefined) return '';
   return String(str)
@@ -26,10 +26,7 @@ function escapeHTML(str) {
     .replace(/'/g, '&#39;');
 }
 
-// O filtro do PostgREST é uma string com sintaxe própria: vírgula separa
-// condições, parênteses agrupam e % é curinga. Interpolar entrada do usuário ali
-// permite reescrever o filtro (ex.: ",role.eq.admin"). Aqui removemos os
-// metacaracteres, mantendo letras, números, espaço e acentos.
+// o filtro do postgrest usa virgula e parenteses como sintaxe, entao tiramos esses caracteres
 function sanitizeFiltroPostgrest(valor) {
   return String(valor || '')
     .normalize('NFC')
@@ -45,12 +42,11 @@ function isUuid(valor) {
   return UUID_REGEX.test(String(valor || '').trim());
 }
 
-// Mensagens do Supabase Auth revelam se o e-mail existe, se está confirmado, etc.
-// Traduzimos para um texto único, sem vazar o estado da conta.
 function ehFalhaDeRede(codigo, texto) {
   return /network|fetch|failed to fetch|timeout/i.test(String(codigo) + String(texto));
 }
 
+// nao repassar o erro cru do supabase, ele diz se o email existe
 function mensagemDeAuthSegura(error) {
   const codigo = String(error?.code || error?.status || '');
   const texto = String(error?.message || '');
@@ -116,9 +112,6 @@ function createDynamicModal(content, className = '') {
   return modal;
 }
 
-// Cache de apresentação (nome, avatar, favoritos). NÃO guarda "role": o papel do
-// usuário saiu daqui de propósito, porque localStorage é editável pelo usuário e
-// era isso que permitia forjar admin. Autorização vive em getVerificacaoAtual().
 function saveSession(user) {
   const payload = {
     userId: user.id || user.user_id,
@@ -214,7 +207,7 @@ function renderAuthorBar(profile) {
   const authorProfile = Array.isArray(profile) ? profile[0] : profile;
   const firstName = authorProfile?.full_name?.split(' ')[0] || 'Usuário';
   const username = authorProfile?.username ? `@${escapeHTML(authorProfile.username.replace(/^@/, ''))}` : '';
-  const avatarUrl = authorProfile?.avatar_url || 'https://placehold.co/56x56/ffe8ce/7a3d16?text=Pet';
+  const avatarUrl = authorProfile?.avatar_url || 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96"><rect width="96" height="96" fill="%23fff1e4"/><g fill="%23d9611b" opacity="0.55"><ellipse cx="48" cy="61" rx="19" ry="15"/><ellipse cx="26" cy="40" rx="8" ry="10"/><ellipse cx="43" cy="30" rx="8" ry="10.5"/><ellipse cx="61" cy="32" rx="8" ry="10.5"/><ellipse cx="74" cy="45" rx="7.5" ry="9.5"/></g></svg>';
   return `<div class="post-author-bar"><img class="post-author-avatar" src="${escapeHTML(avatarUrl)}" alt="Foto de ${escapeHTML(firstName)}"><span class="post-author-name">${escapeHTML(firstName)}</span>${username ? `<span class="post-author-username">${escapeHTML(username)}</span>` : ''}</div>`;
 }
 
@@ -282,9 +275,7 @@ function clearSession() {
   localStorage.removeItem(STORAGE_KEYS.session);
 }
 
-// A sessão em localStorage é controlada pelo usuário: qualquer pessoa pode editar
-// o "role" pelo DevTools. Por isso ela NUNCA decide permissão — serve apenas como
-// cache de apresentação (nome, avatar). A autorização vem sempre do banco.
+// quem manda em permissao e o perfil lido no banco, nunca o localStorage
 const AUTHORITATIVE_SESSION_KEY = 'petamor_verified_session';
 let perfilVerificado = null;
 
@@ -303,9 +294,7 @@ function saveVerifiedSession(user) {
   return payload;
 }
 
-// Fonte única de verdade para "posso fazer isso?": perfil lido do Supabase na
-// requisição atual, guardado em sessionStorage (morre ao fechar a aba) e nunca
-// em localStorage. Chamadas concorrentes reaproveitam a mesma promessa.
+// le o perfil uma vez por carregamento, em sessionStorage
 async function getVerificacaoAtual() {
   if (perfilVerificado) return perfilVerificado;
   const client = getSupabaseClient();
@@ -335,8 +324,6 @@ async function isCurrentUserAdmin() {
   return verificacao?.role === 'admin';
 }
 
-// Acesso síncrono ao resultado já carregado. As funções de render montam HTML
-// sincronamente, então leem o cache em vez de disparar nova consulta por card.
 function podeAdministrarAgora() {
   return perfilVerificado?.role === 'admin';
 }
@@ -346,9 +333,7 @@ function resetVerificacao() {
   sessionStorage.removeItem(AUTHORITATIVE_SESSION_KEY);
 }
 
-// Colunas explícitas de propósito: `select('*')` traria `recovery_code` para o
-// cliente, que é o segredo usado na redefinição de senha. O app nunca precisou
-// desse campo — a comparação acontece no banco.
+// colunas na mao: select('*') traria o recovery_code pro cliente
 const COLUNAS_PERFIL_PUBLICAS = 'id, email, full_name, username, birth_date, avatar_url, favorite_posts, role, status, created_at';
 
 async function fetchProfileByUserId(userId) {
@@ -368,8 +353,6 @@ async function loginWithSupabase(email, password) {
   const client = getSupabaseClient();
   const loginEmail = email.toLowerCase() === 'admin' ? 'admin@petamor.com' : email;
   const { data, error } = await client.auth.signInWithPassword({ email: loginEmail, password });
-  // Não repassar error.message cru: ele distingue "e-mail não confirmado" de
-  // "credenciais inválidas" e permite enumerar contas e estados de cadastro.
   if (error) throw new Error(mensagemDeAuthSegura(error));
 
   const profile = await fetchProfileByUserId(data.user.id);
@@ -431,23 +414,21 @@ async function handleAdminAccountSubmit(event) {
 async function uploadAvatar(file, userId) {
   const fileError = validateImageFile(file);
   if (fileError) throw new Error(fileError);
-  
+
   const extension = file.name.split('.').pop().toLowerCase();
-  // Usa sempre o mesmo nome base, forçando o Supabase a sobrescrever (upsert)
-  const fileName = `${userId}/avatar.${extension}`; 
-  
+  const fileName = `${userId}/avatar.${extension}`;
+
   const client = getSupabaseClient();
   const { data, error } = await client.storage.from('avatars').upload(fileName, file, {
     cacheControl: '3600',
     upsert: true,
     contentType: file.type
   });
-  
-  // adiciona um timestamp na URL gerada apenas no frontend para quebrar o cache do navegador
+
   if (error) throw new Error(`Não foi possível enviar a foto de perfil: ${error.message}`);
   const { data: publicUrlData } = client.storage.from('avatars').getPublicUrl(data.path);
   if (!publicUrlData?.publicUrl) throw new Error('Não foi possível obter a URL.');
-  
+
   return `${publicUrlData.publicUrl}?t=${Date.now()}`;
 }
 
@@ -510,13 +491,11 @@ async function registerWithSupabase(name, username, email, password, birthDate, 
   };
 }
 
+// recolhe o hero em vez de esconder, senao os atalhos #inicio e #ajuda quebram
 async function updateHomeUserActions() {
   const session = getSession();
   const heroSection = document.getElementById('inicio');
 
-  // Antes a seção hero inteira era escondida (display:none) quando havia sessão.
-  // Isso quebrava os atalhos do header para #inicio, #ajuda e #sobre, que ficavam
-  // apontando para elementos inexistentes. Agora ela é recolhida, não removida.
   if (heroSection) heroSection.classList.toggle('is-collapsed', Boolean(session));
 
   const actionsNode = document.getElementById('homeUserActions');
@@ -530,9 +509,8 @@ async function updateHomeUserActions() {
     return;
   }
 
-  // O link do dashboard depende do papel lido no banco, não do localStorage.
   const isAdmin = await isCurrentUserAdmin();
-  const avatarUrl = session.avatar_url || 'https://placehold.co/96x96/ffe8ce/7a3d16?text=Pet';
+  const avatarUrl = session.avatar_url || 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96"><rect width="96" height="96" fill="%23fff1e4"/><g fill="%23d9611b" opacity="0.55"><ellipse cx="48" cy="61" rx="19" ry="15"/><ellipse cx="26" cy="40" rx="8" ry="10"/><ellipse cx="43" cy="30" rx="8" ry="10.5"/><ellipse cx="61" cy="32" rx="8" ry="10.5"/><ellipse cx="74" cy="45" rx="7.5" ry="9.5"/></g></svg>';
   actionsNode.innerHTML = `
     ${isAdmin ? '<a href="admin/admin.html" class="btn btn-primary">Dashboard admin</a>' : ''}
     <a href="publicacoes/create-post.html" class="btn btn-primary">Criar publicação</a>
@@ -564,11 +542,31 @@ function setupDonationRedirect() {
   });
 }
 
-// Imagens de anúncios vêm de URLs externas (Unsplash) e do Storage. Se uma falhar,
-// o card mostrava o ícone de imagem quebrada. Aqui trocamos por um placeholder
-// neutro uma única vez, sem laço infinito caso o próprio placeholder falhe.
+// reveal por scroll, so esconde se o js estiver ativo
+function setupScrollReveal() {
+  const alvos = document.querySelectorAll('[data-reveal], [data-reveal-stagger]');
+  if (!alvos.length) return;
+
+  const semMovimento = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if (semMovimento || !('IntersectionObserver' in window)) {
+    alvos.forEach((el) => el.classList.add('is-visible'));
+    return;
+  }
+
+  const observador = new IntersectionObserver((entradas) => {
+    entradas.forEach((entrada) => {
+      if (!entrada.isIntersecting) return;
+      entrada.target.classList.add('is-visible');
+      observador.unobserve(entrada.target);
+    });
+  }, { rootMargin: '0px 0px -8% 0px', threshold: 0.08 });
+
+  alvos.forEach((el) => observador.observe(el));
+}
+
+// imagem quebrada vira uma pata, sem loop infinito
 function setupImageFallbacks() {
-  const PLACEHOLDER = 'https://placehold.co/640x420/ffe8ce/7a3d16?text=Pet+Amor';
+  const PLACEHOLDER = 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96"><rect width="96" height="96" fill="%23fff1e4"/><g fill="%23d9611b" opacity="0.55"><ellipse cx="48" cy="61" rx="19" ry="15"/><ellipse cx="26" cy="40" rx="8" ry="10"/><ellipse cx="43" cy="30" rx="8" ry="10.5"/><ellipse cx="61" cy="32" rx="8" ry="10.5"/><ellipse cx="74" cy="45" rx="7.5" ry="9.5"/></g></svg>';
   document.addEventListener('error', (event) => {
     const alvo = event.target;
     if (!(alvo instanceof HTMLImageElement)) return;
@@ -578,8 +576,6 @@ function setupImageFallbacks() {
   }, true);
 }
 
-// Marca na navegação inferior qual aba está ativa. Sem isso o usuário de celular
-// não tem indicação de onde está.
 function setupMobileNavCurrent() {
   const paginaAtual = window.location.pathname.split('/').pop() || 'index.html';
   document.querySelectorAll('.mobile-bottom-nav .nav-item').forEach((item) => {
@@ -664,10 +660,6 @@ async function loadSiteStatistics() {
   if (adminTotalHomes) adminTotalHomes.value = String(totalHomes);
 }
 
-// A home exibia "1.250+ animais resgatados", "420+ famílias" e "96% de adoção"
-// fixos no HTML — números inventados. Agora são contados no banco. Contagens usam
-// head:true para não trafegar as linhas, e campos individuais são buscados só
-// quando o total é pequeno o bastante para uma contagem exata valer a pena.
 async function loadHomeRealStats() {
   const alvos = document.querySelectorAll('[data-stat]');
   if (!alvos.length) return;
@@ -693,10 +685,8 @@ async function loadHomeRealStats() {
     escrever('adotados', adotados.toLocaleString('pt-BR'));
     escrever('taxa', total > 0 ? `${taxa}%` : '—');
 
-    // Deixa explícito na dica o que cada número significa e de onde vem.
     document.querySelector('[data-stat="animais"]')?.setAttribute('title', `${ativos} com adoção em aberto`);
   } catch (error) {
-    // Falha de leitura não deve deixar traço permanente na página.
     alvos.forEach((alvo) => { alvo.textContent = '—'; });
   }
 }
@@ -726,9 +716,7 @@ function setupStatisticsManagement() {
   document.getElementById('resetStatisticsButton')?.addEventListener('click', () => updateSiteStatistics(0, true));
 }
 
-// A checagem aqui é defesa em profundidade: o RLS do Supabase é a barreira real.
-// Sem isto, qualquer conta logada que chamasse a função direto no console tentava
-// a exclusão e só era barrada pelo banco.
+// defesa em profundidade: o rls do banco e a barreira de verdade
 async function deletePost(postId) {
   if (!(await isCurrentUserAdmin())) {
     showToast('Apenas administradores podem excluir publicações.', 'error');
@@ -844,8 +832,6 @@ function renderContactItems(post) {
   return getContactItems(post).map((item) => `<span>${escapeHTML(item)}</span>`).join('');
 }
 
-// Recebe `podeAdministrar` calculado a partir do perfil no banco (ver renderFeed).
-// Antes lia getSession().role — valor que o usuário podia forjar no localStorage.
 function adminPostActions(postId, podeAdministrar = false) {
   return podeAdministrar
     ? `<button class="btn btn-danger admin-feed-delete" type="button" data-action="delete-post" data-id="${escapeHTML(postId)}">Deletar Post</button>`
@@ -857,14 +843,11 @@ async function uploadPostImage(file) {
   const fileError = validateImageFile(file);
   if (fileError) throw new Error(fileError);
   const extension = file.name.split('.').pop().toLowerCase();
-  // Corrigido suporte a UUID em Live Previews HTTP para evitar telas brancas silenciosas
-  // Nome único para o arquivo. crypto.randomUUID é o caminho normal; o fallback
-  // cobre navegadores antigos sem quebrar o upload.
   const uuid = (crypto && typeof crypto.randomUUID === 'function')
     ? crypto.randomUUID()
     : `up-${Date.now()}-${Math.round(Math.random() * 1e9)}`;
   const fileName = `${uuid}.${extension}`;
-  
+
   const { data, error } = await client.storage.from('pet_images').upload(fileName, file, {
     cacheControl: '3600',
     upsert: false,
@@ -1228,8 +1211,7 @@ function setupCreatePostForm() {
 
 async function handleCreatePostSubmit(event) {
   event.preventDefault();
-  
-  // formulário em memória ANTES de pausar o código com o await
+
   const form = event.currentTarget;
 
   const title = form.title.value.trim();
@@ -1320,7 +1302,7 @@ async function handleCreatePostSubmit(event) {
       showToast(error.message, 'error');
       return;
     }
-    
+
     showToast('Publicação criada com sucesso.');
     window.location.href = 'index.html';
   } catch (error) {
@@ -1328,13 +1310,7 @@ async function handleCreatePostSubmit(event) {
   }
 }
 
-// ATENÇÃO: este bloco está hoje inalcançável. `renderFeed` só é chamado por
-// `setupFeedFilters`, que sai na primeira verificação porque nenhum dos ids
-// (feedPosts, feedType, feedBreed, feedState, feedCity, breedFilterWrap) existe
-// em qualquer HTML do projeto. A home usa `renderRecentPosts`, que tem marcação
-// própria. Mantido por ser funcionalidade latente, mas o tratamento de erro era
-// frágil: um `throw` dentro de `.then()` sem `.catch()` virava unhandled rejection
-// e deixava a lista vazia sem explicação.
+// bloco hoje inalcancavel: setupFeedFilters sai antes por falta dos ids no html
 function renderFeed(append = false) {
   const feedTarget = document.getElementById('feedPosts');
   const typeField = document.getElementById('feedType');
@@ -1356,7 +1332,7 @@ function renderFeed(append = false) {
   const breedLabel = breedField?.selectedOptions[0]?.textContent || breedValue;
 
   let query = getSupabaseClient().from('posts').select('*, profiles(full_name, username, avatar_url)').eq('status', 'active').order('created_at', { ascending: false }).range(page * FEED_PAGE_SIZE, (page + 1) * FEED_PAGE_SIZE - 1);
-  
+
   if (stateValue) query = query.eq('state', stateValue);
   if (typeValue !== 'Todos') query = query.eq('animal_type', typeValue);
   if (breedValue) query = query.ilike('breed', `%${breedValue}%`);
@@ -1386,7 +1362,7 @@ function renderFeed(append = false) {
               <span class="mini-tag">${escapeHTML(formatAnimalType(post.animal_type))}</span>
               <h3>${escapeHTML(post.title)}</h3>
             </div>
-            <span class="feed-location">📍 ${escapeHTML(formatPostLocation(post))}</span>
+            <span class="feed-location"><svg class="pin-icon" viewBox="0 0 24 24" width="14" height="14" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 5.2-8 12-8 12s-8-6.8-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="2.6"/></svg> ${escapeHTML(formatPostLocation(post))}</span>
           </div>
           <div class="feed-meta">
             <span><strong>Raça:</strong> ${escapeHTML(post.breed || 'Não informado')}</span>
@@ -1434,7 +1410,7 @@ function renderRecentPosts() {
             ${renderAuthorBar(post.profiles)}
             <span class="mini-tag">${escapeHTML(formatAnimalType(post.animal_type))}</span>
             <h3>${escapeHTML(post.title)}</h3>
-            <span class="recent-post-location">📍 ${escapeHTML(formatPostLocation(post))}</span>
+            <span class="recent-post-location"><svg class="pin-icon" viewBox="0 0 24 24" width="14" height="14" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 5.2-8 12-8 12s-8-6.8-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="2.6"/></svg> ${escapeHTML(formatPostLocation(post))}</span>
             ${post.status === 'active' ? `<div class="post-action-row"><button class="btn btn-secondary" type="button" data-post-details="${escapeHTML(post.id)}">Ver detalhes</button>${postActionButtonsHTML(post, podeAdministrarAgora())}</div>` : ''}
           </div>
         </article>
@@ -1610,7 +1586,7 @@ async function renderCategoryFeed(animalType) {
       <div class="category-pet-card-body">
         ${renderAuthorBar(post.profiles)}
         <h2>${escapeHTML(post.title)}</h2>
-        <p class="category-pet-location">📍 ${escapeHTML(formatPostLocation(post))}</p>
+        <p class="category-pet-location"><svg class="pin-icon" viewBox="0 0 24 24" width="14" height="14" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 5.2-8 12-8 12s-8-6.8-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="2.6"/></svg> ${escapeHTML(formatPostLocation(post))}</p>
         <p class="category-pet-breed"><strong>Raça:</strong> ${escapeHTML(post.breed || 'Não informado')}${post.animal_type === 'Cachorro' && post.size ? ` · <strong>Porte:</strong> ${escapeHTML(post.size)}` : ''}</p>
         <div class="post-action-row">
           <button class="btn btn-secondary" type="button" data-post-details="${escapeHTML(post.id)}">Ver detalhes</button>
@@ -1657,7 +1633,7 @@ async function renderFavorites() {
         ${renderAuthorBar(post.profiles)}
         <span class="mini-tag">${escapeHTML(formatAnimalType(post.animal_type))}</span>
         <h3>${escapeHTML(post.title)}</h3>
-        <span class="recent-post-location">📍 ${escapeHTML(formatPostLocation(post))}</span>
+        <span class="recent-post-location"><svg class="pin-icon" viewBox="0 0 24 24" width="14" height="14" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 5.2-8 12-8 12s-8-6.8-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="2.6"/></svg> ${escapeHTML(formatPostLocation(post))}</span>
         ${post.status === 'active' ? `<div class="post-action-row"><button class="btn btn-secondary" type="button" data-post-details="${escapeHTML(post.id)}">Ver detalhes</button>${postActionButtonsHTML(post, podeAdministrarAgora())}</div>` : ''}
       </div>
     </article>
@@ -1673,9 +1649,8 @@ function openAdoptionModal(post) {
   if (!post) return;
   const modal = document.getElementById('adoptionModal');
   document.getElementById('modalImageContainer').innerHTML = generateImageCarouselHTML(post.image_urls, post.title);
-  // NOTA: Usar textContent já é seguro nativamente contra XSS
   document.getElementById('modalPostTitle').textContent = post.title;
-  document.getElementById('modalPostLocation').textContent = `📍 ${formatPostLocation(post)}`;
+  document.getElementById('modalPostLocation').innerHTML = `<svg class="pin-icon" viewBox="0 0 24 24" width="14" height="14" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 5.2-8 12-8 12s-8-6.8-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="2.6"/></svg> ${formatPostLocation(post)}`;
   document.getElementById('modalPostDescription').textContent = post.description || 'Descrição não informada.';
   const modalBreed = document.getElementById('modalBreed');
   const modalMotherBreed = document.getElementById('modalMotherBreed');
@@ -1907,7 +1882,6 @@ function initCustomSelects() {
 async function checkSharedPostOnLoad() {
   const postId = new URLSearchParams(window.location.search).get('post');
   if (!postId || !document.getElementById('adoptionModal')) return;
-  // O valor vem da query string: validar como UUID evita mandar lixo ao banco.
   if (!isUuid(postId)) return;
   try {
     const { data: post, error } = await getSupabaseClient()
@@ -1921,9 +1895,7 @@ async function checkSharedPostOnLoad() {
   }
 }
 
-// Math.random() não é adequado para segredo: o estado do PRNG é previsível a
-// partir de algumas saídas. Usa a CSPRNG do navegador e rejeita valores fora da
-// faixa para não introduzir viés de módulo.
+// crypto e nao math.random, o codigo e um segredo
 function generateRecoveryCode() {
   const limite = 900000;
   const maximo = Math.floor(4294967296 / limite) * limite;
@@ -1951,9 +1923,6 @@ function showRecoveryCodeModal(code, redirect) {
   button.addEventListener('click', () => { closeDynamicModal(modal); window.location.href = redirect; });
 }
 
-// O código de 6 dígitos é o único fator: ele já identifica a conta no servidor,
-// então não pedimos e-mail. Isso também elimina a enumeração de contas (antes a
-// tela confirmava implicitamente se um e-mail existia) e deixa o fluxo mais curto.
 function setupPasswordRecovery() {
   document.getElementById('forgotPasswordButton')?.addEventListener('click', () => {
     const modal = createDynamicModal(`<h2>Recuperar senha</h2>
@@ -1997,9 +1966,6 @@ function setupPasswordRecovery() {
           p_new_password: newPass
         });
         if (error) {
-          // Registra a tentativa para o teto de 10 por hora funcionar. O builder
-          // do Supabase é thenable, mas não garante .catch(), então usamos await
-          // dentro de try/catch para não mascarar o erro original.
           try {
             await client.rpc('log_falha_reset', { p_code: code });
           } catch (e) {
@@ -2022,8 +1988,6 @@ async function handleLoginSubmit(event) {
   try {
     const user = await loginWithSupabase(email, password);
     saveSession(user);
-    // Garante que a próxima página releia papel e status no banco, em vez de
-    // reaproveitar qualquer verificação anterior.
     resetVerificacao();
     window.location.href = 'index.html';
   } catch (error) {
@@ -2133,15 +2097,15 @@ async function handleProfileEmailSubmit(event) {
   event.preventDefault();
   const email = document.getElementById('profileEmail').value.trim().toLowerCase();
   if (!isValidEmail(email)) return showToast('Informe um e-mail válido.', 'error');
-  
+
   try {
     const { data, error } = await getSupabaseClient().auth.updateUser({ email });
     if (error) throw error;
-    
+
     const session = getSession();
     await getSupabaseClient().from('profiles').update({ email }).eq('id', session.userId);
     saveSession({ ...session, id: session.userId, email: data.user?.email || email });
-    
+
     showToast('Solicitação enviada. Verifique os e-mails para confirmar a alteração.');
   } catch (error) {
     showToast(`Não foi possível atualizar o e-mail: ${error.message}`, 'error');
@@ -2210,7 +2174,7 @@ async function renderUserPosts() {
         ${renderAuthorBar(post.profiles)}
         <span class="mini-tag">${escapeHTML(formatAnimalType(post.animal_type))}</span>
         <h3>${escapeHTML(post.title)}</h3>
-        <p>📍 ${escapeHTML(formatPostLocation(post))}</p>
+        <p><svg class="pin-icon" viewBox="0 0 24 24" width="14" height="14" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 5.2-8 12-8 12s-8-6.8-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="2.6"/></svg> ${escapeHTML(formatPostLocation(post))}</p>
         ${post.status === 'active' ? `<div class="post-status-actions"><button class="btn btn-secondary" type="button" data-mark-adopted="${escapeHTML(post.id)}">Já doei</button><button class="btn btn-secondary" type="button" data-mark-adopted="${escapeHTML(post.id)}">Decidi ficar com ele</button></div>` : '<span class="completed-label">Concluído</span>'}
       </div>
     </article>
@@ -2246,7 +2210,7 @@ async function renderProfileFavorites() {
         ${renderAuthorBar(post.profiles)}
         <span class="mini-tag">${escapeHTML(formatAnimalType(post.animal_type))}</span>
         <h3>${escapeHTML(post.title)}</h3>
-        <p>📍 ${escapeHTML(formatPostLocation(post))}</p>
+        <p><svg class="pin-icon" viewBox="0 0 24 24" width="14" height="14" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 5.2-8 12-8 12s-8-6.8-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="2.6"/></svg> ${escapeHTML(formatPostLocation(post))}</p>
         ${post.status === 'active' ? postActionHTML(post, podeAdministrarAgora()) : ''}
       </div>
     </article>
@@ -2258,7 +2222,7 @@ function setupProfilePage() {
   const session = redirectIfLoggedOut();
   if (!session) return;
   const avatarPreview = document.getElementById('profileAvatarPreview');
-  avatarPreview.src = session.avatar_url || 'https://placehold.co/160x160/ffe8ce/7a3d16?text=Pet';
+  avatarPreview.src = session.avatar_url || 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96"><rect width="96" height="96" fill="%23fff1e4"/><g fill="%23d9611b" opacity="0.55"><ellipse cx="48" cy="61" rx="19" ry="15"/><ellipse cx="26" cy="40" rx="8" ry="10"/><ellipse cx="43" cy="30" rx="8" ry="10.5"/><ellipse cx="61" cy="32" rx="8" ry="10.5"/><ellipse cx="74" cy="45" rx="7.5" ry="9.5"/></g></svg>';
   document.getElementById('profileName').textContent = session.name;
   document.getElementById('profileEmail').value = session.email || '';
   document.getElementById('profileUsername').value = session.username || '';
@@ -2269,9 +2233,8 @@ function setupProfilePage() {
   document.getElementById('deleteAccountButton')?.addEventListener('click', deleteAccount);
 }
 
+// uma verificacao no servidor por pagina, antes de renderizar
 async function initializePage() {
-  // Uma única verificação no servidor por carregamento de página. Ela resolve
-  // e-mail, perfil e papel, e é o que autoriza as telas — não o localStorage.
   const verificacao = await getVerificacaoAtual();
   const data = { user: verificacao?.user || null };
 
@@ -2310,7 +2273,6 @@ async function initializePage() {
 
   const page = document.body.dataset.page;
 
-  // Usuário banido perde acesso às áreas autenticadas já na entrada.
   if (data.user && verificacao.status === 'banned' && ['create-post', 'profile', 'my-posts', 'favorites', 'admin'].includes(page)) {
     await getSupabaseClient().auth.signOut();
     clearSession();
@@ -2320,9 +2282,9 @@ async function initializePage() {
     return;
   }
 
-  // configurações visuais e listeners globais
   setupImageFallbacks();
   setupMobileNavCurrent();
+  setupScrollReveal();
   setupPostCarouselNavigation();
   setupFavoriteInteractionsV7();
   setupShareInteractions();
@@ -2331,7 +2293,6 @@ async function initializePage() {
   await updateHomeUserActions();
   initCustomSelects();
 
-  // roteamento e Inicialização por Página
   if (page === 'home') {
     loadSiteStatistics();
     loadHomeRealStats();
@@ -2365,7 +2326,6 @@ async function initializePage() {
     document.querySelectorAll('[data-modal-close]').forEach((element) => element.addEventListener('click', closeAdoptionModal));
     renderProfileFavorites();
   } else if (page === 'admin') {
-    // verificação em tempo real direto no banco
     const { data: authData } = await getSupabaseClient().auth.getUser();
     if (authData?.user) {
       const profile = await fetchProfileByUserId(authData.user.id);
@@ -2377,7 +2337,6 @@ async function initializePage() {
       return (window.location.href = 'conta/login.html');
     }
 
-    // se passou pela segurança, inicializa o painel
     document.getElementById('logoutButton')?.addEventListener('click', () => {
       getSupabaseClient().auth.signOut().then(() => { clearSession(); window.location.href = 'conta/login.html'; });
     });
