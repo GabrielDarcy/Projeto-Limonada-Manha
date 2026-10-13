@@ -1,0 +1,44 @@
+# Headers de segurança — Netlify / Cloudflare Pages / GitHub Pages (via adapter)
+# Este arquivo é lido automaticamente por Netlify e Cloudflare Pages.
+#
+# Por que aqui e não num <meta http-equiv>: dentro do HTML o navegador ignora
+# diretivas como frame-ancestors, e uma CSP em meta pode bloquear o Supabase Auth
+# (que carrega módulos do jsDelivr e faz chamadas para o projeto) e as Google Fonts.
+# Como header HTTP real, a política é aplicada por inteiro e o navegador mostra
+# qualquer bloqueio no console para você ajustar.
+
+/*
+  # Impede que o site seja embutido em iframe de terceiros (clickjacking).
+  X-Frame-Options: DENY
+  # Não permite que o navegador "adivinhe" o tipo de um arquivo.
+  X-Content-Type-Options: nosniff
+  # Não vaza a URL completa (nem o ?post=<uuid>) para sites externos.
+  Referrer-Policy: strict-origin-when-cross-origin
+  # Desliga recursos que o site não usa.
+  Permissions-Policy: geolocation=(), microphone=(), camera=(), payment=(), usb=()
+  # Força HTTPS por 1 ano, incluindo subdomínios, e habilita preload.
+  Strict-Transport-Security: max-age=31536000; includeSubDomains; preload
+  # Isola o contexto de navegação (mitiga XS-Leaks e ataques via janela aberta).
+  Cross-Origin-Opener-Policy: same-origin
+  # Bloqueia Adobe Flash/PDF cross-domain legados.
+  Cross-Domain-Policies: none
+  # Desativa sniffing de DNS prefetch para domínios não citados.
+  X-DNS-Prefetch-Control: off
+  # CSP: libera exatamente as origens que o projeto usa.
+  #   script-src  -> jsDelivr (cliente Supabase via ESM) + inline (o app monta
+  #                  handlers por atributo em trechos de HTML montados no cliente)
+  #   style-src   -> Google Fonts + inline (o JS ajusta style.width do medidor de senha)
+  #   connect-src -> projeto Supabase (REST/Auth/Storage) + IBGE (estados e cidades)
+  #   img-src     -> Storage do Supabase + Unsplash + placehold.co + data: (prévia local)
+  #   font-src    -> arquivos das Google Fonts
+  Content-Security-Policy: default-src 'self'; base-uri 'self'; form-action 'self'; object-src 'none'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https://sqosvgesugekqvgucepn.supabase.co https://images.unsplash.com https://placehold.co; connect-src 'self' https://sqosvgesugekqvgucepn.supabase.co wss://sqosvgesugekqvgucepn.supabase.co https://servicodados.ibge.gov.br; frame-ancestors 'none'; upgrade-insecure-requests
+
+# O HTML nunca deve ficar em cache: sempre pega a versão nova do app.
+/*.html
+  Cache-Control: public, max-age=0, must-revalidate
+
+# JS e CSS usam ?v= como cache-busting, então podem ser cacheados com força.
+/script.js
+  Cache-Control: public, max-age=31536000, immutable
+/supabase.js
+  Cache-Control: public, max-age=31536000, immutable

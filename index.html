@@ -30,6 +30,7 @@
     <link rel="stylesheet" href="css/index.css" />
   </head>
   <body data-page="home">
+    <a class="skip-link" href="#conteudo">Pular para o conteúdo</a>
     <header class="home-header">
       <div class="container home-nav">
         <a class="brand-row" href="index.html">
@@ -51,7 +52,7 @@
       </div>
     </header>
 
-    <main>
+    <main id="conteudo" tabindex="-1">
       <section class="home-hero" id="inicio">
         <div class="container home-hero-grid">
           <div class="home-copy">
@@ -66,16 +67,16 @@
 
             <div class="home-stats">
               <div>
-                <strong>1.250+</strong>
-                <span>animais resgatados</span>
+                <strong data-stat="animais">—</strong>
+                <span>animais publicados</span>
               </div>
               <div>
-                <strong>420+</strong>
-                <span>famílias acolhedoras</span>
+                <strong data-stat="adotados">—</strong>
+                <span>adoções concluídas</span>
               </div>
               <div>
-                <strong>96%</strong>
-                <span>taxa de adoção</span>
+                <strong data-stat="taxa">—</strong>
+                <span>dos anúncios já adotados</span>
               </div>
             </div>
           </div>

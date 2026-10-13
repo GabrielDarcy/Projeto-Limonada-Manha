@@ -26,6 +26,39 @@ function escapeHTML(str) {
     .replace(/'/g, '&#39;');
 }
 
+// O filtro do PostgREST é uma string com sintaxe própria: vírgula separa
+// condições, parênteses agrupam e % é curinga. Interpolar entrada do usuário ali
+// permite reescrever o filtro (ex.: ",role.eq.admin"). Aqui removemos os
+// metacaracteres, mantendo letras, números, espaço e acentos.
+function sanitizeFiltroPostgrest(valor) {
+  return String(valor || '')
+    .normalize('NFC')
+    .replace(/[,().:*"'\\%\[\]{}]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, 120);
+}
+
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+function isUuid(valor) {
+  return UUID_REGEX.test(String(valor || '').trim());
+}
+
+// Mensagens do Supabase Auth revelam se o e-mail existe, se está confirmado, etc.
+// Traduzimos para um texto único, sem vazar o estado da conta.
+function ehFalhaDeRede(codigo, texto) {
+  return /network|fetch|failed to fetch|timeout/i.test(String(codigo) + String(texto));
+}
+
+function mensagemDeAuthSegura(error) {
+  const codigo = String(error?.code || error?.status || '');
+  const texto = String(error?.message || '');
+  if (ehFalhaDeRede(codigo, texto)) return 'Não foi possível conectar. Verifique sua internet e tente novamente.';
+  if (/rate|too many|429/i.test(codigo + texto)) return 'Muitas tentativas. Aguarde alguns minutos e tente novamente.';
+  return 'E-mail ou senha incorretos.';
+}
+
 function formatAnimalType(type) {
   const normalized = String(type || '').trim();
   if (normalized === 'Fazenda') return 'Animal de Fazenda';
@@ -83,10 +116,12 @@ function createDynamicModal(content, className = '') {
   return modal;
 }
 
+// Cache de apresentação (nome, avatar, favoritos). NÃO guarda "role": o papel do
+// usuário saiu daqui de propósito, porque localStorage é editável pelo usuário e
+// era isso que permitia forjar admin. Autorização vive em getVerificacaoAtual().
 function saveSession(user) {
   const payload = {
     userId: user.id || user.user_id,
-    role: user.role || 'user',
     email: user.email,
     name: user.name || user.full_name || user.email,
     username: user.username || null,
@@ -162,17 +197,17 @@ function getPostPhone(post) {
   return phoneMatch ? phoneMatch[1].replace(/\D/g, '') : '';
 }
 
-function postActionButtonsHTML(post) {
+function postActionButtonsHTML(post, podeAdministrar = false) {
   const phone = getPostPhone(post);
   const title = encodeURIComponent(`Olá, vi o post do ${post.title || 'animal'} no Pet Amor e gostaria de saber mais!`);
   const adoptionAction = phone
     ? `<a class="btn btn-primary" href="https://wa.me/55${phone}?text=${title}" target="_blank" rel="noopener noreferrer">Conversar no WhatsApp</a>`
     : `<button class="btn btn-primary" type="button" data-adoption-post="${escapeHTML(post.id)}">Quero Adotar!</button>`;
-  return `${adoptionAction}${adminPostActions(post.id)}`;
+  return `${adoptionAction}${adminPostActions(post.id, podeAdministrar)}`;
 }
 
-function postActionHTML(post) {
-  return `<div class="post-action-row">${postActionButtonsHTML(post)}</div>`;
+function postActionHTML(post, podeAdministrar = false) {
+  return `<div class="post-action-row">${postActionButtonsHTML(post, podeAdministrar)}</div>`;
 }
 
 function renderAuthorBar(profile) {
@@ -247,10 +282,83 @@ function clearSession() {
   localStorage.removeItem(STORAGE_KEYS.session);
 }
 
+// A sessão em localStorage é controlada pelo usuário: qualquer pessoa pode editar
+// o "role" pelo DevTools. Por isso ela NUNCA decide permissão — serve apenas como
+// cache de apresentação (nome, avatar). A autorização vem sempre do banco.
+const AUTHORITATIVE_SESSION_KEY = 'petamor_verified_session';
+let perfilVerificado = null;
+
+function saveVerifiedSession(user) {
+  const payload = {
+    userId: user.id || user.user_id,
+    role: user.role || 'user',
+    email: user.email,
+    name: user.name || user.full_name || user.email,
+    username: user.username || null,
+    birth_date: user.birth_date || null,
+    avatar_url: user.avatar_url || null,
+    favorite_posts: Array.isArray(user.favorite_posts) ? user.favorite_posts.map((id) => String(id)) : []
+  };
+  sessionStorage.setItem(AUTHORITATIVE_SESSION_KEY, JSON.stringify(payload));
+  return payload;
+}
+
+// Fonte única de verdade para "posso fazer isso?": perfil lido do Supabase na
+// requisição atual, guardado em sessionStorage (morre ao fechar a aba) e nunca
+// em localStorage. Chamadas concorrentes reaproveitam a mesma promessa.
+async function getVerificacaoAtual() {
+  if (perfilVerificado) return perfilVerificado;
+  const client = getSupabaseClient();
+  if (!client) return null;
+  try {
+    const { data: authData } = await client.auth.getUser();
+    if (!authData?.user) {
+      sessionStorage.removeItem(AUTHORITATIVE_SESSION_KEY);
+      perfilVerificado = { user: null, role: 'guest' };
+      return perfilVerificado;
+    }
+    const profile = await fetchProfileByUserId(authData.user.id);
+    perfilVerificado = {
+      user: authData.user,
+      profile,
+      role: String(profile?.role || 'user').toLowerCase(),
+      status: String(profile?.status || 'active').toLowerCase()
+    };
+  } catch (error) {
+    perfilVerificado = { user: null, role: 'guest', erro: error.message };
+  }
+  return perfilVerificado;
+}
+
+async function isCurrentUserAdmin() {
+  const verificacao = await getVerificacaoAtual();
+  return verificacao?.role === 'admin';
+}
+
+// Acesso síncrono ao resultado já carregado. As funções de render montam HTML
+// sincronamente, então leem o cache em vez de disparar nova consulta por card.
+function podeAdministrarAgora() {
+  return perfilVerificado?.role === 'admin';
+}
+
+function resetVerificacao() {
+  perfilVerificado = null;
+  sessionStorage.removeItem(AUTHORITATIVE_SESSION_KEY);
+}
+
+// Colunas explícitas de propósito: `select('*')` traria `recovery_code` para o
+// cliente, que é o segredo usado na redefinição de senha. O app nunca precisou
+// desse campo — a comparação acontece no banco.
+const COLUNAS_PERFIL_PUBLICAS = 'id, email, full_name, username, birth_date, avatar_url, favorite_posts, role, status, created_at';
+
 async function fetchProfileByUserId(userId) {
   const client = getSupabaseClient();
   if (client) {
-    const { data, error } = await client.from('profiles').select('*').eq('id', userId).single();
+    const { data, error } = await client
+      .from('profiles')
+      .select(COLUNAS_PERFIL_PUBLICAS)
+      .eq('id', userId)
+      .single();
     if (!error && data) return data;
   }
   return null;
@@ -260,7 +368,9 @@ async function loginWithSupabase(email, password) {
   const client = getSupabaseClient();
   const loginEmail = email.toLowerCase() === 'admin' ? 'admin@petamor.com' : email;
   const { data, error } = await client.auth.signInWithPassword({ email: loginEmail, password });
-  if (error) throw new Error(error.message);
+  // Não repassar error.message cru: ele distingue "e-mail não confirmado" de
+  // "credenciais inválidas" e permite enumerar contas e estados de cadastro.
+  if (error) throw new Error(mensagemDeAuthSegura(error));
 
   const profile = await fetchProfileByUserId(data.user.id);
   if (profile?.status === 'banned') throw new Error('Esta conta foi banida. Entre em contato com a administração.');
@@ -400,10 +510,15 @@ async function registerWithSupabase(name, username, email, password, birthDate, 
   };
 }
 
-function updateHomeUserActions() {
+async function updateHomeUserActions() {
   const session = getSession();
   const heroSection = document.getElementById('inicio');
-  if (heroSection) heroSection.style.display = session ? 'none' : 'block';
+
+  // Antes a seção hero inteira era escondida (display:none) quando havia sessão.
+  // Isso quebrava os atalhos do header para #inicio, #ajuda e #sobre, que ficavam
+  // apontando para elementos inexistentes. Agora ela é recolhida, não removida.
+  if (heroSection) heroSection.classList.toggle('is-collapsed', Boolean(session));
+
   const actionsNode = document.getElementById('homeUserActions');
   if (!actionsNode) return;
 
@@ -415,25 +530,26 @@ function updateHomeUserActions() {
     return;
   }
 
-  const isAdmin = String(session.role || '').toLowerCase() === 'admin';
+  // O link do dashboard depende do papel lido no banco, não do localStorage.
+  const isAdmin = await isCurrentUserAdmin();
   const avatarUrl = session.avatar_url || 'https://placehold.co/96x96/ffe8ce/7a3d16?text=Pet';
   actionsNode.innerHTML = `
     ${isAdmin ? '<a href="admin/admin.html" class="btn btn-primary">Dashboard admin</a>' : ''}
     <a href="publicacoes/create-post.html" class="btn btn-primary">Criar publicação</a>
     <a href="publicacoes/my-posts.html" class="btn btn-secondary">Minhas publicações</a>
     <a href="publicacoes/favorites.html" class="header-favorites-link" aria-label="Abrir meus favoritos" title="Meus favoritos"><svg class="header-favorites-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78L12 21.23l8.84-8.84a5.5 5.5 0 0 0 0-7.78Z"></path></svg></a>
-    <a href="conta/profile.html" class="profile-avatar-link" aria-label="Abrir meu perfil"><img class="profile-avatar" src="${escapeHTML(avatarUrl)}" alt="Foto de perfil de ${escapeHTML(session.name)}"></a>
+    <a href="conta/profile.html" class="profile-avatar-link" aria-label="Abrir meu perfil"><img class="profile-avatar" src="${escapeHTML(avatarUrl)}" alt="Foto de perfil de ${escapeHTML(session.name || 'usuário')}"></a>
     <button class="btn btn-secondary" id="homeLogoutButton">Sair</button>
   `;
 
-  actionsNode.innerHTML = actionsNode.innerHTML.replace('header-favorites-link', 'header-favorite-link');
-  const headerFavoriteLink = actionsNode.querySelector('.header-favorite-link');
+  const headerFavoriteLink = actionsNode.querySelector('.header-favorites-link');
   headerFavoriteLink?.classList.add('header-favorite-link');
   headerFavoriteLink?.querySelector('svg')?.setAttribute('fill', 'currentColor');
 
   document.getElementById('homeLogoutButton')?.addEventListener('click', () => {
     getSupabaseClient().auth.signOut().finally(() => {
       clearSession();
+      resetVerificacao();
       updateHomeUserActions();
     });
   });
@@ -445,6 +561,30 @@ function setupDonationRedirect() {
   button.addEventListener('click', (event) => {
     event.preventDefault();
     window.location.href = getSession() ? 'publicacoes/create-post.html' : 'conta/register.html?redirect=publicacoes/create-post.html';
+  });
+}
+
+// Imagens de anúncios vêm de URLs externas (Unsplash) e do Storage. Se uma falhar,
+// o card mostrava o ícone de imagem quebrada. Aqui trocamos por um placeholder
+// neutro uma única vez, sem laço infinito caso o próprio placeholder falhe.
+function setupImageFallbacks() {
+  const PLACEHOLDER = 'https://placehold.co/640x420/ffe8ce/7a3d16?text=Pet+Amor';
+  document.addEventListener('error', (event) => {
+    const alvo = event.target;
+    if (!(alvo instanceof HTMLImageElement)) return;
+    if (alvo.dataset.fallbackAplicado === '1') return;
+    alvo.dataset.fallbackAplicado = '1';
+    alvo.src = PLACEHOLDER;
+  }, true);
+}
+
+// Marca na navegação inferior qual aba está ativa. Sem isso o usuário de celular
+// não tem indicação de onde está.
+function setupMobileNavCurrent() {
+  const paginaAtual = window.location.pathname.split('/').pop() || 'index.html';
+  document.querySelectorAll('.mobile-bottom-nav .nav-item').forEach((item) => {
+    const destino = (item.getAttribute('href') || '').split('/').pop();
+    if (destino && destino === paginaAtual) item.setAttribute('aria-current', 'page');
   });
 }
 
@@ -524,7 +664,48 @@ async function loadSiteStatistics() {
   if (adminTotalHomes) adminTotalHomes.value = String(totalHomes);
 }
 
+// A home exibia "1.250+ animais resgatados", "420+ famílias" e "96% de adoção"
+// fixos no HTML — números inventados. Agora são contados no banco. Contagens usam
+// head:true para não trafegar as linhas, e campos individuais são buscados só
+// quando o total é pequeno o bastante para uma contagem exata valer a pena.
+async function loadHomeRealStats() {
+  const alvos = document.querySelectorAll('[data-stat]');
+  if (!alvos.length) return;
+  const client = getSupabaseClient();
+
+  try {
+    const [totalRes, ativosRes, adotadosRes] = await Promise.all([
+      client.from('posts').select('id', { count: 'exact', head: true }),
+      client.from('posts').select('id', { count: 'exact', head: true }).eq('status', 'active'),
+      client.from('posts').select('id', { count: 'exact', head: true }).eq('status', 'adopted')
+    ]);
+
+    const total = totalRes.count ?? 0;
+    const ativos = ativosRes.count ?? 0;
+    const adotados = adotadosRes.count ?? 0;
+    const taxa = total > 0 ? Math.round((adotados / total) * 100) : 0;
+
+    const escrever = (chave, valor) => {
+      const alvo = document.querySelector(`[data-stat="${chave}"]`);
+      if (alvo) alvo.textContent = valor;
+    };
+    escrever('animais', total.toLocaleString('pt-BR'));
+    escrever('adotados', adotados.toLocaleString('pt-BR'));
+    escrever('taxa', total > 0 ? `${taxa}%` : '—');
+
+    // Deixa explícito na dica o que cada número significa e de onde vem.
+    document.querySelector('[data-stat="animais"]')?.setAttribute('title', `${ativos} com adoção em aberto`);
+  } catch (error) {
+    // Falha de leitura não deve deixar traço permanente na página.
+    alvos.forEach((alvo) => { alvo.textContent = '—'; });
+  }
+}
+
 async function updateSiteStatistics(totalHomes, reset = false) {
+  if (!(await isCurrentUserAdmin())) {
+    showToast('Apenas administradores podem alterar as estatísticas.', 'error');
+    return;
+  }
   const updates = reset ? { total_lares: 0, base_diaria: 0 } : { total_lares: Number(totalHomes) };
   const { error } = await getSupabaseClient().from('site_statistics').update(updates).eq('id', 1);
   if (error) {
@@ -545,7 +726,14 @@ function setupStatisticsManagement() {
   document.getElementById('resetStatisticsButton')?.addEventListener('click', () => updateSiteStatistics(0, true));
 }
 
+// A checagem aqui é defesa em profundidade: o RLS do Supabase é a barreira real.
+// Sem isto, qualquer conta logada que chamasse a função direto no console tentava
+// a exclusão e só era barrada pelo banco.
 async function deletePost(postId) {
+  if (!(await isCurrentUserAdmin())) {
+    showToast('Apenas administradores podem excluir publicações.', 'error');
+    return;
+  }
   const { error } = await getSupabaseClient().from('posts').delete().eq('id', postId);
   if (error) {
     showToast(`Não foi possível excluir o post: ${error.message}`, 'error');
@@ -556,11 +744,11 @@ async function deletePost(postId) {
 
 async function searchAdminUsers(queryValue) {
   const target = document.getElementById('adminUserResults');
-  const query = String(queryValue || '').trim();
-  if (!target || !query) return;
+  const termo = sanitizeFiltroPostgrest(queryValue);
+  if (!target || !termo) return;
   const { data: users, error } = await getSupabaseClient().from('profiles')
     .select('id, email, full_name, username, birth_date, status, role')
-    .or(`email.ilike.%${query}%,full_name.ilike.%${query}%,username.ilike.%${query}%`)
+    .or(`email.ilike.%${termo}%,full_name.ilike.%${termo}%,username.ilike.%${termo}%`)
     .limit(10);
   if (error) {
     target.innerHTML = `<p class="admin-search-message">Não foi possível buscar usuários: ${escapeHTML(error.message)}</p>`;
@@ -656,8 +844,10 @@ function renderContactItems(post) {
   return getContactItems(post).map((item) => `<span>${escapeHTML(item)}</span>`).join('');
 }
 
-function adminPostActions(postId) {
-  return String(getSession()?.role || '').toLowerCase() === 'admin'
+// Recebe `podeAdministrar` calculado a partir do perfil no banco (ver renderFeed).
+// Antes lia getSession().role — valor que o usuário podia forjar no localStorage.
+function adminPostActions(postId, podeAdministrar = false) {
+  return podeAdministrar
     ? `<button class="btn btn-danger admin-feed-delete" type="button" data-action="delete-post" data-id="${escapeHTML(postId)}">Deletar Post</button>`
     : '';
 }
@@ -668,7 +858,11 @@ async function uploadPostImage(file) {
   if (fileError) throw new Error(fileError);
   const extension = file.name.split('.').pop().toLowerCase();
   // Corrigido suporte a UUID em Live Previews HTTP para evitar telas brancas silenciosas
-  const uuid = crypto?.randomUUID ? crypto.randomUUID() : Date.now() + '-' + Math.round(Math.random() * 1e9);
+  // Nome único para o arquivo. crypto.randomUUID é o caminho normal; o fallback
+  // cobre navegadores antigos sem quebrar o upload.
+  const uuid = (crypto && typeof crypto.randomUUID === 'function')
+    ? crypto.randomUUID()
+    : `up-${Date.now()}-${Math.round(Math.random() * 1e9)}`;
   const fileName = `${uuid}.${extension}`;
   
   const { data, error } = await client.storage.from('pet_images').upload(fileName, file, {
@@ -1134,6 +1328,13 @@ async function handleCreatePostSubmit(event) {
   }
 }
 
+// ATENÇÃO: este bloco está hoje inalcançável. `renderFeed` só é chamado por
+// `setupFeedFilters`, que sai na primeira verificação porque nenhum dos ids
+// (feedPosts, feedType, feedBreed, feedState, feedCity, breedFilterWrap) existe
+// em qualquer HTML do projeto. A home usa `renderRecentPosts`, que tem marcação
+// própria. Mantido por ser funcionalidade latente, mas o tratamento de erro era
+// frágil: um `throw` dentro de `.then()` sem `.catch()` virava unhandled rejection
+// e deixava a lista vazia sem explicação.
 function renderFeed(append = false) {
   const feedTarget = document.getElementById('feedPosts');
   const typeField = document.getElementById('feedType');
@@ -1161,7 +1362,10 @@ function renderFeed(append = false) {
   if (breedValue) query = query.ilike('breed', `%${breedValue}%`);
 
   query.then(({ data, error }) => {
-    if (error) throw error;
+    if (error) {
+      feedTarget.innerHTML = `<div class="empty-state">Não foi possível carregar as publicações: ${escapeHTML(error.message)}</div>`;
+      return;
+    }
     const filteredPosts = data || [];
 
     if (!filteredPosts.length && !append) {
@@ -1189,7 +1393,7 @@ function renderFeed(append = false) {
           </div>
           <div class="post-action-row">
             <button class="btn btn-secondary" type="button" data-post-details="${escapeHTML(post.id)}">Ver detalhes</button>
-            ${postActionButtonsHTML(post)}
+            ${postActionButtonsHTML(post, podeAdministrarAgora())}
           </div>
         </div>
       </article>
@@ -1231,7 +1435,7 @@ function renderRecentPosts() {
             <span class="mini-tag">${escapeHTML(formatAnimalType(post.animal_type))}</span>
             <h3>${escapeHTML(post.title)}</h3>
             <span class="recent-post-location">📍 ${escapeHTML(formatPostLocation(post))}</span>
-            ${post.status === 'active' ? `<div class="post-action-row"><button class="btn btn-secondary" type="button" data-post-details="${escapeHTML(post.id)}">Ver detalhes</button>${postActionButtonsHTML(post)}</div>` : ''}
+            ${post.status === 'active' ? `<div class="post-action-row"><button class="btn btn-secondary" type="button" data-post-details="${escapeHTML(post.id)}">Ver detalhes</button>${postActionButtonsHTML(post, podeAdministrarAgora())}</div>` : ''}
           </div>
         </article>
       `).join('');
@@ -1410,7 +1614,7 @@ async function renderCategoryFeed(animalType) {
         <p class="category-pet-breed"><strong>Raça:</strong> ${escapeHTML(post.breed || 'Não informado')}${post.animal_type === 'Cachorro' && post.size ? ` · <strong>Porte:</strong> ${escapeHTML(post.size)}` : ''}</p>
         <div class="post-action-row">
           <button class="btn btn-secondary" type="button" data-post-details="${escapeHTML(post.id)}">Ver detalhes</button>
-          ${postActionButtonsHTML(post)}
+          ${postActionButtonsHTML(post, podeAdministrarAgora())}
         </div>
       </div>
     </article>
@@ -1454,7 +1658,7 @@ async function renderFavorites() {
         <span class="mini-tag">${escapeHTML(formatAnimalType(post.animal_type))}</span>
         <h3>${escapeHTML(post.title)}</h3>
         <span class="recent-post-location">📍 ${escapeHTML(formatPostLocation(post))}</span>
-        ${post.status === 'active' ? `<div class="post-action-row"><button class="btn btn-secondary" type="button" data-post-details="${escapeHTML(post.id)}">Ver detalhes</button>${postActionButtonsHTML(post)}</div>` : ''}
+        ${post.status === 'active' ? `<div class="post-action-row"><button class="btn btn-secondary" type="button" data-post-details="${escapeHTML(post.id)}">Ver detalhes</button>${postActionButtonsHTML(post, podeAdministrarAgora())}</div>` : ''}
       </div>
     </article>
   `).join('');
@@ -1703,6 +1907,8 @@ function initCustomSelects() {
 async function checkSharedPostOnLoad() {
   const postId = new URLSearchParams(window.location.search).get('post');
   if (!postId || !document.getElementById('adoptionModal')) return;
+  // O valor vem da query string: validar como UUID evita mandar lixo ao banco.
+  if (!isUuid(postId)) return;
   try {
     const { data: post, error } = await getSupabaseClient()
       .from('posts')
@@ -1715,8 +1921,19 @@ async function checkSharedPostOnLoad() {
   }
 }
 
+// Math.random() não é adequado para segredo: o estado do PRNG é previsível a
+// partir de algumas saídas. Usa a CSPRNG do navegador e rejeita valores fora da
+// faixa para não introduzir viés de módulo.
 function generateRecoveryCode() {
-  return String(Math.floor(100000 + Math.random() * 900000));
+  const limite = 900000;
+  const maximo = Math.floor(4294967296 / limite) * limite;
+  const buffer = new Uint32Array(1);
+  let valor;
+  do {
+    crypto.getRandomValues(buffer);
+    valor = buffer[0];
+  } while (valor >= maximo);
+  return String(100000 + (valor % limite));
 }
 
 function showRecoveryCodeModal(code, redirect) {
@@ -1734,31 +1951,64 @@ function showRecoveryCodeModal(code, redirect) {
   button.addEventListener('click', () => { closeDynamicModal(modal); window.location.href = redirect; });
 }
 
+// O código de 6 dígitos é o único fator: ele já identifica a conta no servidor,
+// então não pedimos e-mail. Isso também elimina a enumeração de contas (antes a
+// tela confirmava implicitamente se um e-mail existia) e deixa o fluxo mais curto.
 function setupPasswordRecovery() {
   document.getElementById('forgotPasswordButton')?.addEventListener('click', () => {
-    const modal = createDynamicModal(`<h2>Recuperar senha</h2><p>Informe o e-mail usado no cadastro.</p><form id="recoveryEmailForm"><label>E-mail<input type="email" id="recoveryEmail" required autocomplete="email"></label><button class="btn btn-primary" type="submit">Continuar</button></form>`);
-    modal.querySelector('#recoveryEmailForm').addEventListener('submit', (event) => {
-      event.preventDefault();
-      const email = modal.querySelector('#recoveryEmail').value.trim().toLowerCase();
-      if (!isValidEmail(email)) return showToast('Informe um e-mail válido.', 'error');
-      modal.querySelector('.dynamic-modal-panel').innerHTML = `<h2>Digite seu código</h2><p>Informe o código de 6 dígitos recebido no cadastro.</p><form id="recoveryCodeForm"><label>Código<input type="text" id="recoveryCode" inputmode="numeric" maxlength="6" required></label><button class="btn btn-primary" type="submit">Continuar</button></form>`;
-      modal.querySelector('#recoveryCode').addEventListener('input', (inputEvent) => { inputEvent.target.value = inputEvent.target.value.replace(/\D/g, '').slice(0, 6); });
-      modal.querySelector('#recoveryCodeForm').addEventListener('submit', (codeEvent) => {
-        codeEvent.preventDefault();
-        const code = modal.querySelector('#recoveryCode').value;
-        if (!/^\d{6}$/.test(code)) return showToast('Informe um código válido de 6 dígitos.', 'error');
-        modal.querySelector('.dynamic-modal-panel').innerHTML = `<h2>Crie uma nova senha</h2><p>Escolha uma senha forte para proteger sua conta.</p><form id="recoveryPasswordForm"><label>Nova senha<input type="password" id="recoveryPassword" minlength="8" required></label><label>Confirmar senha<input type="password" id="recoveryPasswordConfirmation" minlength="8" required></label><button class="btn btn-primary" type="submit">Redefinir senha</button></form>`;
-        modal.querySelector('#recoveryPasswordForm').addEventListener('submit', async (passwordEvent) => {
-          passwordEvent.preventDefault();
-          const newPass = modal.querySelector('#recoveryPassword').value;
-          const confirmation = modal.querySelector('#recoveryPasswordConfirmation').value;
-          if (newPass !== confirmation) return showToast('As senhas não coincidem.', 'error');
-          if (getPasswordStrength(newPass).score < 2) return showToast('Escolha uma senha mais forte.', 'error');
-          const { error } = await getSupabaseClient().rpc('reset_password_with_code', { p_email: email, p_code: code, p_new_password: newPass });
-          if (error) return showToast(error.message || 'Não foi possível redefinir a senha.', 'error');
-          closeDynamicModal(modal);
-          showToast('Senha redefinida com sucesso.');
+    const modal = createDynamicModal(`<h2>Recuperar senha</h2>
+      <p>Informe o código de 6 dígitos que você anotou ao criar a conta.</p>
+      <form id="recoveryCodeForm">
+        <label>Código de recuperação
+          <input type="text" id="recoveryCode" inputmode="numeric" autocomplete="one-time-code" maxlength="6" required />
+        </label>
+        <button class="btn btn-primary full" type="submit">Continuar</button>
+      </form>
+      <p class="recovery-hint">Perdeu o código? Entre em contato com a administração.</p>`);
+
+    const campoCodigo = modal.querySelector('#recoveryCode');
+    campoCodigo.addEventListener('input', (inputEvent) => {
+      inputEvent.target.value = inputEvent.target.value.replace(/\D/g, '').slice(0, 6);
+    });
+
+    modal.querySelector('#recoveryCodeForm').addEventListener('submit', (codeEvent) => {
+      codeEvent.preventDefault();
+      const code = campoCodigo.value;
+      if (!/^\d{6}$/.test(code)) return showToast('Informe um código válido de 6 dígitos.', 'error');
+
+      modal.querySelector('.dynamic-modal-panel').innerHTML = `<h2>Crie uma nova senha</h2>
+        <p>Escolha uma senha forte para proteger sua conta.</p>
+        <form id="recoveryPasswordForm">
+          <label>Nova senha<input type="password" id="recoveryPassword" minlength="8" autocomplete="new-password" required /></label>
+          <label>Confirmar senha<input type="password" id="recoveryPasswordConfirmation" minlength="8" autocomplete="new-password" required /></label>
+          <button class="btn btn-primary full" type="submit">Redefinir senha</button>
+        </form>`;
+
+      modal.querySelector('#recoveryPasswordForm').addEventListener('submit', async (passwordEvent) => {
+        passwordEvent.preventDefault();
+        const newPass = modal.querySelector('#recoveryPassword').value;
+        const confirmation = modal.querySelector('#recoveryPasswordConfirmation').value;
+        if (newPass !== confirmation) return showToast('As senhas não coincidem.', 'error');
+        if (getPasswordStrength(newPass).score < 2) return showToast('Escolha uma senha mais forte.', 'error');
+
+        const client = getSupabaseClient();
+        const { error } = await client.rpc('reset_password_with_code_v2', {
+          p_recovery_code: code,
+          p_new_password: newPass
         });
+        if (error) {
+          // Registra a tentativa para o teto de 10 por hora funcionar. O builder
+          // do Supabase é thenable, mas não garante .catch(), então usamos await
+          // dentro de try/catch para não mascarar o erro original.
+          try {
+            await client.rpc('log_falha_reset', { p_code: code });
+          } catch (e) {
+            console.warn('Não foi possível registrar a tentativa de reset:', e);
+          }
+          return showToast(error.message || 'Não foi possível redefinir a senha.', 'error');
+        }
+        closeDynamicModal(modal);
+        showToast('Senha redefinida com sucesso. Faça login com a nova senha.');
       });
     });
   });
@@ -1772,6 +2022,9 @@ async function handleLoginSubmit(event) {
   try {
     const user = await loginWithSupabase(email, password);
     saveSession(user);
+    // Garante que a próxima página releia papel e status no banco, em vez de
+    // reaproveitar qualquer verificação anterior.
+    resetVerificacao();
     window.location.href = 'index.html';
   } catch (error) {
     showToast(error.message || 'Erro ao entrar.', 'error');
@@ -1806,7 +2059,10 @@ async function handleRegisterSubmit(event) {
     const recoveryCode = generateRecoveryCode();
     const user = await registerWithSupabase(name, username, email, password, isoDate, avatarFile, recoveryCode);
     const { data: sessionData } = await getSupabaseClient().auth.getSession();
-    if (sessionData.session) saveSession(user);
+    if (sessionData.session) {
+      saveSession(user);
+      saveVerifiedSession({ ...user, role: 'user', status: 'active' });
+    }
     const redirect = new URLSearchParams(window.location.search).get('redirect');
     showRecoveryCodeModal(recoveryCode, redirect || 'index.html');
   } catch (error) {
@@ -1991,7 +2247,7 @@ async function renderProfileFavorites() {
         <span class="mini-tag">${escapeHTML(formatAnimalType(post.animal_type))}</span>
         <h3>${escapeHTML(post.title)}</h3>
         <p>📍 ${escapeHTML(formatPostLocation(post))}</p>
-        ${post.status === 'active' ? postActionHTML(post) : ''}
+        ${post.status === 'active' ? postActionHTML(post, podeAdministrarAgora()) : ''}
       </div>
     </article>
   `).join('');
@@ -2014,10 +2270,13 @@ function setupProfilePage() {
 }
 
 async function initializePage() {
-  // atualiza a sessão local com os dados reais do banco ao abrir a página
-  const { data } = await getSupabaseClient().auth.getUser();
+  // Uma única verificação no servidor por carregamento de página. Ela resolve
+  // e-mail, perfil e papel, e é o que autoriza as telas — não o localStorage.
+  const verificacao = await getVerificacaoAtual();
+  const data = { user: verificacao?.user || null };
+
   if (data.user) {
-    const profile = await fetchProfileByUserId(data.user.id);
+    const profile = verificacao.profile;
     const localFavoriteIds = readStorage(STORAGE_KEYS.favorites, []);
     const favoritePosts = [...new Set([...(profile?.favorite_posts || []), ...(Array.isArray(localFavoriteIds) ? localFavoriteIds : [])].map((id) => String(id)))];
     if (localFavoriteIds?.length) {
@@ -2025,6 +2284,15 @@ async function initializePage() {
       localStorage.removeItem(STORAGE_KEYS.favorites);
     }
     saveSession({
+      id: data.user.id,
+      email: data.user.email,
+      name: profile?.full_name || data.user.user_metadata?.full_name || data.user.email,
+      username: profile?.username || null,
+      birth_date: profile?.birth_date || null,
+      avatar_url: profile?.avatar_url || null,
+      favorite_posts: favoritePosts
+    });
+    saveVerifiedSession({
       id: data.user.id,
       email: data.user.email,
       name: profile?.full_name || data.user.user_metadata?.full_name || data.user.email,
@@ -2037,21 +2305,36 @@ async function initializePage() {
     });
   } else {
     clearSession();
+    sessionStorage.removeItem(AUTHORITATIVE_SESSION_KEY);
+  }
+
+  const page = document.body.dataset.page;
+
+  // Usuário banido perde acesso às áreas autenticadas já na entrada.
+  if (data.user && verificacao.status === 'banned' && ['create-post', 'profile', 'my-posts', 'favorites', 'admin'].includes(page)) {
+    await getSupabaseClient().auth.signOut();
+    clearSession();
+    resetVerificacao();
+    showToast('Esta conta está banida. Entre em contato com a administração.', 'error');
+    window.location.href = 'index.html';
+    return;
   }
 
   // configurações visuais e listeners globais
+  setupImageFallbacks();
+  setupMobileNavCurrent();
   setupPostCarouselNavigation();
   setupFavoriteInteractionsV7();
   setupShareInteractions();
   setupCopyContactInteractions();
   bindAdminActions();
-  const page = document.body.dataset.page;
-  updateHomeUserActions();
+  await updateHomeUserActions();
   initCustomSelects();
 
   // roteamento e Inicialização por Página
   if (page === 'home') {
     loadSiteStatistics();
+    loadHomeRealStats();
     setupDonationRedirect();
     setupSupportModal();
     document.querySelectorAll('[data-modal-close]').forEach((element) => element.addEventListener('click', closeAdoptionModal));

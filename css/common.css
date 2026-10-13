@@ -1015,6 +1015,15 @@ th {
 .dynamic-modal-panel form { display: grid; gap: 14px; margin-top: 18px; }
 .dynamic-modal-panel label { display: grid; gap: 8px; font-weight: 800; }
 .dynamic-modal-panel input { width: 100%; }
+
+/* Dica secundária dentro dos modais (ex.: "perdeu o código?"). Menor e mais
+   discreta que o texto principal, sem competir com a ação primária. */
+.recovery-hint {
+  margin: 14px 0 0;
+  font-size: 0.85rem;
+  color: var(--muted);
+  text-align: center;
+}
 .recovery-code {
   margin: 20px 0;
   padding: 16px;
@@ -2641,6 +2650,72 @@ body[data-animal-type="Cachorro"] .category-filters {
   margin: 0 0 22px;
   color: var(--muted);
   line-height: 1.7;
+}
+
+/* Acessibilidade: garante indicador de foco visivel em TODO elemento interativo.
+   Antes o foco so era estilizado em alguns botoes; campos de formulario, links
+   e selects ficavam sem retorno visual para quem navega por teclado. */
+:where(a, button, input, select, textarea, summary, [tabindex]):focus-visible {
+  outline: 3px solid var(--primary-dark);
+  outline-offset: 3px;
+  border-radius: 4px;
+}
+
+/* Em fundos escuros/saturados o laranja perde contraste: usa branco. */
+.btn-primary:focus-visible,
+.admin-btn:focus-visible {
+  outline-color: #ffffff;
+  box-shadow: 0 0 0 6px rgba(231, 108, 32, 0.45);
+}
+
+/* Respeita quem pediu menos movimento tambem no foco. */
+@media (prefers-reduced-motion: reduce) {
+  :where(a, button, input, select, textarea, [tabindex]):focus-visible {
+    transition: none;
+  }
+}
+
+/* Link "pular para o conteudo": invisivel ate receber foco pelo teclado. */
+.skip-link {
+  position: absolute;
+  left: -9999px;
+  top: 0;
+  z-index: 999;
+  padding: 0.85rem 1.2rem;
+  background: var(--primary-dark);
+  color: #fff;
+  font-weight: 800;
+  border-radius: 0 0 12px 0;
+}
+
+.skip-link:focus {
+  left: 0;
+}
+
+/* Estado ativo da navegacao inferior mobile (aria-current). */
+.mobile-bottom-nav .nav-item[aria-current="page"] {
+  color: var(--primary-dark);
+}
+
+.mobile-bottom-nav .nav-item[aria-current="page"] span {
+  font-weight: 800;
+}
+
+/* Home: em vez de esconder a secao hero (o que quebrava os atalhos #inicio,
+   #ajuda e #sobre), apenas recolhe o apelo visual e os CTAs de cadastro. */
+.home-hero.is-collapsed {
+  padding-top: 12px;
+  padding-bottom: 12px;
+}
+
+.home-hero.is-collapsed .home-visual,
+.home-hero.is-collapsed .home-stats,
+.home-hero.is-collapsed .home-actions-row {
+  display: none;
+}
+
+.home-hero.is-collapsed .home-hero-grid {
+  grid-template-columns: 1fr;
 }
 
 @media (max-width: 900px) {

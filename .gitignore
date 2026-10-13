@@ -1,0 +1,28 @@
+# Dependências (caso o projeto passe a usar build)
+node_modules/
+package-lock.json
+pnpm-lock.yaml
+yarn.lock
+
+# Segredos e variáveis de ambiente — NUNCA versionar.
+# A chave anon do Supabase é pública por design e vive em supabase.js,
+# mas a service_role ignora todo o RLS e não pode entrar no repositório.
+.env
+.env.*
+!.env.example
+*.local
+
+# Artefatos de auditoria e scripts temporários
+.dsh-audit/
+.dsh-install-staging/
+*.sql.tmp
+
+# Sistema operacional
+Thumbs.db
+Desktop.ini
+.DS_Store
+
+# Editores
+.vscode/
+.idea/
+*.swp
