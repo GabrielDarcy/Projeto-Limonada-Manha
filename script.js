@@ -409,8 +409,8 @@ function updateHomeUserActions() {
 
   if (!session) {
     actionsNode.innerHTML = `
-      <a href="login.html" class="btn btn-secondary">Entrar</a>
-      <a href="register.html" class="btn btn-primary">Cadastrar</a>
+      <a href="conta/login.html" class="btn btn-secondary">Entrar</a>
+      <a href="conta/register.html" class="btn btn-primary">Cadastrar</a>
     `;
     return;
   }
@@ -418,11 +418,11 @@ function updateHomeUserActions() {
   const isAdmin = String(session.role || '').toLowerCase() === 'admin';
   const avatarUrl = session.avatar_url || 'https://placehold.co/96x96/ffe8ce/7a3d16?text=Pet';
   actionsNode.innerHTML = `
-    ${isAdmin ? '<a href="admin.html" class="btn btn-primary">Dashboard admin</a>' : ''}
-    <a href="create-post.html" class="btn btn-primary">Criar publicação</a>
-    <a href="my-posts.html" class="btn btn-secondary">Minhas publicações</a>
-    <a href="favorites.html" class="header-favorites-link" aria-label="Abrir meus favoritos" title="Meus favoritos"><svg class="header-favorites-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78L12 21.23l8.84-8.84a5.5 5.5 0 0 0 0-7.78Z"></path></svg></a>
-    <a href="profile.html" class="profile-avatar-link" aria-label="Abrir meu perfil"><img class="profile-avatar" src="${escapeHTML(avatarUrl)}" alt="Foto de perfil de ${escapeHTML(session.name)}"></a>
+    ${isAdmin ? '<a href="admin/admin.html" class="btn btn-primary">Dashboard admin</a>' : ''}
+    <a href="publicacoes/create-post.html" class="btn btn-primary">Criar publicação</a>
+    <a href="publicacoes/my-posts.html" class="btn btn-secondary">Minhas publicações</a>
+    <a href="publicacoes/favorites.html" class="header-favorites-link" aria-label="Abrir meus favoritos" title="Meus favoritos"><svg class="header-favorites-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78L12 21.23l8.84-8.84a5.5 5.5 0 0 0 0-7.78Z"></path></svg></a>
+    <a href="conta/profile.html" class="profile-avatar-link" aria-label="Abrir meu perfil"><img class="profile-avatar" src="${escapeHTML(avatarUrl)}" alt="Foto de perfil de ${escapeHTML(session.name)}"></a>
     <button class="btn btn-secondary" id="homeLogoutButton">Sair</button>
   `;
 
@@ -444,7 +444,7 @@ function setupDonationRedirect() {
   if (!button) return;
   button.addEventListener('click', (event) => {
     event.preventDefault();
-    window.location.href = getSession() ? 'create-post.html' : 'register.html?redirect=create-post.html';
+    window.location.href = getSession() ? 'publicacoes/create-post.html' : 'conta/register.html?redirect=publicacoes/create-post.html';
   });
 }
 
@@ -475,7 +475,7 @@ function setupSupportModal() {
 function redirectIfLoggedOut() {
   const session = getSession();
   if (!session) {
-    window.location.href = 'login.html';
+    window.location.href = 'conta/login.html';
     return null;
   }
   return session;
@@ -1072,7 +1072,7 @@ async function handleCreatePostSubmit(event) {
   const { data: userData } = await getSupabaseClient().auth.getUser();
   if (!userData.user) {
     showToast('Você precisa fazer login para criar uma publicação.', 'error');
-    window.location.href = 'login.html';
+    window.location.href = 'conta/login.html';
     return;
   }
 
@@ -2091,12 +2091,12 @@ async function initializePage() {
         return (window.location.href = 'index.html');
       }
     } else {
-      return (window.location.href = 'login.html');
+      return (window.location.href = 'conta/login.html');
     }
 
     // se passou pela segurança, inicializa o painel
     document.getElementById('logoutButton')?.addEventListener('click', () => {
-      getSupabaseClient().auth.signOut().then(() => { clearSession(); window.location.href = 'login.html'; });
+      getSupabaseClient().auth.signOut().then(() => { clearSession(); window.location.href = 'conta/login.html'; });
     });
     document.getElementById('adminAccountForm')?.addEventListener('submit', handleAdminAccountSubmit);
     setupStatisticsManagement();
