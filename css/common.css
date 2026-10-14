@@ -41,6 +41,7 @@
   --d-slow: 520ms;
 
   --shadow: 0 1px 2px rgba(34, 28, 23, 0.05), 0 4px 12px -6px rgba(34, 28, 23, 0.1);
+  --shadow-soft: var(--shadow);
   --shadow-hover: 0 2px 4px rgba(34, 28, 23, 0.06), 0 18px 32px -16px rgba(34, 28, 23, 0.18);
   --radius: var(--r-card);
 }
@@ -735,10 +736,6 @@ th {
   .mobile-bottom-nav .nav-item span {
     font-size: var(--t-xs);
   }
-
-  .how-it-works-grid {
-    grid-template-columns: 1fr;
-  }
 }
 
 .home-header {
@@ -907,44 +904,6 @@ th {
 
 .recent-posts-section {
   background: rgba(255, 255, 255, 0.62);
-}
-
-.how-it-works-section {
-  background: #fffaf5;
-}
-
-.how-it-works-grid {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 20px;
-  text-align: center;
-}
-
-.how-it-works-step {
-  padding: 24px 18px;
-  border: 1px solid rgba(184, 73, 15, 0.1);
-  border-radius: var(--r-card);
-  background: rgba(255, 255, 255, 0.72);
-}
-
-.how-it-works-step > .step-number {
-  display: block;
-  margin-bottom: 12px;
-  color: var(--primary-dark);
-  font-size: 0.8rem;
-  font-weight: 800;
-  letter-spacing: 0.08em;
-}
-
-.how-it-works-step h3,
-.how-it-works-step p {
-  margin: 0;
-}
-
-.how-it-works-step p {
-  margin-top: 8px;
-  color: var(--muted);
-  line-height: 1.6;
 }
 
 .section-title-row {
@@ -2184,12 +2143,101 @@ body[data-animal-type="Cachorro"] .category-filters {
   border: 1px solid rgba(31, 27, 27, 0.06);
   border-radius: var(--r-card);
   box-shadow: var(--shadow);
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  transition: transform var(--d-base) var(--ease-spring),
+              box-shadow var(--d-base) var(--ease-out),
+              border-color var(--d-base) var(--ease-out);
 }
 
 .category-pet-card:hover {
   transform: translateY(-4px);
-  box-shadow: 0 22px 48px rgba(59, 39, 9, 0.16);
+  border-color: rgba(184, 73, 15, 0.18);
+  box-shadow: var(--shadow-hover);
+}
+
+/* a foto cresce de leve no hover: dá vida sem mexer no layout */
+.category-pet-card > img,
+.category-pet-card > .post-single-image,
+.category-pet-card .post-carousel-track {
+  transition: transform var(--d-slow) var(--ease-out);
+}
+
+.category-pet-card:hover > img,
+.category-pet-card:hover > .post-single-image,
+.category-pet-card:hover .post-carousel-track {
+  transform: scale(1.03);
+}
+
+/* carregando: blocos na forma do card final, com brilho passando.
+   spinner generico nao diz o que esta vindo; isto diz. */
+.carregando-cards {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--s-gap);
+  width: 100%;
+}
+
+.carregando-card {
+  position: relative;
+  border: 1px solid var(--line);
+  border-radius: var(--r-card);
+  background: var(--surface);
+  overflow: hidden;
+}
+
+.carregando-card .sk-foto {
+  aspect-ratio: 4 / 3;
+  background: var(--surface-soft);
+}
+
+.carregando-card .sk-linha {
+  height: 12px;
+  margin: 12px 16px 0;
+  border-radius: var(--r-input);
+  background: var(--surface-warm);
+}
+
+.carregando-card .sk-linha.sk-curta { width: 45%; }
+.carregando-card .sk-linha.sk-media { width: 70%; }
+
+/* o brilho passa por cima de tudo, uma vez por ciclo */
+.carregando-card::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.7) 50%,
+    transparent 100%);
+  background-size: 220% 100%;
+  animation: brilho-carregando 1.5s var(--ease-out) infinite;
+  pointer-events: none;
+}
+
+@keyframes brilho-carregando {
+  from { background-position: 140% 0; }
+  to   { background-position: -40% 0; }
+}
+
+/* chips de filtro entram em cascata quando aparecem */
+.filtros-ativos .filtro-chip {
+  animation: chip-entra var(--d-base) var(--ease-spring) backwards;
+}
+
+.filtros-ativos .filtro-chip:nth-child(1) { animation-delay: 0ms; }
+.filtros-ativos .filtro-chip:nth-child(2) { animation-delay: 40ms; }
+.filtros-ativos .filtro-chip:nth-child(3) { animation-delay: 80ms; }
+.filtros-ativos .filtro-chip:nth-child(4) { animation-delay: 120ms; }
+.filtros-ativos .filtro-chip:nth-child(5) { animation-delay: 160ms; }
+.filtros-ativos .filtro-chip:nth-child(6) { animation-delay: 200ms; }
+.filtros-ativos .filtro-chip:nth-child(n+7) { animation-delay: 240ms; }
+
+@keyframes chip-entra {
+  from { opacity: 0; transform: translateY(-4px) scale(0.96); }
+  to   { opacity: 1; transform: none; }
+}
+
+@media (max-width: 900px) {
+  .carregando-cards { grid-template-columns: 1fr; }
 }
 
 .category-pet-card > img {
@@ -2839,21 +2887,42 @@ body[data-animal-type="Cachorro"] .category-filters {
   font-weight: 800;
 }
 
-/* painel de filtros: campos agrupados por assunto e escondidos ate o usuario
-   pedir, para nao empurrar os resultados para fora da tela */
+/* o atributo hidden precisa vencer display:grid/flex do nosso css.
+   sem isso, painel.hidden = true nao esconde nada e o botao parece morto. */
+[hidden] {
+  display: none !important;
+}
+
+/* texto so para leitor de tela: fica fora da tela, nao usa display:none
+   (senao o leitor ignora) nem visibility (senao some do fluxo de foco). */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* painel de filtros: fechado por padrao. abre com transicao real de altura
+   (grid-template-rows 0fr -> 1fr), que e animavel sem medir pixel no js. */
 .filtros {
-  margin: 28px 0 8px;
-  padding: 20px 22px;
+  margin: 26px 0 10px;
+  padding: 18px 20px;
   background: var(--surface);
   border: 1px solid var(--line);
   border-radius: var(--r-card);
+  box-shadow: var(--shadow-soft);
 }
 
 .filtros-topo {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
-  gap: 12px;
+  gap: 10px 12px;
 }
 
 .filtros-titulo {
@@ -2864,23 +2933,45 @@ body[data-animal-type="Cachorro"] .category-filters {
 
 .filtros-toggle,
 .filtros-limpar {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
   border: 1px solid var(--line);
   background: var(--surface-soft);
   color: var(--text);
   font-size: var(--t-sm);
   font-weight: 700;
-  padding: 0.5rem 0.95rem;
+  padding: 0.55rem 1rem;
   border-radius: var(--r-pill);
+  transition: background var(--d-fast) var(--ease-out),
+              border-color var(--d-fast) var(--ease-out),
+              transform var(--d-fast) var(--ease-out);
+}
+
+.filtros-toggle:hover,
+.filtros-limpar:hover {
+  border-color: rgba(184, 73, 15, 0.3);
+  background: var(--surface-warm);
+}
+
+.filtros-toggle:active,
+.filtros-limpar:active {
+  transform: translateY(1px);
+}
+
+/* a seta gira junto com a abertura: reforca o estado sem precisar de texto */
+.filtros-toggle-icone {
+  transition: transform var(--d-base) var(--ease-spring);
+}
+
+.filtros-toggle[aria-expanded="true"] .filtros-toggle-icone {
+  transform: rotate(180deg);
 }
 
 .filtros-limpar {
   background: transparent;
   color: var(--primary-dark);
   border-color: rgba(184, 73, 15, 0.28);
-}
-
-.filtros-limpar:hover {
-  background: var(--surface-soft);
 }
 
 .filtros-contagem {
@@ -2890,16 +2981,43 @@ body[data-animal-type="Cachorro"] .category-filters {
   font-variant-numeric: tabular-nums;
 }
 
-.filtros-campos {
-  margin-top: 20px;
+/* a caixa anima a altura. o filho precisa de min-height: 0 e overflow hidden
+   para o 0fr realmente colapsar. */
+.filtros-caixa {
   display: grid;
-  gap: 22px;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows var(--d-slow) var(--ease-spring),
+              opacity var(--d-base) var(--ease-out);
+  opacity: 0;
+}
+
+.filtros-caixa > .filtros-campos {
+  min-height: 0;
+  overflow: hidden;
+}
+
+.filtros-caixa[data-estado="aberto"] {
+  grid-template-rows: 1fr;
+  opacity: 1;
+}
+
+/* sem animacao no primeiro desenho, senao o painel "pula" ao carregar a pagina */
+.filtros-caixa[data-sem-animacao] {
+  transition: none;
+}
+
+.filtros-campos {
+  display: grid;
+  gap: 4px;
+  padding-top: 6px;
 }
 
 .filtros-grupo {
   display: grid;
   gap: 12px;
-  padding-top: 18px;
+  margin: 0;
+  padding: 18px 0 0;
+  border: 0;
   border-top: 1px solid var(--line);
 }
 
@@ -2909,9 +3027,10 @@ body[data-animal-type="Cachorro"] .category-filters {
 }
 
 .filtros-grupo-titulo {
+  padding: 0;
   font-size: var(--t-xs);
   font-weight: 800;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.09em;
   text-transform: uppercase;
   color: var(--muted);
 }
@@ -2925,15 +3044,54 @@ body[data-animal-type="Cachorro"] .category-filters {
 
 .filtros-linhas {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
-  gap: 12px 18px;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px 16px;
 }
 
-.filtros-nota {
-  margin: 18px 0 0;
+/* chips dos filtros aplicados: da para tirar um filtro sem reabrir o painel */
+.filtros-ativos {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px dashed var(--line);
+}
+
+.filtro-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0.35rem 0.7rem;
   font-size: var(--t-xs);
-  color: var(--muted);
-  line-height: 1.6;
+  font-weight: 700;
+  color: var(--primary-dark);
+  background: var(--surface-warm);
+  border: 1px solid rgba(184, 73, 15, 0.26);
+  border-radius: var(--r-pill);
+  transition: background var(--d-fast) var(--ease-out),
+              border-color var(--d-fast) var(--ease-out);
+}
+
+.filtro-chip:hover {
+  background: rgba(255, 138, 61, 0.22);
+  border-color: rgba(184, 73, 15, 0.42);
+}
+
+.filtro-chip-x {
+  font-size: 1rem;
+  line-height: 1;
+  opacity: 0.7;
+}
+
+.filtro-chip:hover .filtro-chip-x {
+  opacity: 1;
+}
+
+@media (max-width: 900px) {
+  .filtros { padding: 16px; }
+  .filtros-contagem { margin-left: 0; width: 100%; }
+  .filtros-linhas { grid-template-columns: 1fr; }
 }
 
 /* etiquetas de atributo no card: o estado fica escrito, nao so na cor */
@@ -3013,12 +3171,6 @@ body[data-animal-type="Cachorro"] .category-filters {
   font-size: var(--t-sm);
   font-weight: 700;
 }
-
-@media (max-width: 900px) {
-  .filtros { padding: 16px; }
-  .filtros-contagem { margin-left: 0; width: 100%; }
-}
-
 
 .pin-icon {
   display: inline-block;

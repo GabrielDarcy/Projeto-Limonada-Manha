@@ -1730,21 +1730,58 @@ function chipsDeAtributos(post) {
   return chips.length ? `<div class="post-atributos">${chips.join('')}</div>` : '';
 }
 
+// rotulo legivel de cada filtro, para virar chip na tela
+const ROTULOS_FILTRO = {
+  state: 'Estado', city: 'Cidade', breed: 'Raça', gender: 'Sexo', age: 'Idade',
+  size: 'Porte', energy: 'Energia', neutered: 'Castrado', vaccinated: 'Vacinado',
+  dewormed: 'Vermifugado', apartment: 'Apartamento', kids: 'Com crianças',
+  dogs: 'Com cachorros', cats: 'Com gatos', special: 'Necessidades especiais',
+};
+
+// chips dos filtros aplicados. cada um remove o proprio filtro ao clicar,
+// o que evita obrigar a pessoa a reabrir o painel so para desfazer.
+function renderChipsFiltros(f) {
+  const alvo = document.getElementById('filtrosAtivos');
+  if (!alvo) return;
+  const ativos = Object.entries(f).filter(([, v]) => v !== '');
+  if (!ativos.length) { alvo.hidden = true; alvo.innerHTML = ''; return; }
+
+  alvo.hidden = false;
+  alvo.innerHTML = ativos.map(([chave, valor]) => {
+    const rotulo = ROTULOS_FILTRO[chave] || chave;
+    const legivel = valor === 'sim' ? 'Sim' : valor === 'nao' ? 'Não' : valor;
+    return `<button type="button" class="filtro-chip" data-limpar-filtro="${escapeHTML(chave)}">
+      <span>${escapeHTML(rotulo)}: ${escapeHTML(legivel)}</span>
+      <span class="filtro-chip-x" aria-hidden="true">&times;</span>
+      <span class="sr-only">Remover este filtro</span>
+    </button>`;
+  }).join('');
+}
+
 // mostra quantos filtros estao ativos e quantos resultados voltaram
 function atualizarResumoFiltros(f, total) {
   const contagem = document.getElementById('filtrosContagem');
   const limpar = document.getElementById('filtrosLimpar');
   const ativos = Object.values(f).filter((x) => x !== '').length;
   if (limpar) limpar.hidden = ativos === 0;
+  renderChipsFiltros(f);
   if (!contagem) return;
   if (typeof total !== 'number') { contagem.textContent = ''; return; }
-  const parte = total === 1 ? '1 animal encontrado' : `${total} animais encontrados`;
-  contagem.textContent = ativos ? `${parte} com ${ativos} filtro${ativos > 1 ? 's' : ''}` : parte;
+  contagem.textContent = total === 1 ? '1 animal encontrado' : `${total} animais encontrados`;
 }
 
 // painel de filtros: abre e fecha, limpa tudo e guarda o que foi escolhido.
 // preservar o estado importa: voltar para a pagina nao pode zerar a busca.
 const CHAVE_FILTROS = 'petamor_filtros_categoria';
+
+const IDS_CAMPOS_FILTRO = {
+  state: 'categoryState', city: 'categoryCity', breed: 'categoryBreed',
+  gender: 'categoryGender', age: 'categoryAge', size: 'categorySize',
+  energy: 'categoryEnergy', neutered: 'categoryNeutered',
+  vaccinated: 'categoryVaccinated', dewormed: 'categoryDewormed',
+  apartment: 'categoryApartment', kids: 'categoryWithKids',
+  dogs: 'categoryWithDogs', cats: 'categoryWithCats', special: 'categorySpecial',
+};
 
 function salvarFiltrosNaSessao(f) {
   try { sessionStorage.setItem(CHAVE_FILTROS, JSON.stringify(f)); } catch (e) { /* modo privado */ }
@@ -1754,16 +1791,8 @@ function restaurarFiltrosDaSessao() {
   let salvo = null;
   try { salvo = JSON.parse(sessionStorage.getItem(CHAVE_FILTROS) || 'null'); } catch (e) { salvo = null; }
   if (!salvo) return false;
-  const mapa = {
-    state: 'categoryState', city: 'categoryCity', breed: 'categoryBreed',
-    gender: 'categoryGender', age: 'categoryAge', size: 'categorySize',
-    energy: 'categoryEnergy', neutered: 'categoryNeutered',
-    vaccinated: 'categoryVaccinated', dewormed: 'categoryDewormed',
-    apartment: 'categoryApartment', kids: 'categoryWithKids',
-    dogs: 'categoryWithDogs', cats: 'categoryWithCats', special: 'categorySpecial',
-  };
   let algum = false;
-  for (const [chave, id] of Object.entries(mapa)) {
+  for (const [chave, id] of Object.entries(IDS_CAMPOS_FILTRO)) {
     const campo = document.getElementById(id);
     if (campo && salvo[chave]) { campo.value = salvo[chave]; algum = true; }
   }
@@ -1771,24 +1800,63 @@ function restaurarFiltrosDaSessao() {
 }
 
 function limparFiltros() {
+  // estado e cidade ficam de fora: trocar de regiao e uma acao a parte
   [
-    'categoryGender', 'categoryAge', 'categorySize', 'categoryEnergy',
+    'categoryBreed', 'categoryGender', 'categoryAge', 'categorySize', 'categoryEnergy',
     'categoryNeutered', 'categoryVaccinated', 'categoryDewormed',
     'categoryApartment', 'categoryWithKids', 'categoryWithDogs',
     'categoryWithCats', 'categorySpecial',
   ].forEach((id) => {
     const campo = document.getElementById(id);
     if (campo) campo.value = '';
+    // selects customizados guardam o rotulo em outro elemento
+    const wrapper = campo?.closest('.custom-select');
+    if (wrapper) {
+      const rotulo = wrapper.querySelector('.custom-select-label');
+      const opcao = wrapper.querySelector('.custom-select-option');
+      if (rotulo && opcao) rotulo.textContent = opcao.textContent;
+    }
   });
-  // estado e cidade continuam, porque trocar de regiao e uma acao separada
+  limparBuscaDeSelectCustomizado();
   try { sessionStorage.removeItem(CHAVE_FILTROS); } catch (e) { /* ignora */ }
+}
+
+function limparBuscaDeSelectCustomizado() {
+  document.querySelectorAll('.custom-select-search').forEach((busca) => {
+    busca.value = '';
+    busca.dispatchEvent(new Event('input', { bubbles: true }));
+  });
+}
+
+// esqueleto no formato do card. evita a piscada de "Carregando" em conexao boa:
+// so aparece se a resposta demorar mais que o limiar.
+function esqueletoDeCards(quantidade) {
+  return `<div class="carregando-cards" aria-hidden="true">${
+    Array.from({ length: quantidade || 3 }, () => `
+      <div class="carregando-card">
+        <div class="sk-foto"></div>
+        <div class="sk-linha sk-media"></div>
+        <div class="sk-linha"></div>
+        <div class="sk-linha sk-curta"></div>
+      </div>`).join('')
+  }</div>`;
 }
 
 async function renderCategoryFeed(animalType) {
   const target = document.getElementById('categoryPosts');
   if (!target) return;
   const f = lerFiltrosDaTela();
-  target.innerHTML = '<div class="empty-state">Carregando animais...</div>';
+
+  // se o usuario mexe em varios filtros rapido, a resposta antiga nao pode
+  // pintar por cima da nova. so o ultimo pedido escreve na tela.
+  const meuPedido = (Number(target.dataset.pedido) || 0) + 1;
+  target.dataset.pedido = String(meuPedido);
+  const aindaVale = () => target.dataset.pedido === String(meuPedido);
+
+  // so pinta o esqueleto se a resposta demorar; em conexao boa nem pisca
+  const temporizador = window.setTimeout(() => {
+    if (aindaVale() && !target.children.length) target.innerHTML = esqueletoDeCards(3);
+  }, 220);
 
   let query = getSupabaseClient()
     .from('posts')
@@ -1815,6 +1883,8 @@ async function renderCategoryFeed(animalType) {
   query = aplicarBooleano(query, 'special_needs', f.special);
 
   const { data, error } = await query;
+  window.clearTimeout(temporizador);
+  if (!aindaVale()) return;   // chegou tarde: outro pedido ja assumiu a tela
 
   atualizarResumoFiltros(f, data?.length);
 
@@ -1827,7 +1897,7 @@ async function renderCategoryFeed(animalType) {
     target.innerHTML = `<div class="empty-state category-empty-state">
       <img src="${vazio.url}" alt="${vazio.alt}" loading="lazy" decoding="async">
       <p>${algumFiltroAtivo(f)
-        ? 'Nenhum animal combina com esses filtros. Deixe algum campo em “Tanto faz” para ver mais resultados.'
+        ? 'Nenhum animal combina com esses filtros. Tente remover um deles para ver mais resultados.'
         : 'Ainda não temos animais publicados aqui. Volte em breve para conhecer novos amigos.'}</p>
     </div>`;
     return;
@@ -1992,28 +2062,53 @@ async function setupCategoryPage() {
     document.getElementById(id)?.addEventListener('change', () => buscar(false));
   });
 
-  // abre e fecha o painel. comeca aberto no desktop e fechado no celular,
-  // para nao empurrar os resultados para fora da tela.
-  const painel = document.getElementById('filtrosCampos');
+  // abre e fecha o painel. fechado por padrao em qualquer tela: quem quer
+  // filtrar procura, e quem so quer ver os animais nao perde a tela para o painel.
+  const caixa = document.getElementById('filtrosCaixa');
   const toggle = document.getElementById('filtrosToggle');
-  const estreito = window.matchMedia('(max-width: 900px)').matches;
-  const definirAberto = (aberto) => {
-    if (!painel || !toggle) return;
-    painel.hidden = !aberto;
+  const rotuloToggle = toggle?.querySelector('.filtros-toggle-texto');
+  const definirAberto = (aberto, animar) => {
+    if (!caixa || !toggle) return;
+    caixa.dataset.estado = aberto ? 'aberto' : 'fechado';
     toggle.setAttribute('aria-expanded', String(aberto));
-    toggle.textContent = aberto ? 'Ocultar filtros' : 'Mostrar filtros';
+    if (rotuloToggle) rotuloToggle.textContent = aberto ? 'Ocultar filtros' : 'Mostrar filtros';
+    // enquanto fechado, o conteudo nao recebe foco pelo teclado
+    if (aberto) caixa.removeAttribute('inert');
+    else caixa.setAttribute('inert', '');
+    if (!animar) caixa.dataset.semAnimacao = '';
   };
-  definirAberto(!estreito && Boolean(painel));
-  toggle?.addEventListener('click', () => definirAberto(painel.hidden));
+  definirAberto(false, false);
+  // devolve a animacao depois do primeiro quadro, senao a caixa anima ao carregar
+  window.requestAnimationFrame(() => { if (caixa) delete caixa.dataset.semAnimacao; });
+
+  toggle?.addEventListener('click', () => {
+    definirAberto(caixa?.dataset.estado !== 'aberto', true);
+  });
 
   document.getElementById('filtrosLimpar')?.addEventListener('click', () => {
     limparFiltros();
     buscar(true);
   });
 
+  // chip de filtro ativo: clicar remove so aquele filtro
+  document.getElementById('filtrosAtivos')?.addEventListener('click', (evento) => {
+    const chip = evento.target.closest('[data-limpar-filtro]');
+    if (!chip) return;
+    const chave = chip.dataset.limparFiltro;
+    const campo = document.getElementById(IDS_CAMPOS_FILTRO[chave]);
+    if (campo) {
+      campo.value = '';
+      const wrapper = campo.closest('.custom-select');
+      const rotulo = wrapper?.querySelector('.custom-select-label');
+      const primeira = wrapper?.querySelector('.custom-select-option');
+      if (rotulo && primeira) rotulo.textContent = primeira.textContent;
+    }
+    buscar(true);
+  });
+
   // devolve o que o usuario tinha escolhido ao voltar para a pagina
   const restaurou = restaurarFiltrosDaSessao();
-  if (restaurou) definirAberto(true);
+  if (restaurou) definirAberto(true, true);
 
   if (breedField) await loadDynamicBreedOptions(animalType, breedField, label);
   await renderCategoryFeed(animalType);
