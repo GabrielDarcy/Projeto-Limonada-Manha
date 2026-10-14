@@ -43,13 +43,47 @@ function isUuid(valor) {
 }
 
 function ehFalhaDeRede(codigo, texto) {
-  return /network|fetch|failed to fetch|timeout/i.test(String(codigo) + String(texto));
+  return /network|fetch|failed to fetch|timeout|ERR_NAME|ERR_INTERNET/i.test(String(codigo) + String(texto));
+}
+
+// erros do supabase e do postgres chegam em ingles e vazavam pro usuario
+const ERROS_PT = {
+  '23505': 'Esse registro já existe. Verifique os dados e tente de novo.',
+  '23503': 'Esse item está ligado a outro registro e não pode ser alterado agora.',
+  '23502': 'Faltou preencher um campo obrigatório.',
+  '23514': 'Algum valor está fora do que é permitido.',
+  '42501': 'Você não tem permissão para essa ação.',
+  '42P01': 'Erro interno de configuração. Avise a administração.',
+  '22P02': 'Um dos valores enviados tem formato inválido.',
+  '22001': 'O texto enviado é longo demais.',
+  'PGRST116': 'Não encontramos esse registro.',
+  'PGRST202': 'Função indisponível no momento. Avise a administração.',
+  'PGRST205': 'Erro interno de configuração. Avise a administração.',
+};
+
+function mensagemDeErroSegura(error, alternativa) {
+  const padrao = alternativa || 'Não foi possível concluir. Tente novamente.';
+  const codigo = String(error?.code || error?.status || '');
+  const texto = String(error?.message || '');
+
+  if (ehFalhaDeRede(codigo, texto)) return 'Não foi possível conectar. Verifique sua internet e tente novamente.';
+  if (/rate|too many|429/i.test(codigo + texto)) return 'Muitas tentativas. Aguarde alguns minutos e tente novamente.';
+  if (ERROS_PT[codigo]) return ERROS_PT[codigo];
+  if (/duplicate key|already exists/i.test(texto)) return ERROS_PT['23505'];
+  if (/violates foreign key/i.test(texto)) return ERROS_PT['23503'];
+  if (/violates row-level security|permission denied/i.test(texto)) return ERROS_PT['42501'];
+  if (/does not exist|schema cache/i.test(texto)) return 'Erro interno de configuração. Avise a administração.';
+  if (/invalid input syntax|invalid uuid/i.test(texto)) return ERROS_PT['22P02'];
+  if (/value too long/i.test(texto)) return ERROS_PT['22001'];
+  if (/jwt|token|expired/i.test(texto)) return 'Sua sessão expirou. Entre novamente.';
+  return padrao;
 }
 
 // nao repassar o erro cru do supabase, ele diz se o email existe
 function mensagemDeAuthSegura(error) {
   const codigo = String(error?.code || error?.status || '');
   const texto = String(error?.message || '');
+  if (/banned|banida/i.test(texto)) return texto;
   if (ehFalhaDeRede(codigo, texto)) return 'Não foi possível conectar. Verifique sua internet e tente novamente.';
   if (/rate|too many|429/i.test(codigo + texto)) return 'Muitas tentativas. Aguarde alguns minutos e tente novamente.';
   return 'E-mail ou senha incorretos.';
@@ -164,7 +198,7 @@ async function toggleFavorite(postId) {
     : [...favorites, normalizedId];
   if (session) {
     const { error } = await getSupabaseClient().from('profiles').update({ favorite_posts: nextFavorites }).eq('id', session.userId);
-    if (error) throw new Error(`Não foi possível atualizar seus favoritos: ${error.message}`);
+    if (error) throw new Error(`Não foi possível atualizar seus favoritos: ${mensagemDeErroSegura(error)}`);
     saveSession({ ...session, id: session.userId, favorite_posts: nextFavorites });
   } else {
     writeStorage(STORAGE_KEYS.favorites, nextFavorites);
@@ -397,7 +431,7 @@ async function handleAdminAccountSubmit(event) {
 
   try {
     const { data: authData, error } = await getSupabaseClient().auth.updateUser(updates);
-    if (error) throw error;
+    if (error) throw new Error(mensagemDeErroSegura(error));
 
     if (authData.user) {
       await getSupabaseClient().from('profiles').update({ email: updates.email }).eq('id', authData.user.id);
@@ -407,7 +441,7 @@ async function handleAdminAccountSubmit(event) {
     }
     showToast('Credenciais atualizadas com sucesso.');
   } catch (error) {
-    showToast(`Não foi possível atualizar as credenciais: ${error.message}`, 'error');
+    showToast(`Não foi possível atualizar as credenciais: ${mensagemDeErroSegura(error)}`, 'error');
   }
 }
 
@@ -425,7 +459,7 @@ async function uploadAvatar(file, userId) {
     contentType: file.type
   });
 
-  if (error) throw new Error(`Não foi possível enviar a foto de perfil: ${error.message}`);
+  if (error) throw new Error(`Não foi possível enviar a foto de perfil: ${mensagemDeErroSegura(error)}`);
   const { data: publicUrlData } = client.storage.from('avatars').getPublicUrl(data.path);
   if (!publicUrlData?.publicUrl) throw new Error('Não foi possível obter a URL.');
 
@@ -447,7 +481,7 @@ async function registerWithSupabase(name, username, email, password, birthDate, 
 
   const client = getSupabaseClient();
   const { data: existingProfile, error: usernameCheckError } = await client.from('profiles').select('id').eq('username', normalizedUsername).maybeSingle();
-  if (usernameCheckError) throw new Error(`Não foi possível validar o nome de usuário: ${usernameCheckError.message}`);
+  if (usernameCheckError) throw new Error(`Não foi possível validar o nome de usuário: ${mensagemDeErroSegura(usernameCheckError)}`);
   if (existingProfile) throw new Error('Este nome de usuário já está em uso. Escolha outro.');
 
   const { data, error } = await client.auth.signUp({
@@ -456,7 +490,7 @@ async function registerWithSupabase(name, username, email, password, birthDate, 
     options: { data: { full_name: name.trim() } }
   });
 
-  if (error) throw new Error(error.message);
+  if (error) throw new Error(mensagemDeErroSegura(error));
 
   const userId = data.user?.id;
   let avatarUrl = null;
@@ -473,7 +507,7 @@ async function registerWithSupabase(name, username, email, password, birthDate, 
     }).eq('id', userId);
     if (profileError) {
       if (profileError.code === '23505') throw new Error('Este nome de usuário já está em uso. Escolha outro.');
-      throw new Error(`Não foi possível salvar o perfil: ${profileError.message}`);
+      throw new Error(`Não foi possível salvar o perfil: ${mensagemDeErroSegura(profileError)}`);
     }
   }
 
@@ -648,7 +682,7 @@ async function loadSiteStatistics() {
     .eq('id', 1)
     .single();
   if (error) {
-    showToast(`Não foi possível carregar as estatísticas: ${error.message}`, 'error');
+    showToast(`Não foi possível carregar as estatísticas: ${mensagemDeErroSegura(error)}`, 'error');
     return;
   }
   const totalHomes = Number(data?.total_lares || 0);
@@ -699,7 +733,7 @@ async function updateSiteStatistics(totalHomes, reset = false) {
   const updates = reset ? { total_lares: 0, base_diaria: 0 } : { total_lares: Number(totalHomes) };
   const { error } = await getSupabaseClient().from('site_statistics').update(updates).eq('id', 1);
   if (error) {
-    showToast(`Não foi possível atualizar as estatísticas: ${error.message}`, 'error');
+    showToast(`Não foi possível atualizar as estatísticas: ${mensagemDeErroSegura(error)}`, 'error');
     return;
   }
   showToast(reset ? 'Estatísticas zeradas.' : 'Total de lares atualizado.');
@@ -724,7 +758,7 @@ async function deletePost(postId) {
   }
   const { error } = await getSupabaseClient().from('posts').delete().eq('id', postId);
   if (error) {
-    showToast(`Não foi possível excluir o post: ${error.message}`, 'error');
+    showToast(`Não foi possível excluir o post: ${mensagemDeErroSegura(error)}`, 'error');
     return;
   }
   renderAdminDashboard();
@@ -763,7 +797,7 @@ async function loadAdminUserPosts(userId) {
 
 async function banAdminUser(userId) {
   const { error } = await getSupabaseClient().rpc('admin_ban_user', { p_user_id: userId });
-  if (error) return showToast(`Não foi possível banir o usuário: ${error.message}`, 'error');
+  if (error) return showToast(`Não foi possível banir o usuário: ${mensagemDeErroSegura(error)}`, 'error');
   showToast('Usuário banido com sucesso.');
   searchAdminUsers(document.getElementById('adminUserSearch')?.value);
 }
@@ -854,7 +888,7 @@ async function uploadPostImage(file) {
     contentType: file.type
   });
 
-  if (error) throw new Error(`Não foi possível enviar a imagem: ${error.message}`);
+  if (error) throw new Error(`Não foi possível enviar a imagem: ${mensagemDeErroSegura(error)}`);
   const { data: publicUrlData } = client.storage.from('pet_images').getPublicUrl(data.path);
   if (!publicUrlData?.publicUrl) throw new Error('Não foi possível obter a URL da imagem.');
 
@@ -862,14 +896,17 @@ async function uploadPostImage(file) {
 }
 
 const BREED_CATALOGS = {
-  Cachorro: `Affenpinscher|Afghan Hound|Airedale Terrier|Akita|Akita Americano|American Bully|American Staffordshire Terrier|Australian Cattle Dog|Australian Shepherd|Basenji|Basset Hound|Beagle|Bearded Collie|Bernese Mountain Dog|Bichon Frisé|Bloodhound|Border Collie|Boston Terrier|Boxer|Buldogue Francês|Buldogue Inglês|Bull Terrier|Bullmastiff|Cane Corso|Cão de Crista Chinês|Cavalier King Charles Spaniel|Chihuahua|Chow Chow|Cocker Spaniel|Collie|Dachshund|Dálmata|Doberman|Dogo Argentino|Dogue Alemão|Fila Brasileiro|Golden Retriever|Greyhound|Husky Siberiano|Jack Russell Terrier|Labrador Retriever|Lhasa Apso|Lulu da Pomerânia|Malamute do Alasca|Maltês|Mastiff|Pastor Alemão|Pastor Australiano|Pastor de Shetland|Pastor Belga|Pequinês|Pinscher|Pit Bull|Pointer Inglês|Poodle|Pug|Rottweiler|Schnauzer|Setter Irlandês|Shar-Pei|Shiba Inu|Shih Tzu|Staffordshire Bull Terrier|São Bernardo|Terrier Brasileiro|Vira-lata (SRD)|Weimaraner|Welsh Corgi|West Highland White Terrier|Whippet|Yorkshire Terrier`,
-  Gato: `Abissínio|American Shorthair|Angorá|Azul Russo|Balinês|Bengal|Birmanês|Bombaim|British Shorthair|Burmês|Chartreux|Cornish Rex|Devon Rex|Exótico de Pelo Curto|Himalaio|Maine Coon|Munchkin|Manx|Norueguês da Floresta|Oriental|Persa|Ragdoll|Sagrado da Birmânia|Savannah|Scottish Fold|Siamês|Siberiano|Sphynx|Tonquinês|Turco Van|Vira-lata (SRD)`,
-  Fazenda: `Abelha|Alpaca|Asinino|Búfalo|Boi|Boi Angus|Boi Nelore|Cabra|Cabra Boer|Cabra Saanen|Cavalo|Cavalo Árabe|Cavalo Crioulo|Cavalo Mangalarga|Codorna|Coelho|Coelho Angorá|Coelho Mini Lop|Égua|Galinha|Galinha caipira|Ganso|Marreco|Ovelha|Ovelha Dorper|Ovelha Santa Inês|Pato|Pavão|Peru|Porco|Porco caipira|Pônei|Vaca|Vaca Girolando|Vaca Holandesa`,
-  Exótico: `Agapornis|Axolote|Camaleão|Calopsita|Canário|Cacatua|Chinchila|Cobra|Cobra-do-milho|Cágado|Dragão-barbudo|Esquilo-da-Mongólia|Escorpião|Furão|Gecko-leopardo|Gerbil|Hamster|Iguana|Jabuti|Jabuti-piranga|Lagartixa|Lagarto|Maritaca|Mini pig|Pogona|Periquito|Porquinho-da-índia|Rato|Rato twister|Sagui|Salamandra|Serpente|Tarântula|Tartaruga|Teiú|Tigre-d'água|Tritão|Ouriço-cacheiro|Outro`,
-  Marinho: `Anêmona-do-mar|Baiacu|Baleia|Camarão|Caranguejo|Cavalo-marinho|Cavalo-marinho-anão|Coral|Coral-cérebro|Donzela|Estrela-do-mar|Golfinho|Lagosta|Leão-marinho|Lula|Manta|Medusa|Ostra|Peixe|Peixe-betta|Peixe-cirurgião|Peixe-dourado|Peixe-leão|Peixe-lua|Peixe-palhaço|Peixe-papagaio|Pepino-do-mar|Pinguim|Polvo|Raia|Robalo|Sardinha|Tartaruga-de-pente|Tartaruga-marinha|Tartaruga-verde|Tubarão|Tubarão-baleia|Água-viva|Outro`
+  Cachorro: `Affenpinscher|Afghan Hound|Airedale Terrier|Akita|Akita Americano|American Bully|American Staffordshire Terrier|Australian Cattle Dog|Australian Shepherd|Basenji|Basset Hound|Beagle|Bearded Collie|Bernese Mountain Dog|Bichon Frisé|Bloodhound|Border Collie|Boston Terrier|Boxer|Buldogue Americano|Buldogue Campeiro|Buldogue Francês|Buldogue Inglês|Bull Terrier|Bullmastiff|Cane Corso|Cão de Crista Chinês|Cão de água português|Cão de montanha dos Pirineus|Cavalier King Charles Spaniel|Chihuahua|Chow Chow|Cocker Spaniel Americano|Cocker Spaniel Inglês|Collie|Dachshund|Dálmata|Doberman|Dogo Argentino|Dogue Alemão|Dogue de Bordeaux|Fila Brasileiro|Fox Paulistinha|Golden Retriever|Greyhound|Griffon de Bruxelas|Husky Siberiano|Jack Russell Terrier|Labrador Retriever|Lhasa Apso|Lulu da Pomerânia|Malamute do Alasca|Maltês|Mastiff|Norfolk Terrier|Norwich Terrier|Old English Sheepdog|Papillon|Pastor Alemão|Pastor Australiano|Pastor Belga|Pastor Branco Suíço|Pastor de Shetland|Pequinês|Pinscher|Pit Bull|Pointer Inglês|Poodle|Pug|Rottweiler|Samoieda|Schnauzer|Setter Irlandês|Shar-Pei|Shiba Inu|Shih Tzu|Staffordshire Bull Terrier|São Bernardo|Terrier Brasileiro|Terrier Escocês|Vira-lata (SRD)|Vizsla|Weimaraner|Welsh Corgi|West Highland White Terrier|Whippet|Yorkshire Terrier`,
+  Gato: `Abissínio|American Curl|American Shorthair|American Wirehair|Angorá|Azul Russo|Balinês|Bengal|Birmanês|Bombaim|British Longhair|British Shorthair|Burmês|Chartreux|Cornish Rex|Devon Rex|Exótico de Pelo Curto|Himalaio|Khao Manee|LaPerm|Maine Coon|Manx|Munchkin|Nebelung|Norueguês da Floresta|Oriental|Persa|Peterbald|Ragdoll|Sagrado da Birmânia|Savannah|Scottish Fold|Scottish Straight|Selkirk Rex|Siamês|Siberiano|Singapura|Somali|Sphynx|Tonquinês|Turco Van|Vira-lata (SRD)`,
+  Fazenda: `Abelha|Alpaca|Asinino|Avestruz|Búfalo|Bode|Boi|Boi Angus|Boi Brahman|Boi Hereford|Boi Nelore|Cabra|Cabra Anglonubiana|Cabra Boer|Cabra Saanen|Cabra Toggenburg|Cavalo|Cavalo Árabe|Cavalo Campolina|Cavalo Crioulo|Cavalo Mangalarga|Cavalo Quarto de Milha|Codorna|Coelho|Coelho Angorá|Coelho Mini Lop|Coelho Nova Zelândia|Égua|Gado de leite|Galinha|Galinha caipira|Ganso|Jumento|Lhama|Marreco|Mula|Ovelha|Ovelha Dorper|Ovelha Hampshire Down|Ovelha Santa Inês|Pato|Pavão|Peru|Pônei|Porco|Porco caipira|Vaca|Vaca Girolando|Vaca Holandesa|Vaca Jersey|Vaca Nelore`,
+  Exótico: `Agapornis|Axolote|Cacatua|Calopsita|Camaleão|Canário|Chinchila|Cobra|Cobra-do-milho|Cágado|Degú|Dragão-barbudo|Escorpião|Esquilo-da-Mongólia|Furão|Gecko-leopardo|Gerbil|Hamster|Hamster chinês|Hamster sírio|Iguana|Jabuti|Jabuti-piranga|Jiboia|Lagartixa|Lagarto|Maritaca|Mini pig|Ouriço-cacheiro|Periquito|Periquito-australiano|Pogona|Porquinho-da-índia|Rato|Rato twister|Sagui|Salamandra|Serpente|Tarântula|Tartaruga|Teiú|Tigre-d'água|Tritão|Outro`,
+  Marinho: `Anêmona-do-mar|Baiacu|Camarão|Caranguejo|Cavalo-marinho|Coral|Coral-cérebro|Donzela|Estrela-do-mar|Lagosta|Lula|Medusa|Molusco|Ostra|Ouriço-do-mar|Peixe|Peixe-anjo|Peixe-betta|Peixe-cirurgião|Peixe-dourado|Peixe-leão|Peixe-palhaço|Peixe-papagaio|Pepino-do-mar|Polvo|Raia|Sardinha|Tartaruga-marinha|Tartaruga-verde|Tubarão|Água-viva|Outro`
 };
 
 const breedOptionsCache = new Map();
+
+// icone de localizacao em svg. antes esse mesmo svg aparecia copiado em 7 pontos.
+const ICONE_PIN = '<svg class="pin-icon" viewBox="0 0 24 24" width="14" height="14" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 5.2-8 12-8 12s-8-6.8-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="2.6"/></svg>';
 
 const SPECIES_OPTIONS = {
   Fazenda: `Abelha|Alpaca|Asinino|Búfalo|Boi|Cabra|Cavalo|Codorna|Coelho|Égua|Galinha|Ganso|Marreco|Ovelha|Pato|Pavão|Peru|Porco|Pônei|Vaca|Outro`.split('|'),
@@ -978,7 +1015,7 @@ function getBreedOptions(animalType) {
     const catalog = (BREED_CATALOGS[animalType] || '').split('|').filter(Boolean);
     const request = getSupabaseClient().rpc('get_active_breeds', { p_animal_type: animalType })
       .then(({ data, error }) => {
-        if (error) throw error;
+        if (error) throw new Error(mensagemDeErroSegura(error));
         const activeBreeds = (data || []).map((item) => item?.breed).filter(Boolean);
         return uniqueBreedOptions([...catalog, ...activeBreeds]).sort((first, second) => first.localeCompare(second, 'pt-BR'));
       })
@@ -1234,6 +1271,16 @@ async function handleCreatePostSubmit(event) {
   const instagram = form.instagram.value.trim();
   const photoFiles = form.__selectedFiles || [];
 
+  // campos de filtro: vazio vira null (= nao informado), nunca false.
+  // isso evita que exigir um filtro esconda anuncios que nao preencheram o campo.
+  const simNaoOuNulo = (nome) => {
+    const v = (form.elements.namedItem(nome)?.value || '').trim();
+    if (v === 'sim') return true;
+    if (v === 'nao') return false;
+    return null;
+  };
+  const textoOuNulo = (nome) => (form.elements.namedItem(nome)?.value || '').trim() || null;
+
   if (!title || !description || !animalType || !state || !city || (requiresGenetics && !breedValue) || (SPECIES_OPTIONS[animalType]?.length && !species) || (isDog && !size)) {
     showToast('Por favor, preencha todos os campos obrigatórios, incluindo a cidade.', 'error');
     return;
@@ -1289,6 +1336,18 @@ async function handleCreatePostSubmit(event) {
       mother_breed: motherBreed,
       father_breed: fatherBreed,
       image_urls: imageUrls,
+      // campos de filtro de adocao
+      age_group: textoOuNulo('ageGroup'),
+      gender: textoOuNulo('gender'),
+      energy_level: textoOuNulo('energyLevel'),
+      neutered: simNaoOuNulo('neutered'),
+      vaccinated: simNaoOuNulo('vaccinated'),
+      dewormed: simNaoOuNulo('dewormed'),
+      special_needs: simNaoOuNulo('specialNeeds'),
+      apartment_friendly: simNaoOuNulo('apartmentFriendly'),
+      good_with_kids: simNaoOuNulo('goodWithKids'),
+      good_with_dogs: simNaoOuNulo('goodWithDogs'),
+      good_with_cats: simNaoOuNulo('goodWithCats'),
       status: 'active'
     };
 
@@ -1299,14 +1358,14 @@ async function handleCreatePostSubmit(event) {
         showToast('Você excedeu os limites da nossa infraestrutura que é modesta. Você poderá postar mais daqui a uma hora.', 'error');
         return;
       }
-      showToast(error.message, 'error');
+      showToast(mensagemDeErroSegura(error), 'error');
       return;
     }
 
     showToast('Publicação criada com sucesso.');
     window.location.href = 'index.html';
   } catch (error) {
-    showToast(error.message || 'Erro ao criar a publicação.', 'error');
+    showToast(mensagemDeErroSegura(error, 'Erro ao criar a publicação.'), 'error');
   }
 }
 
@@ -1400,7 +1459,7 @@ function renderRecentPosts() {
 
   getSupabaseClient().from('posts').select('*, profiles(full_name, username, avatar_url)').eq('status', 'active').order('created_at', { ascending: false }).limit(12)
     .then(({ data, error }) => {
-      if (error) throw error;
+      if (error) throw new Error(mensagemDeErroSegura(error));
       target.innerHTML = (data || []).map((post) => `
         <article class="recent-post-card ${post.status === 'adopted' ? 'adopted-card' : ''}">
           <div class="card-utility-actions">${favoriteButtonHTML(post.id)}${shareButtonHTML(post)}</div>
@@ -1523,6 +1582,23 @@ function formatPostLocation(post) {
   return [city, state].filter(Boolean).join(', ');
 }
 
+// faixa de idade a partir da data de nascimento (0000-00-00). fica no cadastro
+// pra que a idade envelheca sozinha, sem o anuncio mentir com o tempo
+function faixaDeIdadePorNascimento(birthDate) {
+  if (!birthDate) return null;
+  const nasc = new Date(`${birthDate}T00:00:00`);
+  if (Number.isNaN(nasc.getTime())) return null;
+  const agora = new Date();
+  if (nasc > agora) return null;
+  let meses = (agora.getFullYear() - nasc.getFullYear()) * 12 + (agora.getMonth() - nasc.getMonth());
+  if (agora.getDate() < nasc.getDate()) meses -= 1;
+  const anos = meses / 12;
+  if (anos < 1) return 'Filhote';
+  if (anos < 3) return 'Jovem';
+  if (anos < 8) return 'Adulto';
+  return 'Idoso';
+}
+
 function generateImageCarouselHTML(imageUrls, altText) {
   const normalizedUrls = (Array.isArray(imageUrls) ? imageUrls : imageUrls ? [imageUrls] : []).filter(Boolean);
   const safeAltText = escapeHTML(altText || 'Imagem do animal');
@@ -1553,41 +1629,173 @@ function getPostContact(post) {
   return contacts.length ? contacts.join(' | ') : 'Contato não informado';
 }
 
+// le os campos do painel de filtros. devolve so o que foi escolhido.
+function lerFiltrosDaTela() {
+  const v = (id) => (document.getElementById(id)?.value || '').trim();
+  return {
+    state: v('categoryState'), city: v('categoryCity'), breed: v('categoryBreed'),
+    gender: v('categoryGender'), age: v('categoryAge'), size: v('categorySize'),
+    energy: v('categoryEnergy'), neutered: v('categoryNeutered'),
+    vaccinated: v('categoryVaccinated'), dewormed: v('categoryDewormed'),
+    apartment: v('categoryApartment'), kids: v('categoryWithKids'),
+    dogs: v('categoryWithDogs'), cats: v('categoryWithCats'), special: v('categorySpecial'),
+  };
+}
+
+function algumFiltroAtivo(f) {
+  return Object.values(f).some((x) => x !== '');
+}
+
+// booleano de 3 estados: 'sim' -> true, 'nao' -> false, vazio -> nao filtra.
+// o null nao entra na comparacao, entao quem nao informou continua aparecendo.
+function aplicarBooleano(query, coluna, valor) {
+  if (valor === 'sim') return query.eq(coluna, true);
+  if (valor === 'nao') return query.eq(coluna, false);
+  return query;
+}
+
+// foto de estado vazio, reaproveitada em varios pontos
+function fotoVazia() {
+  return { url: 'https://images.unsplash.com/photo-1552053831-71594a27632d?auto=format&fit=crop&w=800&q=72', alt: 'Cachorro aguardando adoção' };
+}
+
+// etiquetas que explicam o animal. campo sem informacao vira etiqueta neutra,
+// em vez de sumir da ficha.
+function chipsDeAtributos(post) {
+  const chips = [];
+  const add = (texto, tom) => chips.push(`<span class="atributo atributo-${tom || 'neutro'}">${escapeHTML(texto)}</span>`);
+
+  if (post.gender) add(post.gender);
+  if (post.age_group) add(post.age_group);
+  if (post.size) add(`Porte ${post.size}`);
+  if (post.energy_level) add(post.energy_level);
+
+  const simNao = (valor, rotulo) => {
+    if (valor === true) add(rotulo, 'ok');
+    else if (valor === false) add(`${rotulo}: não`, 'nao');
+    else add(`${rotulo}: não informado`, 'vazio');
+  };
+  simNao(post.neutered, 'Castrado');
+  simNao(post.vaccinated, 'Vacinado');
+  simNao(post.good_with_kids, 'Com crianças');
+  if (post.special_needs === true) add('Necessidades especiais', 'atencao');
+
+  return chips.length ? `<div class="post-atributos">${chips.join('')}</div>` : '';
+}
+
+// mostra quantos filtros estao ativos e quantos resultados voltaram
+function atualizarResumoFiltros(f, total) {
+  const contagem = document.getElementById('filtrosContagem');
+  const limpar = document.getElementById('filtrosLimpar');
+  const ativos = Object.values(f).filter((x) => x !== '').length;
+  if (limpar) limpar.hidden = ativos === 0;
+  if (!contagem) return;
+  if (typeof total !== 'number') { contagem.textContent = ''; return; }
+  const parte = total === 1 ? '1 animal encontrado' : `${total} animais encontrados`;
+  contagem.textContent = ativos ? `${parte} com ${ativos} filtro${ativos > 1 ? 's' : ''}` : parte;
+}
+
+// painel de filtros: abre e fecha, limpa tudo e guarda o que foi escolhido.
+// preservar o estado importa: voltar para a pagina nao pode zerar a busca.
+const CHAVE_FILTROS = 'petamor_filtros_categoria';
+
+function salvarFiltrosNaSessao(f) {
+  try { sessionStorage.setItem(CHAVE_FILTROS, JSON.stringify(f)); } catch (e) { /* modo privado */ }
+}
+
+function restaurarFiltrosDaSessao() {
+  let salvo = null;
+  try { salvo = JSON.parse(sessionStorage.getItem(CHAVE_FILTROS) || 'null'); } catch (e) { salvo = null; }
+  if (!salvo) return false;
+  const mapa = {
+    state: 'categoryState', city: 'categoryCity', breed: 'categoryBreed',
+    gender: 'categoryGender', age: 'categoryAge', size: 'categorySize',
+    energy: 'categoryEnergy', neutered: 'categoryNeutered',
+    vaccinated: 'categoryVaccinated', dewormed: 'categoryDewormed',
+    apartment: 'categoryApartment', kids: 'categoryWithKids',
+    dogs: 'categoryWithDogs', cats: 'categoryWithCats', special: 'categorySpecial',
+  };
+  let algum = false;
+  for (const [chave, id] of Object.entries(mapa)) {
+    const campo = document.getElementById(id);
+    if (campo && salvo[chave]) { campo.value = salvo[chave]; algum = true; }
+  }
+  return algum;
+}
+
+function limparFiltros() {
+  [
+    'categoryGender', 'categoryAge', 'categorySize', 'categoryEnergy',
+    'categoryNeutered', 'categoryVaccinated', 'categoryDewormed',
+    'categoryApartment', 'categoryWithKids', 'categoryWithDogs',
+    'categoryWithCats', 'categorySpecial',
+  ].forEach((id) => {
+    const campo = document.getElementById(id);
+    if (campo) campo.value = '';
+  });
+  // estado e cidade continuam, porque trocar de regiao e uma acao separada
+  try { sessionStorage.removeItem(CHAVE_FILTROS); } catch (e) { /* ignora */ }
+}
+
 async function renderCategoryFeed(animalType) {
   const target = document.getElementById('categoryPosts');
   if (!target) return;
-  const stateField = document.getElementById('categoryState');
-  const cityField = document.getElementById('categoryCity');
-  const breedField = document.getElementById('categoryBreed');
-  const sizeField = document.getElementById('categorySize');
+  const f = lerFiltrosDaTela();
   target.innerHTML = '<div class="empty-state">Carregando animais...</div>';
-  let query = getSupabaseClient().from('posts').select('*, profiles(full_name, username, avatar_url)').eq('animal_type', animalType).eq('status', 'active').order('created_at', { ascending: false });
-  if (stateField?.value) query = query.eq('state', stateField.value);
-  if (breedField?.value) query = query.ilike('breed', `%${breedField.value}%`);
-  if (animalType === 'Cachorro' && sizeField?.value) query = query.eq('size', sizeField.value);
+
+  let query = getSupabaseClient()
+    .from('posts')
+    .select('*, profiles(full_name, username, avatar_url)')
+    .eq('animal_type', animalType)
+    .eq('status', 'active')
+    .order('created_at', { ascending: false })
+    .limit(120);
+
+  if (f.state) query = query.eq('state', f.state);
+  if (f.city) query = query.eq('city', f.city);
+  if (f.breed) query = query.ilike('breed', `%${f.breed}%`);
+  if (f.gender) query = query.eq('gender', f.gender);
+  if (f.age) query = query.eq('age_group', f.age);
+  if (f.size) query = query.eq('size', f.size);
+  if (f.energy) query = query.eq('energy_level', f.energy);
+  query = aplicarBooleano(query, 'neutered', f.neutered);
+  query = aplicarBooleano(query, 'vaccinated', f.vaccinated);
+  query = aplicarBooleano(query, 'dewormed', f.dewormed);
+  query = aplicarBooleano(query, 'apartment_friendly', f.apartment);
+  query = aplicarBooleano(query, 'good_with_kids', f.kids);
+  query = aplicarBooleano(query, 'good_with_dogs', f.dogs);
+  query = aplicarBooleano(query, 'good_with_cats', f.cats);
+  query = aplicarBooleano(query, 'special_needs', f.special);
+
   const { data, error } = await query;
 
+  atualizarResumoFiltros(f, data?.length);
+
   if (error) {
-    target.innerHTML = `<div class="empty-state">Não foi possível carregar: ${escapeHTML(error.message)}</div>`;
+    target.innerHTML = `<div class="empty-state">Não foi possível carregar: ${escapeHTML(mensagemDeErroSegura(error))}</div>`;
     return;
   }
   if (!data?.length) {
-    const emptyImage = animalType === 'Outro'
-      ? 'https://images.unsplash.com/photo-1585110396000-c9ffd4e4b308?auto=format&fit=crop&w=800&q=80'
-      : 'https://images.unsplash.com/photo-1425082661705-1834bfd09dca?auto=format&fit=crop&w=800&q=80';
-    target.innerHTML = `<div class="empty-state category-empty-state"><img src="${emptyImage}" alt="Animal fofo aguardando uma nova família"><p>Ainda não temos animais publicados. Volte em breve para conhecer novos amigos.</p></div>`;
+    const vazio = fotoVazia();
+    target.innerHTML = `<div class="empty-state category-empty-state">
+      <img src="${vazio.url}" alt="${vazio.alt}" loading="lazy" decoding="async">
+      <p>${algumFiltroAtivo(f)
+        ? 'Nenhum animal combina com esses filtros. Deixe algum campo em “Tanto faz” para ver mais resultados.'
+        : 'Ainda não temos animais publicados aqui. Volte em breve para conhecer novos amigos.'}</p>
+    </div>`;
     return;
   }
 
-  target.innerHTML = renderProximityDivider(data, cityField?.value || '', (post) => `
+  target.innerHTML = renderProximityDivider(data, f.city, (post) => `
     <article class="category-pet-card">
       <div class="card-utility-actions">${favoriteButtonHTML(post.id)}${shareButtonHTML(post)}</div>
       ${generateImageCarouselHTML(post.image_urls, post.title)}
       <div class="category-pet-card-body">
         ${renderAuthorBar(post.profiles)}
         <h2>${escapeHTML(post.title)}</h2>
-        <p class="category-pet-location"><svg class="pin-icon" viewBox="0 0 24 24" width="14" height="14" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 5.2-8 12-8 12s-8-6.8-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="2.6"/></svg> ${escapeHTML(formatPostLocation(post))}</p>
-        <p class="category-pet-breed"><strong>Raça:</strong> ${escapeHTML(post.breed || 'Não informado')}${post.animal_type === 'Cachorro' && post.size ? ` · <strong>Porte:</strong> ${escapeHTML(post.size)}` : ''}</p>
+        <p class="category-pet-location">${ICONE_PIN} ${escapeHTML(formatPostLocation(post))}</p>
+        <p class="category-pet-breed"><strong>Raça:</strong> ${escapeHTML(post.breed || 'Não informado')}</p>
+        ${chipsDeAtributos(post)}
         <div class="post-action-row">
           <button class="btn btn-secondary" type="button" data-post-details="${escapeHTML(post.id)}">Ver detalhes</button>
           ${postActionButtonsHTML(post, podeAdministrarAgora())}
@@ -1703,19 +1911,66 @@ async function setupCategoryPage() {
   const cityField = document.getElementById('categoryCity');
   const breedField = document.getElementById('categoryBreed');
   if (!animalType) return;
+
   const label = animalType === 'Cachorro' || animalType === 'Gato' ? 'Todas as raças' : 'Todas as espécies';
+
+  // busca com um respiro: sem isso, mexer em 3 selects seguidos dispara 3 consultas
+  let temporizador = null;
+  const buscar = (imediato) => {
+    window.clearTimeout(temporizador);
+    const executar = () => {
+      salvarFiltrosNaSessao(lerFiltrosDaTela());
+      renderCategoryFeed(animalType);
+    };
+    if (imediato) executar();
+    else temporizador = window.setTimeout(executar, 260);
+  };
+
   if (stateField && cityField) {
     stateField.addEventListener('change', async () => {
       await loadCities(stateField, cityField);
-      renderCategoryFeed(animalType);
+      buscar(true);
     });
-    cityField.addEventListener('change', () => renderCategoryFeed(animalType));
+    cityField.addEventListener('change', () => buscar(true));
     loadStates(stateField, cityField);
   }
-  breedField?.addEventListener('change', () => renderCategoryFeed(animalType));
-  document.getElementById('categorySize')?.addEventListener('change', () => renderCategoryFeed(animalType));
+
+  // todo filtro do painel dispara a busca
+  [
+    'categoryGender', 'categoryAge', 'categorySize', 'categoryEnergy',
+    'categoryNeutered', 'categoryVaccinated', 'categoryDewormed',
+    'categoryApartment', 'categoryWithKids', 'categoryWithDogs',
+    'categoryWithCats', 'categorySpecial',
+  ].forEach((id) => {
+    document.getElementById(id)?.addEventListener('change', () => buscar(false));
+  });
+
+  // abre e fecha o painel. comeca aberto no desktop e fechado no celular,
+  // para nao empurrar os resultados para fora da tela.
+  const painel = document.getElementById('filtrosCampos');
+  const toggle = document.getElementById('filtrosToggle');
+  const estreito = window.matchMedia('(max-width: 900px)').matches;
+  const definirAberto = (aberto) => {
+    if (!painel || !toggle) return;
+    painel.hidden = !aberto;
+    toggle.setAttribute('aria-expanded', String(aberto));
+    toggle.textContent = aberto ? 'Ocultar filtros' : 'Mostrar filtros';
+  };
+  definirAberto(!estreito && Boolean(painel));
+  toggle?.addEventListener('click', () => definirAberto(painel.hidden));
+
+  document.getElementById('filtrosLimpar')?.addEventListener('click', () => {
+    limparFiltros();
+    buscar(true);
+  });
+
+  // devolve o que o usuario tinha escolhido ao voltar para a pagina
+  const restaurou = restaurarFiltrosDaSessao();
+  if (restaurou) definirAberto(true);
+
   if (breedField) await loadDynamicBreedOptions(animalType, breedField, label);
-  renderCategoryFeed(animalType);
+  await renderCategoryFeed(animalType);
+
   document.querySelectorAll('[data-modal-close]').forEach((element) => element.addEventListener('click', closeAdoptionModal));
   document.addEventListener('keydown', (event) => { if (event.key === 'Escape') closeAdoptionModal(); });
 }
@@ -1759,7 +2014,7 @@ function setupFavoriteInteractionsV7() {
       if (!getSession()) showToast('Favorito salvo neste dispositivo. Faça login para sincronizar seus favoritos.');
       if (document.getElementById('profileFavoritePosts')) renderProfileFavorites();
     } catch (error) {
-      showToast(error.message, 'error');
+      showToast(mensagemDeErroSegura(error), 'error');
     }
   });
 }
@@ -2053,13 +2308,13 @@ async function handleProfileUsernameSubmit(event) {
     const { error } = await getSupabaseClient().from('profiles').update({ username: normalizedUsername }).eq('id', session.userId);
     if (error) {
       if (error.code === '23505') throw new Error('Este nome de usuário já está em uso. Escolha outro.');
-      throw error;
+      throw new Error(mensagemDeErroSegura(error));
     }
     saveSession({ ...session, id: session.userId, username: normalizedUsername });
     document.getElementById('profileUsername').value = normalizedUsername;
     showToast('Nome de usuário atualizado com sucesso.');
   } catch (error) {
-    showToast(`Não foi possível atualizar o nome de usuário: ${error.message}`, 'error');
+    showToast(`Não foi possível atualizar o nome de usuário: ${mensagemDeErroSegura(error)}`, 'error');
   }
 }
 
@@ -2084,12 +2339,12 @@ async function handleAvatarUpdate(event) {
   try {
     const avatarUrl = await uploadAvatar(file, session.userId);
     const { error } = await getSupabaseClient().from('profiles').update({ avatar_url: avatarUrl }).eq('id', session.userId);
-    if (error) throw error;
+    if (error) throw new Error(mensagemDeErroSegura(error));
     saveSession({ ...session, id: session.userId, avatar_url: avatarUrl });
     document.getElementById('profileAvatarPreview').src = avatarUrl;
     showToast('Foto de perfil atualizada com sucesso.');
   } catch (error) {
-    showToast(`Não foi possível atualizar a foto: ${error.message}`, 'error');
+    showToast(`Não foi possível atualizar a foto: ${mensagemDeErroSegura(error)}`, 'error');
   }
 }
 
@@ -2100,7 +2355,7 @@ async function handleProfileEmailSubmit(event) {
 
   try {
     const { data, error } = await getSupabaseClient().auth.updateUser({ email });
-    if (error) throw error;
+    if (error) throw new Error(mensagemDeErroSegura(error));
 
     const session = getSession();
     await getSupabaseClient().from('profiles').update({ email }).eq('id', session.userId);
@@ -2108,7 +2363,7 @@ async function handleProfileEmailSubmit(event) {
 
     showToast('Solicitação enviada. Verifique os e-mails para confirmar a alteração.');
   } catch (error) {
-    showToast(`Não foi possível atualizar o e-mail: ${error.message}`, 'error');
+    showToast(`Não foi possível atualizar o e-mail: ${mensagemDeErroSegura(error)}`, 'error');
   }
 }
 
@@ -2120,11 +2375,11 @@ async function handleProfilePasswordSubmit(event) {
   if (getPasswordStrength(password).score < 2) return showToast('A senha deve ter pelo menos 8 caracteres e ser mais forte.', 'error');
   try {
     const { error } = await getSupabaseClient().auth.updateUser({ password });
-    if (error) throw error;
+    if (error) throw new Error(mensagemDeErroSegura(error));
     event.currentTarget.reset();
     showToast('Senha atualizada com sucesso.');
   } catch (error) {
-    showToast(`Não foi possível atualizar a senha: ${error.message}`, 'error');
+    showToast(`Não foi possível atualizar a senha: ${mensagemDeErroSegura(error)}`, 'error');
   }
 }
 
@@ -2133,19 +2388,19 @@ async function deleteAccount() {
   if (!session || !confirm('Excluir sua conta é permanente. Deseja continuar?')) return;
   try {
     const { error } = await getSupabaseClient().rpc('delete_user');
-    if (error) throw error;
+    if (error) throw new Error(mensagemDeErroSegura(error));
     await getSupabaseClient().auth.signOut();
     clearSession();
     window.location.href = 'index.html';
   } catch (error) {
-    showToast(`Não foi possível excluir a conta. Configure a função RPC delete_user no Supabase: ${error.message}`, 'error');
+    showToast(`Não foi possível excluir a conta. Configure a função RPC delete_user no Supabase: ${mensagemDeErroSegura(error)}`, 'error');
   }
 }
 
 async function updatePostStatus(postId) {
   const { error } = await getSupabaseClient().from('posts').update({ status: 'adopted' }).eq('id', postId).eq('user_id', getSession().userId);
   if (error) {
-    showToast(`Não foi possível concluir a publicação: ${error.message}`, 'error');
+    showToast(`Não foi possível concluir a publicação: ${mensagemDeErroSegura(error)}`, 'error');
     return;
   }
   renderUserPosts();

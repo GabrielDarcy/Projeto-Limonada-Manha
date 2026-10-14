@@ -22,7 +22,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
-    <link rel="stylesheet" href="animais/fazenda.css?v=1" />
+    <link rel="stylesheet" href="animais/fazenda.css?v=2" />
   </head>
   <body data-page="category" data-animal-type="Fazenda">
     <a class="skip-link" href="#conteudo" hidden onfocus="this.removeAttribute('hidden')" onblur="this.setAttribute('hidden','')">Pular para o conteúdo</a>
@@ -38,11 +38,137 @@
         <span class="eyebrow">Adoção responsável</span>
         <h1>Animais de Fazenda procurando um lar</h1>
         <p class="category-intro">Conheça animais de fazenda que esperam por cuidado, espaço e uma família responsável.</p>
-        <div class="feed-filters category-filters">
-          <label>Estado<select id="categoryState"><option value="">Todos os estados</option></select></label>
-          <label>Cidade<select id="categoryCity" disabled><option value="">Todas as cidades</option></select></label>
-          <label>Espécie<select id="categoryBreed"><option value="">Todas as espécies</option></select></label>
-        </div>
+        <section class="filtros" id="painelFiltros" aria-labelledby="tituloFiltros">
+          <div class="filtros-topo">
+            <h2 id="tituloFiltros" class="filtros-titulo">Filtrar</h2>
+            <button type="button" class="filtros-toggle" id="filtrosToggle" aria-expanded="false" aria-controls="filtrosCampos">
+              Mostrar filtros
+            </button>
+            <button type="button" class="filtros-limpar" id="filtrosLimpar" hidden>Limpar tudo</button>
+            <p class="filtros-contagem" id="filtrosContagem" role="status" aria-live="polite"></p>
+          </div>
+
+          <div class="filtros-campos" id="filtrosCampos" hidden>
+            <div class="filtros-grupo">
+              <span class="filtros-grupo-titulo">Onde</span>
+              <label>Estado
+                <select id="categoryState"><option value="">Todos os estados</option></select>
+              </label>
+              <label>Cidade
+                <select id="categoryCity" disabled><option value="">Todas as cidades</option></select>
+              </label>
+            </div>
+
+            <div class="filtros-grupo">
+              <span class="filtros-grupo-titulo">Sobre o animal</span>
+              <label>Raça ou espécie
+                <select id="categoryBreed"><option value="">Todas as raças</option></select>
+              </label>
+              <label>Sexo
+                <select id="categoryGender">
+                  <option value="">Todos</option>
+                  <option value="Macho">Macho</option>
+                  <option value="Fêmea">Fêmea</option>
+                </select>
+              </label>
+              <label>Idade
+                <select id="categoryAge">
+                  <option value="">Todas as idades</option>
+                  <option value="Filhote">Filhote (até 1 ano)</option>
+                  <option value="Jovem">Jovem (1 a 3 anos)</option>
+                  <option value="Adulto">Adulto (3 a 8 anos)</option>
+                  <option value="Idoso">Idoso (8 anos ou mais)</option>
+                </select>
+              </label>
+              <label>Porte
+                <select id="categorySize">
+                  <option value="">Todos os portes</option>
+                  <option value="Pequeno">Pequeno</option>
+                  <option value="Médio">Médio</option>
+                  <option value="Grande">Grande</option>
+                </select>
+              </label>
+              <label>Energia
+                <select id="categoryEnergy">
+                  <option value="">Qualquer</option>
+                  <option value="Calmo">Calmo</option>
+                  <option value="Moderado">Moderado</option>
+                  <option value="Agitado">Agitado</option>
+                </select>
+              </label>
+            </div>
+
+            <div class="filtros-grupo">
+              <span class="filtros-grupo-titulo">Saúde e cuidado</span>
+              <div class="filtros-linhas">
+                <label>Castrado
+                  <select id="categoryNeutered">
+                    <option value="">Tanto faz</option>
+                    <option value="sim">Sim</option>
+                    <option value="nao">Não</option>
+                  </select>
+                </label>
+                <label>Vacinado
+                  <select id="categoryVaccinated">
+                    <option value="">Tanto faz</option>
+                    <option value="sim">Sim</option>
+                    <option value="nao">Não</option>
+                  </select>
+                </label>
+                <label>Vermifugado
+                  <select id="categoryDewormed">
+                    <option value="">Tanto faz</option>
+                    <option value="sim">Sim</option>
+                    <option value="nao">Não</option>
+                  </select>
+                </label>
+                <label>Adapta-se a apartamento
+                  <select id="categoryApartment">
+                    <option value="">Tanto faz</option>
+                    <option value="sim">Sim</option>
+                    <option value="nao">Não</option>
+                  </select>
+                </label>
+              </div>
+            </div>
+
+            <div class="filtros-grupo">
+              <span class="filtros-grupo-titulo">Convivência</span>
+              <div class="filtros-linhas">
+                <label>Com crianças
+                  <select id="categoryWithKids">
+                    <option value="">Tanto faz</option>
+                    <option value="sim">Convive bem</option>
+                    <option value="nao">Não convive bem</option>
+                  </select>
+                </label>
+                <label>Com cachorros
+                  <select id="categoryWithDogs">
+                    <option value="">Tanto faz</option>
+                    <option value="sim">Convive bem</option>
+                    <option value="nao">Não convive bem</option>
+                  </select>
+                </label>
+                <label>Com gatos
+                  <select id="categoryWithCats">
+                    <option value="">Tanto faz</option>
+                    <option value="sim">Convive bem</option>
+                    <option value="nao">Não convive bem</option>
+                  </select>
+                </label>
+                <label>Necessidades especiais
+                  <select id="categorySpecial">
+                    <option value="">Tanto faz</option>
+                    <option value="sim">Sim</option>
+                    <option value="nao">Não</option>
+                  </select>
+                </label>
+              </div>
+            </div>
+          </div>
+
+          <p class="filtros-nota">Campos deixados em “Tanto faz” não restringem a busca. Anúncios sem a informação aparecem marcados como “não informado”, em vez de sumirem.</p>
+        </section>
         <div class="category-results category-feed-grid" id="categoryPosts" aria-live="polite"></div>
       </div>
     </main>
@@ -60,6 +186,6 @@
       </article>
     </div>
     <footer class="home-footer"><div class="container footer-row"><p>© 2026 Pet Amor. Juntos por uma causa maior.</p></div></footer>
-    <script type="module" src="script.js?v=25"></script>
+    <script type="module" src="script.js?v=26"></script>
   </body>
 </html>

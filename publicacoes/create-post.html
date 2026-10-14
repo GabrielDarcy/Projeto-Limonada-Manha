@@ -24,7 +24,7 @@
       href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap"
       rel="stylesheet"
     />
-    <link rel="stylesheet" href="publicacoes/create-post.css?v=1" />
+    <link rel="stylesheet" href="publicacoes/create-post.css?v=2" />
   </head>
   <body data-page="create-post">
     <a class="skip-link" href="#conteudo" hidden onfocus="this.removeAttribute('hidden')" onblur="this.setAttribute('hidden','')">Pular para o conteúdo</a>
@@ -129,6 +129,114 @@
             </select>
           </label>
 
+          <label>
+            Sexo
+            <select name="gender" id="postGender">
+              <option value="">Não informado</option>
+              <option value="Macho">Macho</option>
+              <option value="Fêmea">Fêmea</option>
+            </select>
+          </label>
+
+          <label>
+            Idade aproximada
+            <select name="ageGroup" id="postAgeGroup">
+              <option value="">Não informado</option>
+              <option value="Filhote">Filhote (até 1 ano)</option>
+              <option value="Jovem">Jovem (1 a 3 anos)</option>
+              <option value="Adulto">Adulto (3 a 8 anos)</option>
+              <option value="Idoso">Idoso (8 anos ou mais)</option>
+            </select>
+          </label>
+
+          <label>
+            Nível de energia
+            <select name="energyLevel" id="postEnergyLevel">
+              <option value="">Não informado</option>
+              <option value="Calmo">Calmo</option>
+              <option value="Moderado">Moderado</option>
+              <option value="Agitado">Agitado</option>
+            </select>
+          </label>
+
+          <fieldset class="full-span care-fieldset">
+            <legend>Saúde e cuidado</legend>
+            <p class="care-hint">Marque só o que você tem certeza. O que ficar em branco aparece como “não informado” e não esconde o animal da busca.</p>
+            <div class="care-options">
+              <label class="care-option">
+                <span>Castrado</span>
+                <select name="neutered">
+                  <option value="">Não informado</option>
+                  <option value="sim">Sim</option>
+                  <option value="nao">Não</option>
+                </select>
+              </label>
+              <label class="care-option">
+                <span>Vacinado</span>
+                <select name="vaccinated">
+                  <option value="">Não informado</option>
+                  <option value="sim">Sim</option>
+                  <option value="nao">Não</option>
+                </select>
+              </label>
+              <label class="care-option">
+                <span>Vermifugado</span>
+                <select name="dewormed">
+                  <option value="">Não informado</option>
+                  <option value="sim">Sim</option>
+                  <option value="nao">Não</option>
+                </select>
+              </label>
+              <label class="care-option">
+                <span>Necessidades especiais</span>
+                <select name="specialNeeds">
+                  <option value="">Não informado</option>
+                  <option value="sim">Sim</option>
+                  <option value="nao">Não</option>
+                </select>
+              </label>
+              <label class="care-option">
+                <span>Adapta-se a apartamento</span>
+                <select name="apartmentFriendly">
+                  <option value="">Não informado</option>
+                  <option value="sim">Sim</option>
+                  <option value="nao">Não</option>
+                </select>
+              </label>
+            </div>
+          </fieldset>
+
+          <fieldset class="full-span care-fieldset">
+            <legend>Convivência</legend>
+            <p class="care-hint">Deixe em branco se não souber. Escolher “não” só faz sentido quando você tem certeza.</p>
+            <div class="care-options">
+              <label class="care-option">
+                <span>Com crianças</span>
+                <select name="goodWithKids">
+                  <option value="">Não informado</option>
+                  <option value="sim">Convive bem</option>
+                  <option value="nao">Não convive bem</option>
+                </select>
+              </label>
+              <label class="care-option">
+                <span>Com cachorros</span>
+                <select name="goodWithDogs">
+                  <option value="">Não informado</option>
+                  <option value="sim">Convive bem</option>
+                  <option value="nao">Não convive bem</option>
+                </select>
+              </label>
+              <label class="care-option">
+                <span>Com gatos</span>
+                <select name="goodWithCats">
+                  <option value="">Não informado</option>
+                  <option value="sim">Convive bem</option>
+                  <option value="nao">Não convive bem</option>
+                </select>
+              </label>
+            </div>
+          </fieldset>
+
           <div class="full-span post-genetics-fields" id="postGeneticsFields" hidden>
             <label>
               Raça/Espécie do animal
@@ -180,6 +288,6 @@
       </form>
     </main>
 
-    <script type="module" src="script.js?v=30"></script>
+    <script type="module" src="script.js?v=31"></script>
   </body>
 </html>
