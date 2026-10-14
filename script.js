@@ -46,46 +46,72 @@ function ehFalhaDeRede(codigo, texto) {
   return /network|fetch|failed to fetch|timeout|ERR_NAME|ERR_INTERNET/i.test(String(codigo) + String(texto));
 }
 
-// erros do supabase e do postgres chegam em ingles e vazavam pro usuario
+// os erros do supabase chegam em ingles. traduzimos so os que o usuario
+// realmente precisa entender; o resto vira uma mensagem generica, porque
+// "duplicate key value violates unique constraint" nao ajuda ninguem.
 const ERROS_PT = {
-  '23505': 'Esse registro já existe. Verifique os dados e tente de novo.',
+  // banco
+  '23505': 'Esse dado já está cadastrado.',
   '23503': 'Esse item está ligado a outro registro e não pode ser alterado agora.',
   '23502': 'Faltou preencher um campo obrigatório.',
   '23514': 'Algum valor está fora do que é permitido.',
   '42501': 'Você não tem permissão para essa ação.',
-  '42P01': 'Erro interno de configuração. Avise a administração.',
   '22P02': 'Um dos valores enviados tem formato inválido.',
   '22001': 'O texto enviado é longo demais.',
-  'PGRST116': 'Não encontramos esse registro.',
-  'PGRST202': 'Função indisponível no momento. Avise a administração.',
-  'PGRST205': 'Erro interno de configuração. Avise a administração.',
+  // auth: e-mail ja cadastrado
+  'user_already_exists': 'Este e-mail já está cadastrado. Tente entrar ou recuperar a senha.',
+  'email_exists': 'Este e-mail já está cadastrado. Tente entrar ou recuperar a senha.',
+  // auth: senha
+  'weak_password': 'Sua senha é fraca. Use pelo menos 8 caracteres, com letras e números.',
+  // auth: e-mail
+  'email_address_invalid': 'Informe um e-mail válido.',
+  'validation_failed': 'Confira os dados preenchidos e tente de novo.',
+  'email_not_confirmed': 'Confirme seu e-mail antes de entrar.',
+  'invalid_credentials': 'E-mail ou senha incorretos.',
+  'over_email_send_rate_limit': 'Muitos e-mails enviados. Aguarde alguns minutos.',
+  'over_request_rate_limit': 'Muitas tentativas. Aguarde alguns minutos.',
+  // auth: sessao
+  'session_expired': 'Sua sessão expirou. Entre novamente.',
+  'refresh_token_not_found': 'Sua sessão expirou. Entre novamente.',
 };
 
 function mensagemDeErroSegura(error, alternativa) {
-  const padrao = alternativa || 'Não foi possível concluir. Tente novamente.';
+  const padrao = alternativa || 'Algo deu errado. Tente novamente em instantes.';
   const codigo = String(error?.code || error?.status || '');
-  const texto = String(error?.message || '');
+  const chave = String(error?.error_code || '');
+  const texto = String(error?.message || error?.msg || '');
 
+  // rede e limite primeiro: valem mais que o codigo
   if (ehFalhaDeRede(codigo, texto)) return 'Não foi possível conectar. Verifique sua internet e tente novamente.';
-  if (/rate|too many|429/i.test(codigo + texto)) return 'Muitas tentativas. Aguarde alguns minutos e tente novamente.';
+  if (/rate|too many|429/i.test(codigo + texto + chave)) return 'Muitas tentativas. Aguarde alguns minutos e tente novamente.';
+
+  // codigo exato do banco ou do auth
+  if (ERROS_PT[chave]) return ERROS_PT[chave];
   if (ERROS_PT[codigo]) return ERROS_PT[codigo];
-  if (/duplicate key|already exists/i.test(texto)) return ERROS_PT['23505'];
+
+  // mensagens em ingles que valem traduzir
+  if (/already registered|already exists|user_already/i.test(texto)) return ERROS_PT['user_already_exists'];
+  if (/duplicate key/i.test(texto)) return ERROS_PT['23505'];
+  if (/password should be at least|weak password/i.test(texto)) return ERROS_PT['weak_password'];
+  if (/unable to validate email|invalid email/i.test(texto)) return ERROS_PT['email_address_invalid'];
   if (/violates foreign key/i.test(texto)) return ERROS_PT['23503'];
   if (/violates row-level security|permission denied/i.test(texto)) return ERROS_PT['42501'];
-  if (/does not exist|schema cache/i.test(texto)) return 'Erro interno de configuração. Avise a administração.';
-  if (/invalid input syntax|invalid uuid/i.test(texto)) return ERROS_PT['22P02'];
   if (/value too long/i.test(texto)) return ERROS_PT['22001'];
-  if (/jwt|token|expired/i.test(texto)) return 'Sua sessão expirou. Entre novamente.';
+  if (/jwt|token.*expired|session.*expired/i.test(texto)) return 'Sua sessão expirou. Entre novamente.';
+
+  // qualquer outro erro tecnico fica generico de proposito
   return padrao;
 }
 
-// nao repassar o erro cru do supabase, ele diz se o email existe
+// mensagem do login: nao revela se o email existe
 function mensagemDeAuthSegura(error) {
   const codigo = String(error?.code || error?.status || '');
-  const texto = String(error?.message || '');
+  const chave = String(error?.error_code || '');
+  const texto = String(error?.message || error?.msg || '');
   if (/banned|banida/i.test(texto)) return texto;
   if (ehFalhaDeRede(codigo, texto)) return 'Não foi possível conectar. Verifique sua internet e tente novamente.';
-  if (/rate|too many|429/i.test(codigo + texto)) return 'Muitas tentativas. Aguarde alguns minutos e tente novamente.';
+  if (/rate|too many|429/i.test(codigo + texto + chave)) return 'Muitas tentativas. Aguarde alguns minutos e tente novamente.';
+  if (chave === 'email_not_confirmed') return 'Confirme seu e-mail antes de entrar.';
   return 'E-mail ou senha incorretos.';
 }
 
@@ -164,7 +190,26 @@ function getSession() {
 }
 
 function normalizeUsername(value) {
-  return String(value || '').trim().toLowerCase().replace(/^@+/, '').replace(/[^a-z0-9._]/g, '');
+  return String(value || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')   // tira acento: "joão" vira "joao", nao "joo"
+    .trim()
+    .toLowerCase()
+    .replace(/^@+/, '')
+    .replace(/[^a-z0-9._]/g, '');
+}
+
+// checagem unica de username. existe porque as duas copias que havia por ai
+// divergiam: a do perfil nao excluia o proprio usuario e travava quem tentava
+// salvar o mesmo nome de novo.
+async function garantirUsernameLivre(client, username, idAtual) {
+  let consulta = client.from('profiles').select('id').ilike('username', username);
+  if (idAtual) consulta = consulta.neq('id', idAtual);
+  const { data, error } = await consulta.limit(1);
+  if (error) throw new Error(mensagemDeErroSegura(error, 'Não foi possível verificar o nome de usuário. Tente novamente.'));
+  if (Array.isArray(data) && data.length) {
+    throw new Error('Este nome de usuário já está em uso. Escolha outro.');
+  }
 }
 
 function getFavoriteIds() {
@@ -480,9 +525,7 @@ async function registerWithSupabase(name, username, email, password, birthDate, 
   }
 
   const client = getSupabaseClient();
-  const { data: existingProfile, error: usernameCheckError } = await client.from('profiles').select('id').eq('username', normalizedUsername).maybeSingle();
-  if (usernameCheckError) throw new Error(`Não foi possível validar o nome de usuário: ${mensagemDeErroSegura(usernameCheckError)}`);
-  if (existingProfile) throw new Error('Este nome de usuário já está em uso. Escolha outro.');
+  await garantirUsernameLivre(client, normalizedUsername, null);
 
   const { data, error } = await client.auth.signUp({
     email,
@@ -506,8 +549,12 @@ async function registerWithSupabase(name, username, email, password, birthDate, 
       status: 'active'
     }).eq('id', userId);
     if (profileError) {
-      if (profileError.code === '23505') throw new Error('Este nome de usuário já está em uso. Escolha outro.');
-      throw new Error(`Não foi possível salvar o perfil: ${mensagemDeErroSegura(profileError)}`);
+      // o 23505 aqui e o indice do username. confere antes de acusar, senao
+      // qualquer outra constraint vira "nome de usuario ja em uso".
+      if (profileError.code === '23505') {
+        await garantirUsernameLivre(client, normalizedUsername, userId);
+      }
+      throw new Error(mensagemDeErroSegura(profileError, 'Não foi possível salvar o perfil. Tente novamente.'));
     }
   }
 
@@ -2296,25 +2343,21 @@ async function handleProfileUsernameSubmit(event) {
   const normalizedUsername = normalizeUsername(document.getElementById('profileUsername').value);
   if (!normalizedUsername) return showToast('Informe um nome de usuário válido.', 'error');
   try {
-    const { data: existingProfile, error: usernameCheckError } = await getSupabaseClient()
-      .from('profiles')
-      .select('id')
-      .eq('username', normalizedUsername)
-      .neq('id', session.userId)
-      .maybeSingle();
-    if (usernameCheckError) throw usernameCheckError;
-    if (existingProfile) return showToast('Este nome de usuário já está em uso. Escolha outro.', 'error');
+    await garantirUsernameLivre(getSupabaseClient(), normalizedUsername, session.userId);
 
     const { error } = await getSupabaseClient().from('profiles').update({ username: normalizedUsername }).eq('id', session.userId);
     if (error) {
-      if (error.code === '23505') throw new Error('Este nome de usuário já está em uso. Escolha outro.');
+      // confere de quem e a violacao antes de acusar o username
+      if (error.code === '23505') {
+        await garantirUsernameLivre(getSupabaseClient(), normalizedUsername, session.userId);
+      }
       throw new Error(mensagemDeErroSegura(error));
     }
     saveSession({ ...session, id: session.userId, username: normalizedUsername });
     document.getElementById('profileUsername').value = normalizedUsername;
     showToast('Nome de usuário atualizado com sucesso.');
   } catch (error) {
-    showToast(`Não foi possível atualizar o nome de usuário: ${mensagemDeErroSegura(error)}`, 'error');
+    showToast(mensagemDeErroSegura(error, 'Não foi possível atualizar o nome de usuário.'));
   }
 }
 
