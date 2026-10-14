@@ -1492,6 +1492,28 @@ body[data-animal-type="Cachorro"] .category-filters {
   padding-bottom: 6px;
 }
 
+/* menu sem busca (listas curtas tipo Sim/Nao/Tanto faz): mais leve e direto */
+.custom-select-menu--curto {
+  max-height: 260px;
+  padding: 5px;
+}
+
+.custom-select-menu--curto .custom-select-options {
+  max-height: 250px;
+  padding-bottom: 0;
+}
+
+.custom-select-menu--curto .custom-select-option {
+  border-radius: var(--r-input);
+  padding: 11px 12px;
+}
+
+.custom-select-menu--curto .custom-select-option[aria-selected="true"] {
+  background: var(--surface-warm);
+  color: var(--primary-dark);
+  font-weight: 800;
+}
+
 .custom-select-option {
   display: block;
   width: 100%;
@@ -2910,12 +2932,19 @@ body[data-animal-type="Cachorro"] .category-filters {
 /* painel de filtros: fechado por padrao. abre com transicao real de altura
    (grid-template-rows 0fr -> 1fr), que e animavel sem medir pixel no js. */
 .filtros {
+  position: relative;
+  z-index: 20;          /* mantem o dropdown acima dos cards seguintes */
   margin: 26px 0 10px;
   padding: 18px 20px;
   background: var(--surface);
   border: 1px solid var(--line);
   border-radius: var(--r-card);
   box-shadow: var(--shadow-soft);
+}
+
+/* com um select aberto, o painel sobe na frente de tudo que vem depois */
+.filtros:has(.custom-select.is-open) {
+  z-index: 90;
 }
 
 .filtros-topo {
@@ -2982,7 +3011,10 @@ body[data-animal-type="Cachorro"] .category-filters {
 }
 
 /* a caixa anima a altura. o filho precisa de min-height: 0 e overflow hidden
-   para o 0fr realmente colapsar. */
+   para o 0fr realmente colapsar.
+   ATENCAO: overflow hidden corta o menu suspenso dos selects, que e position
+   absolute. Por isso ele so vale enquanto a caixa esta fechada ou animando;
+   aberta e parada, o overflow volta a visible. */
 .filtros-caixa {
   display: grid;
   grid-template-rows: 0fr;
@@ -2999,6 +3031,12 @@ body[data-animal-type="Cachorro"] .category-filters {
 .filtros-caixa[data-estado="aberto"] {
   grid-template-rows: 1fr;
   opacity: 1;
+}
+
+/* aberto e sem animacao em curso: libera o overflow para o dropdown aparecer
+   inteiro, em vez de recortado dentro do painel */
+.filtros-caixa[data-estado="aberto"][data-aberto="sim"] > .filtros-campos {
+  overflow: visible;
 }
 
 /* sem animacao no primeiro desenho, senao o painel "pula" ao carregar a pagina */

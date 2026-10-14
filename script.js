@@ -1799,6 +1799,14 @@ function restaurarFiltrosDaSessao() {
   return algum;
 }
 
+// sincroniza o dropdown com o valor do select nativo.
+// o texto vive no proprio botao (nao existe .custom-select-label), e usamos o
+// evento proprio do componente para nao disparar 'change' e refazer a busca.
+function sincronizarSelectCustomizado(campo) {
+  if (!campo) return;
+  campo.dispatchEvent(new Event('customselect:refresh'));
+}
+
 function limparFiltros() {
   // estado e cidade ficam de fora: trocar de regiao e uma acao a parte
   [
@@ -1808,14 +1816,9 @@ function limparFiltros() {
     'categoryWithCats', 'categorySpecial',
   ].forEach((id) => {
     const campo = document.getElementById(id);
-    if (campo) campo.value = '';
-    // selects customizados guardam o rotulo em outro elemento
-    const wrapper = campo?.closest('.custom-select');
-    if (wrapper) {
-      const rotulo = wrapper.querySelector('.custom-select-label');
-      const opcao = wrapper.querySelector('.custom-select-option');
-      if (rotulo && opcao) rotulo.textContent = opcao.textContent;
-    }
+    if (!campo) return;
+    campo.value = '';
+    sincronizarSelectCustomizado(campo);
   });
   limparBuscaDeSelectCustomizado();
   try { sessionStorage.removeItem(CHAVE_FILTROS); } catch (e) { /* ignora */ }
@@ -2067,6 +2070,8 @@ async function setupCategoryPage() {
   const caixa = document.getElementById('filtrosCaixa');
   const toggle = document.getElementById('filtrosToggle');
   const rotuloToggle = toggle?.querySelector('.filtros-toggle-texto');
+  let liberaOverflow = null;
+
   const definirAberto = (aberto, animar) => {
     if (!caixa || !toggle) return;
     caixa.dataset.estado = aberto ? 'aberto' : 'fechado';
@@ -2075,6 +2080,19 @@ async function setupCategoryPage() {
     // enquanto fechado, o conteudo nao recebe foco pelo teclado
     if (aberto) caixa.removeAttribute('inert');
     else caixa.setAttribute('inert', '');
+
+    // o overflow precisa voltar a hidden durante a animacao (senao o 0fr nao
+    // colapsa) e a visible depois, senao o dropdown do select fica recortado.
+    window.clearTimeout(liberaOverflow);
+    delete caixa.dataset.aberto;
+    if (aberto) {
+      const liberar = () => { caixa.dataset.aberto = 'sim'; };
+      // com menos movimento a animacao e instantanea: nao faz sentido esperar
+      const semMovimento = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      if (animar && !semMovimento) liberaOverflow = window.setTimeout(liberar, 560);
+      else liberar();
+    }
+
     if (!animar) caixa.dataset.semAnimacao = '';
   };
   definirAberto(false, false);
@@ -2094,14 +2112,10 @@ async function setupCategoryPage() {
   document.getElementById('filtrosAtivos')?.addEventListener('click', (evento) => {
     const chip = evento.target.closest('[data-limpar-filtro]');
     if (!chip) return;
-    const chave = chip.dataset.limparFiltro;
-    const campo = document.getElementById(IDS_CAMPOS_FILTRO[chave]);
+    const campo = document.getElementById(IDS_CAMPOS_FILTRO[chip.dataset.limparFiltro]);
     if (campo) {
       campo.value = '';
-      const wrapper = campo.closest('.custom-select');
-      const rotulo = wrapper?.querySelector('.custom-select-label');
-      const primeira = wrapper?.querySelector('.custom-select-option');
-      if (rotulo && primeira) rotulo.textContent = primeira.textContent;
+      sincronizarSelectCustomizado(campo);
     }
     buscar(true);
   });
@@ -2245,6 +2259,12 @@ function initCustomSelects() {
         });
         options.appendChild(item);
       });
+      // busca so ajuda quando a lista e longa. em lista de 3 opcoes (Sim/Nao/
+      // Tanto faz) ela so ocupava espaco e deixava o menu pesado.
+      const valeBuscar = select.options.length > 6;
+      search.hidden = !valeBuscar;
+      search.setAttribute('aria-hidden', String(!valeBuscar));
+      menu.classList.toggle('custom-select-menu--curto', !valeBuscar);
     };
     const close = () => {
       menu.hidden = true;
@@ -2258,7 +2278,16 @@ function initCustomSelects() {
       document.querySelectorAll('.custom-select-menu:not([hidden])').forEach((openMenu) => { openMenu.hidden = true; openMenu.parentElement.classList.remove('is-open'); });
       menu.hidden = !willOpen;
       wrapper.classList.toggle('is-open', willOpen);
-      if (willOpen) search.focus();
+      if (willOpen) {
+        // menu curto nao tem busca: o foco vai para a opcao atual
+        if (search.hidden) {
+          const atual = options.querySelector('.custom-select-option[aria-selected="true"]')
+            || options.querySelector('.custom-select-option:not([hidden])');
+          atual?.focus();
+        } else {
+          search.focus();
+        }
+      }
     });
     search.addEventListener('input', () => {
       const query = normalizeSelectSearch(search.value);
