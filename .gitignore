@@ -30,3 +30,4 @@ Desktop.ini
 # Backups locais
 *.bak
 .supabase
+.agent

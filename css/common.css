@@ -65,7 +65,14 @@ html {
 
 body {
   min-height: 100vh;
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
   overflow-x: hidden;
+}
+
+main {
+  flex: 1 0 auto;
 }
 
 .container {
@@ -451,6 +458,10 @@ textarea,
 
 .admin-shell {
   min-height: 100vh;
+  min-height: 100dvh;
+  flex: 1 0 auto;
+  display: flex;
+  flex-direction: column;
   background: #f9fafb;
 }
 
@@ -763,6 +774,7 @@ th {
 }
 
 .home-header {
+  flex-shrink: 0;
   background: rgba(255, 255, 255, 0.85);
   backdrop-filter: blur(14px);
   border-bottom: 1px solid rgba(31, 27, 27, 0.05);
@@ -2144,6 +2156,8 @@ body[data-animal-type="Cachorro"] .category-filters {
 }
 
 .home-footer {
+  margin-top: auto;
+  flex-shrink: 0;
   border-top: 1px solid rgba(31, 27, 27, 0.05);
   background: #fff;
 }

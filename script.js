@@ -7,6 +7,8 @@ const STORAGE_KEYS = {
   favorites: 'petamor_favorites'
 };
 
+const DEFAULT_AVATAR_URL = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 96 96'%3E%3Crect width='96' height='96' fill='%23fff1e4'/%3E%3Cg fill='%23d9611b' opacity='0.55'%3E%3Cellipse cx='48' cy='61' rx='19' ry='15'/%3E%3Cellipse cx='26' cy='40' rx='8' ry='10'/%3E%3Cellipse cx='43' cy='30' rx='8' ry='10.5'/%3E%3Cellipse cx='61' cy='32' rx='8' ry='10.5'/%3E%3Cellipse cx='74' cy='45' rx='7.5' ry='9.5'/%3E%3C/g%3E%3C/svg%3E";
+
 const ALLOWED_EMAIL_DOMAINS = ['gmail.com', 'outlook.com', 'hotmail.com', 'yahoo.com', 'icloud.com', 'live.com'];
 const FEED_PAGE_SIZE = 10;
 let feedCurrentPage = 0;
@@ -313,7 +315,7 @@ function renderAuthorBar(profile) {
   const authorProfile = Array.isArray(profile) ? profile[0] : profile;
   const firstName = authorProfile?.full_name?.split(' ')[0] || 'Usuário';
   const username = authorProfile?.username ? `@${escapeHTML(authorProfile.username.replace(/^@/, ''))}` : '';
-  const avatarUrl = authorProfile?.avatar_url || 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96"><rect width="96" height="96" fill="%23fff1e4"/><g fill="%23d9611b" opacity="0.55"><ellipse cx="48" cy="61" rx="19" ry="15"/><ellipse cx="26" cy="40" rx="8" ry="10"/><ellipse cx="43" cy="30" rx="8" ry="10.5"/><ellipse cx="61" cy="32" rx="8" ry="10.5"/><ellipse cx="74" cy="45" rx="7.5" ry="9.5"/></g></svg>';
+  const avatarUrl = authorProfile?.avatar_url || DEFAULT_AVATAR_URL;
   return `<div class="post-author-bar"><img class="post-author-avatar" src="${escapeHTML(avatarUrl)}" alt="Foto de ${escapeHTML(firstName)}"><strong class="post-author-name">${escapeHTML(firstName)}</strong>${username ? `<small class="post-author-username">${escapeHTML(username)}</small>` : ''}</div>`;
 }
 
@@ -682,7 +684,7 @@ async function updateHomeUserActions() {
   }
 
   const isAdmin = await isCurrentUserAdmin();
-  const avatarUrl = session.avatar_url || 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96"><rect width="96" height="96" fill="%23fff1e4"/><g fill="%23d9611b" opacity="0.55"><ellipse cx="48" cy="61" rx="19" ry="15"/><ellipse cx="26" cy="40" rx="8" ry="10"/><ellipse cx="43" cy="30" rx="8" ry="10.5"/><ellipse cx="61" cy="32" rx="8" ry="10.5"/><ellipse cx="74" cy="45" rx="7.5" ry="9.5"/></g></svg>';
+  const avatarUrl = session.avatar_url || DEFAULT_AVATAR_URL;
   actionsNode.innerHTML = `
     ${isAdmin ? '<a href="admin/admin.html" class="btn btn-primary">Dashboard admin</a>' : ''}
     <a href="publicacoes/create-post.html" class="btn btn-primary">Criar publicação</a>
@@ -738,7 +740,7 @@ function setupScrollReveal() {
 
 // imagem quebrada vira uma pata, sem loop infinito
 function setupImageFallbacks() {
-  const PLACEHOLDER = 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96"><rect width="96" height="96" fill="%23fff1e4"/><g fill="%23d9611b" opacity="0.55"><ellipse cx="48" cy="61" rx="19" ry="15"/><ellipse cx="26" cy="40" rx="8" ry="10"/><ellipse cx="43" cy="30" rx="8" ry="10.5"/><ellipse cx="61" cy="32" rx="8" ry="10.5"/><ellipse cx="74" cy="45" rx="7.5" ry="9.5"/></g></svg>';
+  const PLACEHOLDER = DEFAULT_AVATAR_URL;
   document.addEventListener('error', (event) => {
     const alvo = event.target;
     if (!(alvo instanceof HTMLImageElement)) return;
@@ -3006,7 +3008,7 @@ function setupProfilePage() {
   const session = redirectIfLoggedOut();
   if (!session) return;
   const avatarPreview = document.getElementById('profileAvatarPreview');
-  avatarPreview.src = session.avatar_url || 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96"><rect width="96" height="96" fill="%23fff1e4"/><g fill="%23d9611b" opacity="0.55"><ellipse cx="48" cy="61" rx="19" ry="15"/><ellipse cx="26" cy="40" rx="8" ry="10"/><ellipse cx="43" cy="30" rx="8" ry="10.5"/><ellipse cx="61" cy="32" rx="8" ry="10.5"/><ellipse cx="74" cy="45" rx="7.5" ry="9.5"/></g></svg>';
+  avatarPreview.src = session.avatar_url || DEFAULT_AVATAR_URL;
   document.getElementById('profileName').textContent = session.name;
   document.getElementById('profileEmail').value = session.email || '';
   document.getElementById('profileUsername').value = session.username || '';
