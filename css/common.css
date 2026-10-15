@@ -178,7 +178,19 @@ textarea,
 }
 
 .auth-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
   transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.auth-brand-logo {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  object-fit: cover;
+  display: block;
+  flex-shrink: 0;
 }
 
 .auth-brand:hover {
@@ -481,6 +493,15 @@ textarea,
   align-items: center;
   gap: 10px;
   font-weight: 800;
+}
+
+.brand-mark {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  object-fit: cover;
+  display: block;
+  flex-shrink: 0;
 }
 
 .brand-icon {
