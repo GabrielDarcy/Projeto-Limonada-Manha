@@ -265,8 +265,27 @@ function favoriteButtonHTML(postId) {
   return `<button class="favorite-button${favorite ? ' is-favorite' : ''}" type="button" data-favorite-id="${escapeHTML(postId)}" aria-label="${favorite ? 'Remover dos favoritos' : 'Adicionar aos favoritos'}" aria-pressed="${favorite}">${icon}</button>`;
 }
 
+function getPostShareUrl(post) {
+  if (!post || !post.id) return window.location.href;
+  const categoryMap = {
+    'Cachorro': 'animais/cachorro.html',
+    'Gato': 'animais/gato.html',
+    'Fazenda': 'animais/fazenda.html',
+    'Exótico': 'animais/exotico.html',
+    'Marinho': 'animais/marinho.html',
+    'Outros': 'animais/outros.html'
+  };
+  const targetPage = categoryMap[post.animal_type] || 'index.html';
+  const base = document.baseURI || window.location.href;
+  try {
+    return new URL(`${targetPage}?post=${encodeURIComponent(post.id)}`, base).href;
+  } catch (e) {
+    return `${window.location.origin}/${targetPage}?post=${encodeURIComponent(post.id)}`;
+  }
+}
+
 function shareButtonHTML(post) {
-  const postUrl = `${window.location.origin}${window.location.pathname}?post=${encodeURIComponent(post.id)}`;
+  const postUrl = getPostShareUrl(post);
   return `<button class="share-button" type="button" data-share-post="${escapeHTML(post.id)}" data-share-title="${escapeHTML(post.title || 'Pet Amor')}" data-share-text="${escapeHTML(post.description || '')}" data-share-url="${escapeHTML(postUrl)}" aria-label="Compartilhar publicação" title="Compartilhar"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 8a3 3 0 1 0-2.83-4A3 3 0 0 0 15 5c0 .18.02.36.05.53L8.91 9.05A3 3 0 1 0 9 12c0-.18-.02-.36-.05-.53l6.14-3.52c.52.65 1.32 1.05 2.22 1.05Zm0 8a3 3 0 0 0-2.83 2L9.03 14.5A3 3 0 1 0 8 16c.18 0 .36-.02.53-.05l6.14 3.52A3 3 0 1 0 18 16Z"></path></svg></button>`;
 }
 
@@ -2118,6 +2137,8 @@ async function renderFavorites() {
     return;
   }
 
+  target.innerHTML = '<div class="empty-state">Carregando seus favoritos...</div>';
+
   const { data, error } = await getSupabaseClient().from('posts').select('*, profiles(full_name, username, avatar_url)').in('id', favoriteIds);
   if (error) {
     target.innerHTML = `<div class="empty-state">Não foi possível carregar seus favoritos: ${escapeHTML(error.message)}</div>`;
@@ -2131,24 +2152,35 @@ async function renderFavorites() {
   const orderedPosts = favoriteIds.map((id) => data.find((post) => String(post.id) === id)).filter(Boolean);
   const validFavoriteIds = orderedPosts.map((post) => String(post.id));
   if (validFavoriteIds.length !== favoriteIds.length) await persistFavoriteIds(validFavoriteIds);
+
+  const postsById = new Map(orderedPosts.map((post) => [String(post.id), post]));
+
   target.innerHTML = orderedPosts.map((post) => `
-    <article class="recent-post-card ${post.status === 'adopted' ? 'adopted-card' : ''}">
+    <article class="recent-post-card profile-post-card ${post.status === 'adopted' ? 'adopted-card' : ''}" data-card-post-id="${escapeHTML(post.id)}">
       <div class="card-utility-actions">${favoriteButtonHTML(post.id)}${shareButtonHTML(post)}</div>
       ${post.status === 'adopted' ? '<div class="adopted-ribbon">Adotado</div>' : ''}
-      ${generateImageCarouselHTML(post.image_urls, post.title)}
-      <div class="recent-post-body">
+      <div class="post-card-media-trigger" data-post-details="${escapeHTML(post.id)}" style="cursor: pointer;" title="Clique para ver detalhes">
+        ${generateImageCarouselHTML(post.image_urls, post.title)}
+      </div>
+      <div class="recent-post-body profile-post-card-body">
         ${renderAuthorBar(post.profiles)}
         <span class="mini-tag">${escapeHTML(formatAnimalType(post.animal_type))}</span>
-        <h3>${escapeHTML(post.title)}</h3>
+        <h3 class="post-card-title-trigger" data-post-details="${escapeHTML(post.id)}" style="cursor: pointer;" title="Clique para ver detalhes">${escapeHTML(post.title)}</h3>
         <span class="recent-post-location"><svg class="pin-icon" viewBox="0 0 24 24" width="14" height="14" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 5.2-8 12-8 12s-8-6.8-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="2.6"/></svg> ${escapeHTML(formatPostLocation(post))}</span>
         ${post.status === 'active' ? `<div class="post-action-row"><button class="btn btn-secondary" type="button" data-post-details="${escapeHTML(post.id)}">Ver detalhes</button>${postActionButtonsHTML(post, podeAdministrarAgora())}</div>` : ''}
       </div>
     </article>
   `).join('');
+
   bindAdoptionButtons(target, orderedPosts.filter((post) => post.status === 'active'));
-  const postsById = new Map(orderedPosts.map((post) => [String(post.id), post]));
-  target.querySelectorAll('[data-post-details]').forEach((button) => {
-    button.addEventListener('click', () => openAdoptionModal(postsById.get(button.dataset.postDetails)));
+
+  target.querySelectorAll('[data-post-details]').forEach((trigger) => {
+    trigger.addEventListener('click', (e) => {
+      if (e.target.closest('[data-carousel-action], [data-carousel-dot]')) return;
+      const postId = trigger.dataset.postDetails;
+      const post = postsById.get(String(postId));
+      if (post) openAdoptionModal(post);
+    });
   });
 }
 
@@ -2925,37 +2957,7 @@ async function renderUserPosts() {
 }
 
 async function renderProfileFavorites() {
-  const target = document.getElementById('profileFavoritePosts');
-  const session = getSession();
-  if (!target || !session) return;
-  const favoriteIds = getFavoriteIds();
-  if (!favoriteIds.length) {
-    target.innerHTML = '<div class="empty-state">Você ainda não favoritou nenhum animal.</div>';
-    return;
-  }
-  const { data, error } = await getSupabaseClient().from('posts').select('*, profiles(full_name, username, avatar_url)').in('id', favoriteIds);
-  if (error) {
-    target.innerHTML = `<div class="empty-state">Não foi possível carregar seus favoritos: ${escapeHTML(error.message)}</div>`;
-    return;
-  }
-  const orderedPosts = favoriteIds.map((id) => data?.find((post) => String(post.id) === id)).filter(Boolean);
-  const validFavoriteIds = orderedPosts.map((post) => String(post.id));
-  if (validFavoriteIds.length !== favoriteIds.length) await persistFavoriteIds(validFavoriteIds);
-  target.innerHTML = orderedPosts.map((post) => `
-    <article class="profile-post-card ${post.status === 'adopted' ? 'adopted-card' : ''}">
-      <div class="card-utility-actions">${favoriteButtonHTML(post.id)}${shareButtonHTML(post)}</div>
-      ${post.status === 'adopted' ? '<div class="adopted-ribbon">Adotado</div>' : ''}
-      ${generateImageCarouselHTML(post.image_urls, post.title)}
-      <div class="profile-post-card-body">
-        ${renderAuthorBar(post.profiles)}
-        <span class="mini-tag">${escapeHTML(formatAnimalType(post.animal_type))}</span>
-        <h3>${escapeHTML(post.title)}</h3>
-        <p><svg class="pin-icon" viewBox="0 0 24 24" width="14" height="14" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 5.2-8 12-8 12s-8-6.8-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="2.6"/></svg> ${escapeHTML(formatPostLocation(post))}</p>
-        ${post.status === 'active' ? postActionHTML(post, podeAdministrarAgora()) : ''}
-      </div>
-    </article>
-  `).join('');
-  bindAdoptionButtons(target, orderedPosts.filter((post) => post.status === 'active'));
+  return renderFavorites();
 }
 
 function setupProfilePage() {
