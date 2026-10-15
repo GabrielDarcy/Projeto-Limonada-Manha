@@ -791,6 +791,40 @@ function setupSupportModal() {
     });
   });
 
+  const copyPixButton = document.getElementById('copyPixKeyButton');
+  if (copyPixButton) {
+    copyPixButton.addEventListener('click', async () => {
+      const key = copyPixButton.dataset.pixKey || 'e584eb30-3b18-4eea-94a1-edaa5defa928';
+      try {
+        if (navigator.clipboard && window.isSecureContext) {
+          await navigator.clipboard.writeText(key);
+        } else {
+          const tempInput = document.createElement('textarea');
+          tempInput.value = key;
+          tempInput.style.position = 'fixed';
+          tempInput.style.left = '-9999px';
+          document.body.appendChild(tempInput);
+          tempInput.focus();
+          tempInput.select();
+          document.execCommand('copy');
+          document.body.removeChild(tempInput);
+        }
+
+        const labelSpan = copyPixButton.querySelector('span');
+        const originalText = labelSpan ? labelSpan.textContent : copyPixButton.textContent;
+        if (labelSpan) labelSpan.textContent = 'Chave copiada! ✓';
+        showToast('Chave PIX copiada com sucesso!');
+
+        setTimeout(() => {
+          if (labelSpan) labelSpan.textContent = originalText;
+        }, 2500);
+      } catch (error) {
+        console.error('Erro ao copiar chave PIX:', error);
+        showToast('Não foi possível copiar a chave PIX.', 'error');
+      }
+    });
+  }
+
   document.getElementById('supportContactLink')?.addEventListener('click', (event) => {
     event.preventDefault();
     openModal(contactModal);

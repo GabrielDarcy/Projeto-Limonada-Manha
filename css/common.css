@@ -2166,6 +2166,47 @@ body[data-animal-type="Cachorro"] .category-filters {
   box-sizing: border-box;
 }
 
+.pix-copy-action {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.pix-copy-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  cursor: pointer;
+  padding: 10px 24px;
+  font-size: 0.95rem;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.pix-copy-btn:hover {
+  transform: translateY(-2px);
+}
+
+.pix-copy-btn svg {
+  flex-shrink: 0;
+}
+
+.pix-key-display {
+  display: block;
+  font-family: monospace;
+  font-size: 0.82rem;
+  color: var(--muted);
+  word-break: break-all;
+  user-select: all;
+  background: #fff4ea;
+  padding: 6px 14px;
+  border-radius: var(--r-pill);
+  border: 1px dashed rgba(184, 73, 15, 0.28);
+  max-width: 100%;
+}
+
 .pix-placeholder {
   display: grid;
   place-items: center;
