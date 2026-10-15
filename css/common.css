@@ -326,8 +326,11 @@ textarea,
   display: flex;
   flex-wrap: wrap;
   gap: 12px;
+  list-style: none;
+  padding: 0;
 }
 
+.mini-feature-list li,
 .mini-feature-list span {
   background: rgba(255, 255, 255, 0.65);
   border: 1px solid rgba(31, 27, 27, 0.05);
@@ -533,10 +536,13 @@ textarea,
   padding: 24px;
 }
 
-.stat-card span {
+.stat-card span,
+.stat-card p,
+.stat-card .stat-label {
   display: block;
   font-size: 0.85rem;
   color: var(--muted);
+  margin-top: 0;
   margin-bottom: 8px;
   font-weight: 700;
 }
@@ -660,15 +666,32 @@ th {
   gap: 5px;
 }
 
-.admin-user-result span {
+.admin-user-result span,
+.admin-user-result p {
   color: var(--muted);
   font-size: 0.86rem;
+  margin: 0;
 }
 
 .admin-user-posts {
   grid-column: 1 / -1;
   padding-top: 12px;
   border-top: 1px solid rgba(31, 27, 27, 0.08);
+}
+
+.admin-user-posts ul {
+  list-style: none;
+  padding: 0;
+  margin: 4px 0 0;
+  display: grid;
+  gap: 4px;
+}
+
+.admin-user-posts li,
+.admin-user-posts p {
+  color: var(--muted);
+  font-size: 0.86rem;
+  margin: 0;
 }
 
 .admin-search-message { color: var(--muted); }
@@ -727,14 +750,15 @@ th {
 
   .mobile-bottom-nav .nav-item {
     color: var(--muted);
-    font-size: 1.15rem;
-    font-weight: 800;
+    font-size: var(--t-xs);
+    font-weight: 700;
     line-height: 1.1;
     text-align: center;
   }
 
   .mobile-bottom-nav .nav-item span {
-    font-size: var(--t-xs);
+    font-size: inherit;
+    font-weight: inherit;
   }
 }
 
@@ -828,9 +852,11 @@ th {
   font-variant-numeric: tabular-nums;
 }
 
-.home-stats span {
+.home-stats span,
+.home-stats p {
   color: var(--muted);
   font-size: var(--t-sm);
+  margin: 0;
 }
 
 
@@ -855,13 +881,6 @@ th {
   width: 100%;
   height: 560px;
   object-fit: cover;
-  
-  animation: hero-photo 16s var(--ease-out) 1 both;
-}
-
-@keyframes hero-photo {
-  from { transform: scale(1.06); }
-  to   { transform: scale(1); }
 }
 
 .floating-tag {
@@ -916,6 +935,29 @@ th {
 .text-link {
   color: var(--primary-dark);
   font-weight: 800;
+}
+
+.section-subtitle {
+  color: var(--muted);
+  font-size: var(--t-sm);
+  margin: 0;
+  font-weight: 600;
+}
+
+.category-action {
+  display: inline-block;
+  background: #f5f2ee;
+  border-radius: var(--r-pill);
+  padding: 0.45rem 0.75rem;
+  color: var(--muted);
+  font-weight: 700;
+  font-size: var(--t-xs);
+  transition: background 0.2s ease, color 0.2s ease;
+}
+
+.category-card:hover .category-action {
+  background: #faebe0;
+  color: var(--primary-dark);
 }
 
 .recent-posts-grid {
@@ -1321,10 +1363,12 @@ th {
   font-size: 0.95rem;
 }
 
-.maintenance-list li span {
+.maintenance-list li span,
+.maintenance-list li p {
   color: var(--muted);
   font-size: 0.85rem;
   line-height: 1.5;
+  margin: 0;
 }
 
 /* Cards de Formas de Apoio - Seção Unificada Como Ajudar (Adaptação Fluida) */
@@ -1942,7 +1986,7 @@ body[data-animal-type="Cachorro"] .category-filters {
 }
 
 .category-card:hover {
-  transform: translateY(-5px);
+  transform: translateY(-2px);
   box-shadow: var(--shadow);
 }
 

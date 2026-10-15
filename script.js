@@ -314,7 +314,7 @@ function renderAuthorBar(profile) {
   const firstName = authorProfile?.full_name?.split(' ')[0] || 'Usuário';
   const username = authorProfile?.username ? `@${escapeHTML(authorProfile.username.replace(/^@/, ''))}` : '';
   const avatarUrl = authorProfile?.avatar_url || 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96"><rect width="96" height="96" fill="%23fff1e4"/><g fill="%23d9611b" opacity="0.55"><ellipse cx="48" cy="61" rx="19" ry="15"/><ellipse cx="26" cy="40" rx="8" ry="10"/><ellipse cx="43" cy="30" rx="8" ry="10.5"/><ellipse cx="61" cy="32" rx="8" ry="10.5"/><ellipse cx="74" cy="45" rx="7.5" ry="9.5"/></g></svg>';
-  return `<div class="post-author-bar"><img class="post-author-avatar" src="${escapeHTML(avatarUrl)}" alt="Foto de ${escapeHTML(firstName)}"><span class="post-author-name">${escapeHTML(firstName)}</span>${username ? `<span class="post-author-username">${escapeHTML(username)}</span>` : ''}</div>`;
+  return `<div class="post-author-bar"><img class="post-author-avatar" src="${escapeHTML(avatarUrl)}" alt="Foto de ${escapeHTML(firstName)}"><strong class="post-author-name">${escapeHTML(firstName)}</strong>${username ? `<small class="post-author-username">${escapeHTML(username)}</small>` : ''}</div>`;
 }
 
 function sortPostsByProximity(posts, cityValue) {
@@ -758,25 +758,55 @@ function setupMobileNavCurrent() {
 
 function setupSupportModal() {
   const modal = document.getElementById('supportModal');
+  const contactModal = document.getElementById('contactModal');
+
+  function openModal(target) {
+    if (!target) return;
+    target.hidden = false;
+    document.body.classList.add('modal-open');
+    document.documentElement.classList.add('modal-open');
+  }
+
+  function closeModal(target) {
+    if (!target) return;
+    target.hidden = true;
+    const adoptionModal = document.getElementById('adoptionModal');
+    const isAnyModalOpen = (!modal?.hidden) || (!contactModal?.hidden) || (!adoptionModal?.hidden);
+    if (!isAnyModalOpen) {
+      document.body.classList.remove('modal-open');
+      document.documentElement.classList.remove('modal-open');
+    }
+  }
+
   const openButton = document.getElementById('helpSiteButton');
-  if (modal && openButton) openButton.addEventListener('click', () => { modal.hidden = false; });
+  if (modal && openButton) openButton.addEventListener('click', () => { openModal(modal); });
+
   document.querySelectorAll('[data-help-reason]').forEach((button) => {
     button.addEventListener('click', () => {
       const message = document.getElementById('supportModalMessage');
       if (message) message.textContent = `Que lindo! Sua ajuda com ${button.dataset.helpReason} mantém o Pet Amor vivo. Obrigado por cuidar com a gente!`;
-      if (modal) modal.hidden = false;
+      openModal(modal);
     });
   });
-  const contactModal = document.getElementById('contactModal');
+
   document.getElementById('supportContactLink')?.addEventListener('click', (event) => {
     event.preventDefault();
-    if (contactModal) contactModal.hidden = false;
+    openModal(contactModal);
   });
+
   modal?.querySelectorAll('[data-support-close]').forEach((element) => {
-    element.addEventListener('click', () => { modal.hidden = true; });
+    element.addEventListener('click', () => { closeModal(modal); });
   });
+
   contactModal?.querySelectorAll('[data-contact-close]').forEach((element) => {
-    element.addEventListener('click', () => { contactModal.hidden = true; });
+    element.addEventListener('click', () => { closeModal(contactModal); });
+  });
+
+  document.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape') {
+      if (modal && !modal.hidden) closeModal(modal);
+      if (contactModal && !contactModal.hidden) closeModal(contactModal);
+    }
   });
 }
 
@@ -918,7 +948,17 @@ async function searchAdminUsers(queryValue) {
     target.innerHTML = '<p class="admin-search-message">Nenhum usuário encontrado.</p>';
     return;
   }
-  target.innerHTML = users.map((user) => `<article class="admin-user-result" data-user-id="${escapeHTML(user.id)}"><div><strong>${escapeHTML(user.full_name || 'Sem nome')}</strong><span>${escapeHTML(user.email || '')} · @${escapeHTML(user.username || 'sem username')}</span><span>Nascimento: ${escapeHTML(user.birth_date || 'Não informado')}</span><span>Status: ${escapeHTML(user.status || 'active')}</span></div><button class="admin-btn danger" type="button" data-action="ban-user" data-id="${escapeHTML(user.id)}" ${user.status === 'banned' ? 'disabled' : ''}>${user.status === 'banned' ? 'Banido' : 'Banir'}</button><div class="admin-user-posts" data-posts-for="${escapeHTML(user.id)}"><span>Carregando publicações...</span></div></article>`).join('');
+  target.innerHTML = users.map((user) => `
+    <article class="admin-user-result" data-user-id="${escapeHTML(user.id)}">
+      <div>
+        <strong>${escapeHTML(user.full_name || 'Sem nome')}</strong>
+        <p class="admin-user-info">${escapeHTML(user.email || '')} · @${escapeHTML(user.username || 'sem username')}</p>
+        <p class="admin-user-meta">Nascimento: ${escapeHTML(user.birth_date || 'Não informado')} · Status: ${escapeHTML(user.status || 'active')}</p>
+      </div>
+      <button class="admin-btn danger" type="button" data-action="ban-user" data-id="${escapeHTML(user.id)}" ${user.status === 'banned' ? 'disabled' : ''}>${user.status === 'banned' ? 'Banido' : 'Banir'}</button>
+      <div class="admin-user-posts" data-posts-for="${escapeHTML(user.id)}"><p>Carregando publicações...</p></div>
+    </article>
+  `).join('');
   users.forEach((user) => loadAdminUserPosts(user.id));
 }
 
@@ -930,7 +970,9 @@ async function loadAdminUserPosts(userId) {
     target.textContent = 'Não foi possível carregar as publicações.';
     return;
   }
-  target.innerHTML = posts?.length ? `<strong>Publicações</strong>${posts.map((post) => `<span>${escapeHTML(post.title)} · ${escapeHTML(post.status || 'active')}</span>`).join('')}` : '<span>Nenhuma publicação.</span>';
+  target.innerHTML = posts?.length
+    ? `<strong>Publicações</strong><ul>${posts.map((post) => `<li>${escapeHTML(post.title)} · ${escapeHTML(post.status || 'active')}</li>`).join('')}</ul>`
+    : '<p>Nenhuma publicação.</p>';
 }
 
 async function banAdminUser(userId) {
@@ -997,11 +1039,11 @@ function renderCopyableContacts(post) {
     const match = contact.match(/^(Tel|Telefone|Email|E-mail|IG|Instagram)\s*:\s*(.+)$/i);
     const value = match?.[2]?.trim() || contact;
     return `<button type="button" class="copy-contact-btn" data-copy="${escapeHTML(value)}">${escapeHTML(contact)}</button>`;
-  }).join('') || '<span class="contact-empty">Contato não informado</span>';
+  }).join('') || '<p class="contact-empty">Contato não informado</p>';
 }
 
 function renderContactItems(post) {
-  return getContactItems(post).map((item) => `<span>${escapeHTML(item)}</span>`).join('');
+  return getContactItems(post).map((item) => `<p class="contact-item">${escapeHTML(item)}</p>`).join('');
 }
 
 function adminPostActions(postId, podeAdministrar = false) {
@@ -1623,10 +1665,10 @@ function renderFeed(append = false) {
               <span class="mini-tag">${escapeHTML(formatAnimalType(post.animal_type))}</span>
               <h3>${escapeHTML(post.title)}</h3>
             </div>
-            <span class="feed-location"><svg class="pin-icon" viewBox="0 0 24 24" width="14" height="14" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 5.2-8 12-8 12s-8-6.8-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="2.6"/></svg> ${escapeHTML(formatPostLocation(post))}</span>
+            <p class="feed-location"><svg class="pin-icon" viewBox="0 0 24 24" width="14" height="14" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 5.2-8 12-8 12s-8-6.8-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="2.6"/></svg> ${escapeHTML(formatPostLocation(post))}</p>
           </div>
           <div class="feed-meta">
-            <span><strong>Raça:</strong> ${escapeHTML(post.breed || 'Não informado')}</span>
+            <p class="post-breed-info"><strong>Raça:</strong> ${escapeHTML(post.breed || 'Não informado')}</p>
           </div>
           <div class="post-action-row">
             <button class="btn btn-secondary" type="button" data-post-details="${escapeHTML(post.id)}">Ver detalhes</button>
@@ -1671,7 +1713,7 @@ function renderRecentPosts() {
             ${renderAuthorBar(post.profiles)}
             <span class="mini-tag">${escapeHTML(formatAnimalType(post.animal_type))}</span>
             <h3>${escapeHTML(post.title)}</h3>
-            <span class="recent-post-location"><svg class="pin-icon" viewBox="0 0 24 24" width="14" height="14" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 5.2-8 12-8 12s-8-6.8-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="2.6"/></svg> ${escapeHTML(formatPostLocation(post))}</span>
+            <p class="recent-post-location"><svg class="pin-icon" viewBox="0 0 24 24" width="14" height="14" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 5.2-8 12-8 12s-8-6.8-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="2.6"/></svg> ${escapeHTML(formatPostLocation(post))}</p>
             ${post.status === 'active' ? `<div class="post-action-row"><button class="btn btn-secondary" type="button" data-post-details="${escapeHTML(post.id)}">Ver detalhes</button>${postActionButtonsHTML(post, podeAdministrarAgora())}</div>` : ''}
           </div>
         </article>
@@ -2166,7 +2208,7 @@ async function renderFavorites() {
         ${renderAuthorBar(post.profiles)}
         <span class="mini-tag">${escapeHTML(formatAnimalType(post.animal_type))}</span>
         <h3 class="post-card-title-trigger" data-post-details="${escapeHTML(post.id)}" style="cursor: pointer;" title="Clique para ver detalhes">${escapeHTML(post.title)}</h3>
-        <span class="recent-post-location"><svg class="pin-icon" viewBox="0 0 24 24" width="14" height="14" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 5.2-8 12-8 12s-8-6.8-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="2.6"/></svg> ${escapeHTML(formatPostLocation(post))}</span>
+        <p class="recent-post-location"><svg class="pin-icon" viewBox="0 0 24 24" width="14" height="14" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 5.2-8 12-8 12s-8-6.8-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="2.6"/></svg> ${escapeHTML(formatPostLocation(post))}</p>
         ${post.status === 'active' ? `<div class="post-action-row"><button class="btn btn-secondary" type="button" data-post-details="${escapeHTML(post.id)}">Ver detalhes</button>${postActionButtonsHTML(post, podeAdministrarAgora())}</div>` : ''}
       </div>
     </article>
