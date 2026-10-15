@@ -1327,6 +1327,65 @@ th {
   line-height: 1.5;
 }
 
+/* Cards de Formas de Apoio - Seção Unificada Como Ajudar */
+.help-actions-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 22px;
+  margin-bottom: 28px;
+}
+
+.help-action-card {
+  display: flex;
+  flex-direction: column;
+  padding: 26px 24px;
+  background: #fff;
+  border: 1px solid rgba(31, 27, 27, 0.08);
+  border-radius: var(--r-card);
+  box-shadow: var(--shadow);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.help-action-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 24px rgba(31, 27, 27, 0.09);
+}
+
+.help-action-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 46px;
+  height: 46px;
+  border-radius: 12px;
+  background: #fef3c7;
+  color: #b45309;
+  margin-bottom: 16px;
+}
+
+.help-action-card h3 {
+  margin: 0 0 8px;
+  font-size: 1.15rem;
+  font-weight: 700;
+  line-height: 1.35;
+  color: var(--text, #1f1b1b);
+}
+
+.help-action-card p {
+  margin: 0;
+  font-size: 0.92rem;
+  color: var(--muted, #666);
+  line-height: 1.6;
+}
+
+@media (max-width: 900px) {
+  .help-actions-grid {
+    grid-template-columns: 1fr;
+    gap: 16px;
+    margin-bottom: 22px;
+  }
+}
+
 .section-title {
   margin-bottom: 24px;
 }
@@ -2531,64 +2590,125 @@ body[data-animal-type="Cachorro"] .category-filters {
 }
 
 .adoption-modal[hidden] {
-  display: none;
+  display: none !important;
 }
 
 .adoption-modal {
   position: fixed;
   inset: 0;
-  z-index: 20;
-  display: grid;
-  place-items: center;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   padding: 24px;
+  box-sizing: border-box;
 }
 
 .adoption-modal-backdrop {
   position: absolute;
   inset: 0;
-  background: rgba(31, 27, 27, 0.62);
+  background: rgba(22, 19, 18, 0.72);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
   animation: modal-fade-in 0.2s ease both;
 }
 
 .adoption-modal-content {
   position: relative;
-  display: grid;
-  grid-template-columns: minmax(260px, 0.9fr) minmax(300px, 1.1fr);
-  width: min(900px, 100%);
-  max-height: min(760px, 92vh);
-  overflow: auto;
+  display: flex;
+  flex-direction: row;
+  width: min(940px, 100%);
+  max-height: 85vh;
+  height: auto;
+  overflow: hidden;
   background: var(--surface);
   border-radius: var(--r-card);
-  box-shadow: 0 28px 80px rgba(31, 27, 27, 0.3);
+  box-shadow: 0 32px 80px rgba(0, 0, 0, 0.35);
   animation: modal-slide-up 0.25s ease both;
-}
-
-.adoption-modal-content > img {
-  width: 100%;
-  height: 100%;
-  min-height: 440px;
-  object-fit: cover;
+  box-sizing: border-box;
 }
 
 .adoption-modal-content > #modalImageContainer {
-  min-height: 440px;
+  width: 48%;
+  flex-shrink: 0;
+  max-height: 85vh;
+  background: #181514;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  overflow: hidden;
 }
 
-.adoption-modal-content .post-carousel,
+.adoption-modal-content > img,
 .adoption-modal-content .post-single-image {
   width: 100%;
   height: 100%;
-  min-height: 400px;
+  max-height: 85vh;
+  object-fit: contain;
+  background: #181514;
+  display: block;
+}
+
+.adoption-modal-content .post-carousel {
+  width: 100%;
+  height: 100%;
+  max-height: 85vh;
+  aspect-ratio: unset;
+  background: #181514;
+  position: relative;
+  overflow: hidden;
+}
+
+.adoption-modal-content .post-carousel-track {
+  width: 100%;
+  height: 100%;
+  display: flex;
+}
+
+.adoption-modal-content .post-carousel-image {
+  flex: 0 0 100%;
+  width: 100%;
+  height: 100%;
+  max-height: 85vh;
+  object-fit: contain;
+  background: #181514;
+  display: block;
 }
 
 .adoption-modal-body {
-  padding: 36px;
+  flex: 1;
+  width: 52%;
+  max-height: 85vh;
+  overflow-y: auto;
+  padding: 32px 32px 32px 28px;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(31, 27, 27, 0.2) transparent;
+}
+
+.adoption-modal-body::-webkit-scrollbar {
+  width: 6px;
+}
+
+.adoption-modal-body::-webkit-scrollbar-thumb {
+  background: rgba(31, 27, 27, 0.2);
+  border-radius: 4px;
+}
+
+.adoption-modal-body .mini-tag {
+  align-self: flex-start;
+  margin-bottom: 4px;
+  max-width: calc(100% - 46px);
 }
 
 .adoption-modal-body h2 {
-  margin: 14px 0 8px;
-  font-size: clamp(1.8rem, 3vw, 2.6rem);
-  line-height: 1.1;
+  margin: 8px 0 8px;
+  font-size: clamp(1.5rem, 2.3vw, 2.2rem);
+  line-height: 1.2;
+  word-break: break-word;
 }
 
 .adoption-modal-body > p {
@@ -2688,24 +2808,38 @@ body[data-animal-type="Cachorro"] .category-filters {
   position: absolute;
   top: 14px;
   right: 14px;
-  z-index: 1;
-  width: 42px;
-  height: 42px;
-  border: 2px solid #fff;
+  z-index: 50;
+  width: 40px;
+  height: 40px;
+  border: 2px solid rgba(255, 255, 255, 0.95);
   border-radius: 50%;
-  background: var(--text);
-  color: #fff;
-  font-size: 1.8rem;
+  background: rgba(31, 27, 27, 0.88);
+  color: #ffffff;
+  font-size: 1.6rem;
+  font-weight: 700;
   line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+  transition: background 0.2s ease, transform 0.15s ease, border-color 0.2s ease;
 }
 
 .adoption-modal-close:hover,
 .adoption-modal-close:focus-visible {
-  background: var(--primary-dark);
+  background: var(--primary, #d9611b);
+  border-color: #ffffff;
+  transform: scale(1.08);
+  outline: 2px solid var(--primary, #d9611b);
+  outline-offset: 2px;
 }
 
+body.modal-open,
+html.modal-open,
 .modal-open {
-  overflow: hidden;
+  overflow: hidden !important;
+  touch-action: none;
 }
 
 @keyframes modal-fade-in {
@@ -3315,22 +3449,33 @@ body[data-animal-type="Cachorro"] .category-filters {
   }
 
   .adoption-modal-content {
-    grid-template-columns: 1fr;
-  }
-
-  .adoption-modal-content > img {
-    min-height: 240px;
-    max-height: 300px;
+    flex-direction: column;
+    max-height: 90vh;
   }
 
   .adoption-modal-content > #modalImageContainer {
-    min-height: 300px;
-    max-height: 300px;
+    width: 100%;
+    height: 270px;
+    min-height: 250px;
+    max-height: 290px;
+    flex-shrink: 0;
   }
 
+  .adoption-modal-content > img,
   .adoption-modal-content .post-carousel,
-  .adoption-modal-content .post-single-image {
-    min-height: 300px;
+  .adoption-modal-content .post-single-image,
+  .adoption-modal-content .post-carousel-image {
+    width: 100%;
+    height: 100%;
+    max-height: 290px;
+    object-fit: contain;
+  }
+
+  .adoption-modal-body {
+    width: 100%;
+    max-height: calc(90vh - 270px);
+    overflow-y: auto;
+    padding: 24px 20px;
   }
 }
 
@@ -3355,23 +3500,39 @@ body[data-animal-type="Cachorro"] .category-filters {
   }
 
   .adoption-modal {
-    padding: 12px;
+    padding: 10px;
+  }
+
+  .adoption-modal-content {
+    max-height: 92vh;
+    border-radius: 16px;
   }
 
   .adoption-modal-body {
-    padding: 24px;
+    padding: 20px 16px;
   }
 
-  .adoption-modal-content > img {
-    min-height: 200px;
-    max-height: 240px;
-  }
-
-  .adoption-modal-content > #modalImageContainer,
-  .adoption-modal-content .post-carousel,
-  .adoption-modal-content .post-single-image {
+  .adoption-modal-content > #modalImageContainer {
+    height: 250px;
     min-height: 240px;
-    max-height: 240px;
+    max-height: 260px;
+  }
+
+  .adoption-modal-content > img,
+  .adoption-modal-content .post-carousel,
+  .adoption-modal-content .post-single-image,
+  .adoption-modal-content .post-carousel-image {
+    min-height: 240px;
+    max-height: 260px;
+    object-fit: contain;
+  }
+
+  .adoption-modal-close {
+    top: 10px;
+    right: 10px;
+    width: 36px;
+    height: 36px;
+    font-size: 1.4rem;
   }
 
   .home-header {
@@ -3632,6 +3793,7 @@ textarea,
 .feed-card,
 .category-pet-card,
 .profile-post-card,
+.help-action-card,
 .support-story,
 .adoption-modal-content,
 .support-modal-content,

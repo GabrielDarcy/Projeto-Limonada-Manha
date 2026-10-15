@@ -183,42 +183,53 @@
       </section>
 
       <section class="home-section" id="ajuda" data-reveal>
-        <div class="container home-help-grid">
-          <div>
-            <span class="eyebrow">Como ajudar</span>
-            <h2>Anuncie, conecte e ajude a salvar vidas.</h2>
-            <p>Publique um pedido, encontre apoio e ajude um animal a chegar a um novo lar.</p>
-            <button class="btn btn-help" id="helpSiteButton" type="button">Quero ajudar a manter o site</button>
-          </div>
-
-          <ul class="help-list">
-            <li>Apoio financeiro para tratamentos</li>
-            <li>Voluntariado e acolhimento</li>
-          </ul>
-        </div>
-      </section>
-
-      <section class="home-section" id="parceiros" data-reveal>
         <div class="container">
           <div class="section-title section-title-row">
             <div>
-              <span class="eyebrow">Apoie quem cuida</span>
-              <h2>Como ajudar nosso site</h2>
+              <span class="eyebrow">Como ajudar & apoiar quem cuida</span>
+              <h2>Juntos transformamos vidas e mantemos esta rede no ar.</h2>
             </div>
             <span class="text-link">Pequenos gestos, grande impacto</span>
           </div>
+
+          <div class="help-actions-grid">
+            <div class="help-action-card">
+              <div class="help-action-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+              </div>
+              <h3>Adoção & Divulgação</h3>
+              <p>Adote com responsabilidade ou compartilhe publicações com seus amigos para multiplicar as chances de um novo lar.</p>
+            </div>
+
+            <div class="help-action-card">
+              <div class="help-action-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+              </div>
+              <h3>Lar Temporário & Voluntariado</h3>
+              <p>Acolha um pet resgatado durante o período de recuperação ou ajude protetores locais com carinho e dedicação.</p>
+            </div>
+
+            <div class="help-action-card">
+              <div class="help-action-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 8v8"/><path d="M8 12h8"/></svg>
+              </div>
+              <h3>Apoio a Tratamentos</h3>
+              <p>Auxilie com custos veterinários, vacinas, castrações e ração para manter os animais saudáveis até a adoção.</p>
+            </div>
+          </div>
+
           <div class="support-story">
             <img loading="lazy" decoding="async" class="support-story-image" src="https://images.unsplash.com/photo-1597046835715-16f81ac132c0?auto=format&fit=crop&w=1600&q=72" alt="Cachorro resgatado recebendo carinho" />
             <div class="support-story-content">
               <span class="mini-tag">Transparência</span>
-              <h3>Ajude a manter esta rede no ar</h3>
-              <p>As contribuições ajudam a cobrir custos essenciais do serviço.</p>
+              <h3>Ajude a manter nossa plataforma no ar</h3>
+              <p>Nossa plataforma é 100% gratuita para adotantes e protetores. Contribuições voluntárias cobrem diretamente os custos essenciais da infraestrutura:</p>
               <ul class="maintenance-list">
-                <li><strong>Banco de dados</strong><span>Armazenamento seguro de publicações e perfis</span></li>
-                <li><strong>Hospedagem</strong><span>Acesso contínuo para famílias e protetores</span></li>
-                <li><strong>Manutenção</strong><span>Melhorias e segurança da plataforma</span></li>
+                <li><strong>Banco de dados</strong><span>Armazenamento seguro de publicações e fotos dos animais</span></li>
+                <li><strong>Hospedagem</strong><span>Servidores rápidos e disponíveis 24 horas por dia</span></li>
+                <li><strong>Manutenção contínua</strong><span>Melhorias na experiência, segurança e novas funcionalidades</span></li>
               </ul>
-              <button class="btn btn-primary" type="button" data-help-reason="manutenção do Pet Amor">Quero contribuir</button>
+              <button class="btn btn-primary" id="helpSiteButton" type="button" data-help-reason="manutenção do Pet Amor">Quero contribuir via PIX</button>
             </div>
           </div>
         </div>
@@ -282,7 +293,8 @@
     <footer class="home-footer">
       <div class="container footer-row">
         <p>© 2026 Pet Amor. Juntos por uma causa maior.</p>
-        <div class="footer-links" aria-label="Redes sociais">
+        <div class="footer-links" aria-label="Links institucionais">
+          <a href="#ajuda">Como ajudar</a>
           <a href="#" id="supportContactLink">Suporte</a>
         </div>
       </div>

@@ -103,7 +103,7 @@ function mensagemDeErroSegura(error, alternativa) {
   return padrao;
 }
 
-// mensagem do login: nao revela se o email existe
+// Mensagem do login: tradução clara e amigável dos erros do Supabase Auth
 function mensagemDeAuthSegura(error) {
   const codigo = String(error?.code || error?.status || '');
   const chave = String(error?.error_code || '');
@@ -111,8 +111,16 @@ function mensagemDeAuthSegura(error) {
   if (/banned|banida/i.test(texto)) return texto;
   if (ehFalhaDeRede(codigo, texto)) return 'Não foi possível conectar. Verifique sua internet e tente novamente.';
   if (/rate|too many|429/i.test(codigo + texto + chave)) return 'Muitas tentativas. Aguarde alguns minutos e tente novamente.';
-  if (chave === 'email_not_confirmed') return 'Confirme seu e-mail antes de entrar.';
-  return 'E-mail ou senha incorretos.';
+  if (chave === 'email_not_confirmed' || /email not confirmed/i.test(texto)) {
+    return 'E-mail ainda não confirmado no Supabase.';
+  }
+  if (/user not found|usuário não encontrado/i.test(texto)) {
+    return 'Usuário não encontrado.';
+  }
+  if (/invalid.*credential|credenciais inválidas|invalid login credentials/i.test(texto + chave)) {
+    return 'Senha incorreta.';
+  }
+  return error?.message || 'E-mail/usuário ou senha incorretos.';
 }
 
 function formatAnimalType(type) {
@@ -322,7 +330,8 @@ function isValidEmail(email) {
   if (!normalized || !normalized.includes('@')) return false;
   const [localPart, domain] = normalized.split('@');
   if (!localPart || !domain || localPart.length < 2) return false;
-  return ALLOWED_EMAIL_DOMAINS.includes(domain) || domain.endsWith('.com') || domain.endsWith('.net') || domain.endsWith('.org');
+  const domainRegex = /^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)+$/;
+  return domainRegex.test(domain);
 }
 
 function getPasswordStrength(password) {
@@ -428,10 +437,73 @@ async function fetchProfileByUserId(userId) {
   return null;
 }
 
-async function loginWithSupabase(email, password) {
+async function resolveEmailFromIdentifier(client, identifier) {
+  const raw = String(identifier || '').trim();
+  if (!raw) throw new Error('Informe seu e-mail ou nome de usuário.');
+
+  // Caso de atalho de conveniência do admin
+  if (raw.toLowerCase() === 'admin') {
+    return 'admin@petamor.com';
+  }
+
+  // Se o usuário digitou com @ no início (ex: @usuario), trata como username explícito
+  const isExplicitUsername = raw.startsWith('@');
+  const cleanInput = raw.replace(/^@+/, '').trim();
+
+  // Se NÃO é username explícito e contém @ no meio com estrutura de e-mail
+  if (!isExplicitUsername && cleanInput.includes('@')) {
+    const emailLower = cleanInput.toLowerCase();
+    if (!isValidEmail(emailLower)) {
+      throw new Error('Informe um e-mail válido.');
+    }
+    return emailLower;
+  }
+
+  // Caso contrário, trata como nome de usuário (username)
+  const cleanUsername = normalizeUsername(cleanInput);
+  if (!cleanUsername) {
+    throw new Error('Informe um nome de usuário válido.');
+  }
+
+  // 1. Tentar via RPC seguro get_email_by_username (SECURITY DEFINER para usuários anon/não autenticados)
+  try {
+    const { data: rpcEmail, error: rpcError } = await client.rpc('get_email_by_username', {
+      p_username: cleanUsername
+    });
+    if (!rpcError && rpcEmail && typeof rpcEmail === 'string' && rpcEmail.trim()) {
+      return rpcEmail.trim().toLowerCase();
+    }
+  } catch (err) {
+    console.warn('Tentativa via RPC get_email_by_username falhou:', err);
+  }
+
+  // 2. Fallback: consulta direta na tabela profiles caso a RPC ainda não tenha sido executada no banco
+  try {
+    const { data: profile, error: profileError } = await client
+      .from('profiles')
+      .select('email')
+      .ilike('username', cleanUsername)
+      .maybeSingle();
+
+    if (!profileError && profile?.email) {
+      return String(profile.email).trim().toLowerCase();
+    }
+  } catch (err) {
+    console.warn('Tentativa direta em profiles por username falhou:', err);
+  }
+
+  // Se não foi encontrado nenhum e-mail para este username
+  throw new Error('Usuário não encontrado.');
+}
+
+async function loginWithSupabase(identifier, password) {
   const client = getSupabaseClient();
-  const loginEmail = email.toLowerCase() === 'admin' ? 'admin@petamor.com' : email;
-  const { data, error } = await client.auth.signInWithPassword({ email: loginEmail, password });
+  const resolvedEmail = await resolveEmailFromIdentifier(client, identifier);
+
+  const { data, error } = await client.auth.signInWithPassword({
+    email: resolvedEmail,
+    password
+  });
   if (error) throw new Error(mensagemDeAuthSegura(error));
 
   const profile = await fetchProfileByUserId(data.user.id);
@@ -943,11 +1015,12 @@ async function uploadPostImage(file) {
 }
 
 const BREED_CATALOGS = {
-  Cachorro: `Affenpinscher|Afghan Hound|Airedale Terrier|Akita|Akita Americano|American Bully|American Staffordshire Terrier|Australian Cattle Dog|Australian Shepherd|Basenji|Basset Hound|Beagle|Bearded Collie|Bernese Mountain Dog|Bichon Frisé|Bloodhound|Border Collie|Boston Terrier|Boxer|Buldogue Americano|Buldogue Campeiro|Buldogue Francês|Buldogue Inglês|Bull Terrier|Bullmastiff|Cane Corso|Cão de Crista Chinês|Cão de água português|Cão de montanha dos Pirineus|Cavalier King Charles Spaniel|Chihuahua|Chow Chow|Cocker Spaniel Americano|Cocker Spaniel Inglês|Collie|Dachshund|Dálmata|Doberman|Dogo Argentino|Dogue Alemão|Dogue de Bordeaux|Fila Brasileiro|Fox Paulistinha|Golden Retriever|Greyhound|Griffon de Bruxelas|Husky Siberiano|Jack Russell Terrier|Labrador Retriever|Lhasa Apso|Lulu da Pomerânia|Malamute do Alasca|Maltês|Mastiff|Norfolk Terrier|Norwich Terrier|Old English Sheepdog|Papillon|Pastor Alemão|Pastor Australiano|Pastor Belga|Pastor Branco Suíço|Pastor de Shetland|Pequinês|Pinscher|Pit Bull|Pointer Inglês|Poodle|Pug|Rottweiler|Samoieda|Schnauzer|Setter Irlandês|Shar-Pei|Shiba Inu|Shih Tzu|Staffordshire Bull Terrier|São Bernardo|Terrier Brasileiro|Terrier Escocês|Vira-lata (SRD)|Vizsla|Weimaraner|Welsh Corgi|West Highland White Terrier|Whippet|Yorkshire Terrier`,
-  Gato: `Abissínio|American Curl|American Shorthair|American Wirehair|Angorá|Azul Russo|Balinês|Bengal|Birmanês|Bombaim|British Longhair|British Shorthair|Burmês|Chartreux|Cornish Rex|Devon Rex|Exótico de Pelo Curto|Himalaio|Khao Manee|LaPerm|Maine Coon|Manx|Munchkin|Nebelung|Norueguês da Floresta|Oriental|Persa|Peterbald|Ragdoll|Sagrado da Birmânia|Savannah|Scottish Fold|Scottish Straight|Selkirk Rex|Siamês|Siberiano|Singapura|Somali|Sphynx|Tonquinês|Turco Van|Vira-lata (SRD)`,
-  Fazenda: `Abelha|Alpaca|Asinino|Avestruz|Búfalo|Bode|Boi|Boi Angus|Boi Brahman|Boi Hereford|Boi Nelore|Cabra|Cabra Anglonubiana|Cabra Boer|Cabra Saanen|Cabra Toggenburg|Cavalo|Cavalo Árabe|Cavalo Campolina|Cavalo Crioulo|Cavalo Mangalarga|Cavalo Quarto de Milha|Codorna|Coelho|Coelho Angorá|Coelho Mini Lop|Coelho Nova Zelândia|Égua|Gado de leite|Galinha|Galinha caipira|Ganso|Jumento|Lhama|Marreco|Mula|Ovelha|Ovelha Dorper|Ovelha Hampshire Down|Ovelha Santa Inês|Pato|Pavão|Peru|Pônei|Porco|Porco caipira|Vaca|Vaca Girolando|Vaca Holandesa|Vaca Jersey|Vaca Nelore`,
-  Exótico: `Agapornis|Axolote|Cacatua|Calopsita|Camaleão|Canário|Chinchila|Cobra|Cobra-do-milho|Cágado|Degú|Dragão-barbudo|Escorpião|Esquilo-da-Mongólia|Furão|Gecko-leopardo|Gerbil|Hamster|Hamster chinês|Hamster sírio|Iguana|Jabuti|Jabuti-piranga|Jiboia|Lagartixa|Lagarto|Maritaca|Mini pig|Ouriço-cacheiro|Periquito|Periquito-australiano|Pogona|Porquinho-da-índia|Rato|Rato twister|Sagui|Salamandra|Serpente|Tarântula|Tartaruga|Teiú|Tigre-d'água|Tritão|Outro`,
-  Marinho: `Anêmona-do-mar|Baiacu|Camarão|Caranguejo|Cavalo-marinho|Coral|Coral-cérebro|Donzela|Estrela-do-mar|Lagosta|Lula|Medusa|Molusco|Ostra|Ouriço-do-mar|Peixe|Peixe-anjo|Peixe-betta|Peixe-cirurgião|Peixe-dourado|Peixe-leão|Peixe-palhaço|Peixe-papagaio|Pepino-do-mar|Polvo|Raia|Sardinha|Tartaruga-marinha|Tartaruga-verde|Tubarão|Água-viva|Outro`
+  Cachorro: `Vira-lata (SRD)|Affenpinscher|Afghan Hound|Airedale Terrier|Akita|Akita Americano|American Bully|American Staffordshire Terrier|Australian Cattle Dog|Australian Shepherd|Basenji|Basset Hound|Beagle|Bearded Collie|Bernese Mountain Dog|Bichon Frisé|Bloodhound|Border Collie|Boston Terrier|Boxer|Buldogue Americano|Buldogue Campeiro|Buldogue Francês|Buldogue Inglês|Bull Terrier|Bullmastiff|Cane Corso|Cão de Crista Chinês|Cão de água português|Cão de montanha dos Pirineus|Cavalier King Charles Spaniel|Chihuahua|Chow Chow|Cocker Spaniel Americano|Cocker Spaniel Inglês|Collie|Dachshund|Dálmata|Doberman|Dogo Argentino|Dogue Alemão|Dogue de Bordeaux|Fila Brasileiro|Fox Paulistinha|Golden Retriever|Greyhound|Griffon de Bruxelas|Husky Siberiano|Jack Russell Terrier|Labrador Retriever|Lhasa Apso|Lulu da Pomerânia|Malamute do Alasca|Maltês|Mastiff|Norfolk Terrier|Norwich Terrier|Old English Sheepdog|Papillon|Pastor Alemão|Pastor Australiano|Pastor Belga|Pastor Branco Suíço|Pastor de Shetland|Pequinês|Pinscher|Pit Bull|Pointer Inglês|Poodle|Pug|Rottweiler|Samoieda|Schnauzer|Setter Irlandês|Shar-Pei|Shiba Inu|Shih Tzu|Staffordshire Bull Terrier|São Bernardo|Terrier Brasileiro|Terrier Escocês|Vizsla|Weimaraner|Welsh Corgi|West Highland White Terrier|Whippet|Yorkshire Terrier`,
+  Gato: `Vira-lata (SRD)|Abissínio|American Curl|American Shorthair|American Wirehair|Angorá|Azul Russo|Balinês|Bengal|Birmanês|Bombaim|British Longhair|British Shorthair|Burmês|Chartreux|Cornish Rex|Devon Rex|Exótico de Pelo Curto|Himalaio|Khao Manee|LaPerm|Maine Coon|Manx|Munchkin|Nebelung|Norueguês da Floresta|Oriental|Persa|Peterbald|Ragdoll|Sagrado da Birmânia|Savannah|Scottish Fold|Scottish Straight|Selkirk Rex|Siamês|Siberiano|Singapura|Somali|Sphynx|Tonquinês|Turco Van`,
+  Fazenda: `Não sei|Abelha|Alpaca|Asinino|Avestruz|Búfalo|Bode|Boi|Boi Angus|Boi Brahman|Boi Hereford|Boi Nelore|Cabra|Cabra Anglonubiana|Cabra Boer|Cabra Saanen|Cabra Toggenburg|Cavalo|Cavalo Árabe|Cavalo Campolina|Cavalo Crioulo|Cavalo Mangalarga|Cavalo Quarto de Milha|Codorna|Coelho|Coelho Angorá|Coelho Mini Lop|Coelho Nova Zelândia|Égua|Gado de leite|Galinha|Galinha caipira|Ganso|Jumento|Lhama|Marreco|Mula|Ovelha|Ovelha Dorper|Ovelha Hampshire Down|Ovelha Santa Inês|Pato|Pavão|Peru|Pônei|Porco|Porco caipira|Vaca|Vaca Girolando|Vaca Holandesa|Vaca Jersey|Vaca Nelore`,
+  Exótico: `Não sei|Agapornis|Axolote|Cacatua|Calopsita|Camaleão|Canário|Chinchila|Cobra|Cobra-do-milho|Cágado|Degú|Dragão-barbudo|Escorpião|Esquilo-da-Mongólia|Furão|Gecko-leopardo|Gerbil|Hamster|Hamster chinês|Hamster sírio|Iguana|Jabuti|Jabuti-piranga|Jiboia|Lagartixa|Lagarto|Maritaca|Mini pig|Ouriço-cacheiro|Periquito|Periquito-australiano|Pogona|Porquinho-da-índia|Rato|Rato twister|Sagui|Salamandra|Serpente|Tarântula|Tartaruga|Teiú|Tigre-d'água|Tritão|Outro`,
+  Marinho: `Não sei|Anêmona-do-mar|Baiacu|Camarão|Caranguejo|Cavalo-marinho|Coral|Coral-cérebro|Donzela|Estrela-do-mar|Lagosta|Lula|Medusa|Molusco|Ostra|Ouriço-do-mar|Peixe|Peixe-anjo|Peixe-betta|Peixe-cirurgião|Peixe-dourado|Peixe-leão|Peixe-palhaço|Peixe-papagaio|Pepino-do-mar|Polvo|Raia|Sardinha|Tartaruga-marinha|Tartaruga-verde|Tubarão|Água-viva|Outro`,
+  Outro: `Não sei`
 };
 
 const breedOptionsCache = new Map();
@@ -997,8 +1070,45 @@ const BREEDS_BY_SPECIES = {
   Peixe: `Betta|Carpa koi|Kinguio|Peixe-palhaço`
 };
 
+/**
+ * Ordena a lista de raças priorizando a opção padrão correspondente:
+ * - Para cães e gatos: "Vira-lata (SRD)" fica sempre em primeiro lugar.
+ * - Para todas as demais espécies/categorias: "Não sei" fica sempre em primeiro lugar.
+ */
+function orderBreedsForAnimal(breeds, animalTypeOrSpecies) {
+  const isDogOrCat = animalTypeOrSpecies === 'Cachorro' || animalTypeOrSpecies === 'Gato';
+  const defaultOption = isDogOrCat ? 'Vira-lata (SRD)' : 'Não sei';
+  const normalizedDefault = normalizeSelectSearch(defaultOption);
+
+  const others = [];
+  const seen = new Set();
+  seen.add(normalizedDefault);
+
+  (breeds || []).forEach((breed) => {
+    const trimmed = String(breed || '').trim();
+    if (!trimmed) return;
+    const normalized = normalizeSelectSearch(trimmed);
+    // Remove qualquer menção a Vira-lata para espécies que não sejam cães ou gatos
+    if (!isDogOrCat && (normalized.includes('vira-lata') || normalized.includes('srd'))) {
+      return;
+    }
+    // Remove "Não sei" de cães e gatos caso venha do banco
+    if (isDogOrCat && normalized === 'nao sei') {
+      return;
+    }
+    if (!seen.has(normalized)) {
+      seen.add(normalized);
+      others.push(trimmed);
+    }
+  });
+
+  others.sort((first, second) => first.localeCompare(second, 'pt-BR'));
+  return [defaultOption, ...others];
+}
+
 function getSpeciesBreedOptions(species) {
-  return (BREEDS_BY_SPECIES[species] || '').split('|').filter(Boolean);
+  const raw = (BREEDS_BY_SPECIES[species] || '').split('|').filter(Boolean);
+  return orderBreedsForAnimal(raw, species);
 }
 
 function populateSpeciesSelect(select, animalType) {
@@ -1031,24 +1141,42 @@ function uniqueBreedOptions(breeds) {
 
 function hasMatchingParentBreed(animalBreed, motherBreed, fatherBreed) {
   const normalizedAnimalBreed = normalizeSelectSearch(animalBreed);
-  return Boolean(normalizedAnimalBreed && [motherBreed, fatherBreed]
-    .some((parentBreed) => normalizeSelectSearch(parentBreed) === normalizedAnimalBreed));
+  if (!normalizedAnimalBreed) return false;
+  const isUndetermined = ['nao sei', 'desconhecido', 'nao informado', 'nao sei / mestico', 'vira-lata (srd)', 'vira-lata'].includes(normalizedAnimalBreed);
+  return [motherBreed, fatherBreed].some((parentBreed) => {
+    const normParent = normalizeSelectSearch(parentBreed);
+    if (!normParent) return false;
+    if (normParent === normalizedAnimalBreed) return true;
+    if (isUndetermined && ['nao sei', 'desconhecido', 'nao informado', 'nao sei / mestico', 'vira-lata (srd)', 'vira-lata'].includes(normParent)) {
+      return true;
+    }
+    if (['desconhecido', 'nao informado', 'nao sei'].includes(normParent)) {
+      return true;
+    }
+    return false;
+  });
 }
 
 function formatSpeciesBreed(species, breed) {
   if (!species || !breed) return breed;
-  if (['desconhecido', 'nao informado'].includes(normalizeSelectSearch(breed))) return breed;
+  const normalized = normalizeSelectSearch(breed);
+  if (['desconhecido', 'nao informado'].includes(normalized)) return breed;
+  if (['nao sei', 'nao sei / mestico', 'mestico'].includes(normalized)) return 'Não sei';
+  if (breed.toLowerCase().startsWith(species.toLowerCase())) return breed;
   return `${species} - ${breed}`;
 }
 
-function populateBreedSelect(select, breeds, placeholder, extraOptions = []) {
+function populateBreedSelect(select, breeds, placeholder, extraOptions = [], animalTypeOrSpecies = '') {
   select.replaceChildren();
   const placeholderOption = document.createElement('option');
   placeholderOption.value = '';
   placeholderOption.textContent = placeholder;
   select.appendChild(placeholderOption);
 
-  uniqueBreedOptions([...breeds, ...extraOptions]).forEach((breed) => {
+  const orderedBreeds = animalTypeOrSpecies ? orderBreedsForAnimal(breeds, animalTypeOrSpecies) : uniqueBreedOptions(breeds);
+  const optionsList = uniqueBreedOptions([...orderedBreeds, ...extraOptions]);
+
+  optionsList.forEach((breed) => {
     const option = document.createElement('option');
     option.value = breed;
     option.textContent = breed;
@@ -1064,11 +1192,11 @@ function getBreedOptions(animalType) {
       .then(({ data, error }) => {
         if (error) throw new Error(mensagemDeErroSegura(error));
         const activeBreeds = (data || []).map((item) => item?.breed).filter(Boolean);
-        return uniqueBreedOptions([...catalog, ...activeBreeds]).sort((first, second) => first.localeCompare(second, 'pt-BR'));
+        return orderBreedsForAnimal([...catalog, ...activeBreeds], animalType);
       })
       .catch((error) => {
         console.warn(`Usando catálogo local de raças para ${animalType}:`, error);
-        return uniqueBreedOptions(catalog).sort((first, second) => first.localeCompare(second, 'pt-BR'));
+        return orderBreedsForAnimal(catalog, animalType);
       });
     breedOptionsCache.set(animalType, request);
   }
@@ -1079,13 +1207,13 @@ async function loadDynamicBreedOptions(animalType, selectElement, defaultLabel, 
   if (!selectElement) return [];
   selectElement.dataset.animalType = animalType || '';
   const catalog = (BREED_CATALOGS[animalType] || '').split('|').filter(Boolean);
-  populateBreedSelect(selectElement, catalog, defaultLabel, extraOptions);
+  populateBreedSelect(selectElement, catalog, defaultLabel, extraOptions, animalType);
   if (!animalType) return [];
 
   const breeds = await getBreedOptions(animalType);
   if (selectElement.dataset.animalType !== animalType) return breeds;
   const selectedValue = selectElement.value;
-  populateBreedSelect(selectElement, breeds, defaultLabel, extraOptions);
+  populateBreedSelect(selectElement, breeds, defaultLabel, extraOptions, animalType);
   if (selectedValue && [...selectElement.options].some((option) => option.value === selectedValue)) {
     selectElement.value = selectedValue;
   }
@@ -1231,9 +1359,9 @@ function setupCreatePostForm() {
     const parentOptions = ['Desconhecido', 'Não informado'];
     if (canChooseBreed && needsSpecies) {
       const breeds = getSpeciesBreedOptions(species);
-      populateBreedSelect(breedField, breeds, 'Selecione a raça');
-      populateBreedSelect(motherBreedField, breeds, 'Selecione a raça', parentOptions);
-      populateBreedSelect(fatherBreedField, breeds, 'Selecione a raça', parentOptions);
+      populateBreedSelect(breedField, breeds, 'Selecione a raça', [], species);
+      populateBreedSelect(motherBreedField, breeds, 'Selecione a raça', parentOptions, species);
+      populateBreedSelect(fatherBreedField, breeds, 'Selecione a raça', parentOptions, species);
     } else if (canChooseBreed) {
       void Promise.all([
         loadDynamicBreedOptions(animalType, breedField, 'Selecione a raça/espécie'),
@@ -1441,7 +1569,13 @@ function renderFeed(append = false) {
 
   if (stateValue) query = query.eq('state', stateValue);
   if (typeValue !== 'Todos') query = query.eq('animal_type', typeValue);
-  if (breedValue) query = query.ilike('breed', `%${breedValue}%`);
+  if (breedValue) {
+    if (breedValue === 'não sei' || breedValue === 'nao sei') {
+      query = query.or('breed.eq.Não sei,breed.ilike.%Não sei%');
+    } else {
+      query = query.ilike('breed', `%${breedValue}%`);
+    }
+  }
 
   query.then(({ data, error }) => {
     if (error) {
@@ -1451,8 +1585,10 @@ function renderFeed(append = false) {
     const filteredPosts = data || [];
 
     if (!filteredPosts.length && !append) {
+      const isDogOrCat = typeValue === 'Cachorro' || typeValue === 'Gato';
+      const alternativeSuggestion = isDogOrCat ? 'um Vira-lata' : 'um animal sem raça definida';
       feedTarget.innerHTML = breedValue
-        ? `<div class="empty-state">Poxa! No momento não temos nenhum ${escapeHTML(breedLabel)} precisando de um lar. Que tal dar uma chance a um Vira-lata ou conhecer outros animais incríveis?</div>`
+        ? `<div class="empty-state">Poxa! No momento não temos nenhum ${escapeHTML(breedLabel)} precisando de um lar. Que tal dar uma chance a ${alternativeSuggestion} ou conhecer outros animais incríveis?</div>`
         : '<div class="empty-state">Poxa! No momento não encontramos animais com esses filtros. Que tal tentar outra cidade ou conhecer outras categorias?</div>';
       return;
     }
@@ -1808,20 +1944,57 @@ function sincronizarSelectCustomizado(campo) {
 }
 
 function limparFiltros() {
-  // estado e cidade ficam de fora: trocar de regiao e uma acao a parte
-  [
-    'categoryBreed', 'categoryGender', 'categoryAge', 'categorySize', 'categoryEnergy',
-    'categoryNeutered', 'categoryVaccinated', 'categoryDewormed',
-    'categoryApartment', 'categoryWithKids', 'categoryWithDogs',
-    'categoryWithCats', 'categorySpecial',
-  ].forEach((id) => {
+  const todosOsCampos = [
+    'categoryState', 'categoryCity', 'categoryBreed', 'categoryGender',
+    'categoryAge', 'categorySize', 'categoryEnergy', 'categoryNeutered',
+    'categoryVaccinated', 'categoryDewormed', 'categoryApartment',
+    'categoryWithKids', 'categoryWithDogs', 'categoryWithCats', 'categorySpecial'
+  ];
+
+  todosOsCampos.forEach((id) => {
     const campo = document.getElementById(id);
     if (!campo) return;
     campo.value = '';
     sincronizarSelectCustomizado(campo);
   });
+
+  const cityField = document.getElementById('categoryCity');
+  if (cityField) {
+    cityField.innerHTML = '<option value="">Todas as cidades</option>';
+    cityField.disabled = true;
+    sincronizarSelectCustomizado(cityField);
+  }
+
+  // Limpa campos de busca
+  document.querySelectorAll('input[type="search"], .search-input, #searchInput, .custom-select-search').forEach((input) => {
+    input.value = '';
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+  });
+
+  // Desmarca checkboxes/radios do painel de filtros caso existam
+  document.querySelectorAll('#painelFiltros input[type="checkbox"], #painelFiltros input[type="radio"]').forEach((input) => {
+    input.checked = false;
+    input.dispatchEvent(new Event('change', { bubbles: true }));
+  });
+
   limparBuscaDeSelectCustomizado();
-  try { sessionStorage.removeItem(CHAVE_FILTROS); } catch (e) { /* ignora */ }
+
+  try {
+    sessionStorage.removeItem(CHAVE_FILTROS);
+  } catch (e) {
+    /* ignora */
+  }
+
+  const chipsContainer = document.getElementById('filtrosAtivos');
+  if (chipsContainer) {
+    chipsContainer.hidden = true;
+    chipsContainer.innerHTML = '';
+  }
+
+  const botaoLimpar = document.getElementById('filtrosLimpar');
+  if (botaoLimpar) {
+    botaoLimpar.hidden = true;
+  }
 }
 
 function limparBuscaDeSelectCustomizado() {
@@ -1871,7 +2044,13 @@ async function renderCategoryFeed(animalType) {
 
   if (f.state) query = query.eq('state', f.state);
   if (f.city) query = query.eq('city', f.city);
-  if (f.breed) query = query.ilike('breed', `%${f.breed}%`);
+  if (f.breed) {
+    if (f.breed === 'Não sei') {
+      query = query.or('breed.eq.Não sei,breed.ilike.%Não sei%');
+    } else {
+      query = query.ilike('breed', `%${f.breed}%`);
+    }
+  }
   if (f.gender) query = query.eq('gender', f.gender);
   if (f.age) query = query.eq('age_group', f.age);
   if (f.size) query = query.eq('size', f.size);
@@ -1973,13 +2152,60 @@ async function renderFavorites() {
   });
 }
 
+const POST_FIELD_LABELS = {
+  age_group: 'Faixa Etária',
+  gender: 'Sexo',
+  neutered: 'Castrado',
+  vaccinated: 'Vacinado',
+  dewormed: 'Vermifugado',
+  special_needs: 'Necessidades Especiais',
+  good_with_kids: 'Dá-se bem com crianças',
+  good_with_dogs: 'Dá-se bem com cães',
+  good_with_cats: 'Dá-se bem com gatos',
+  energy_level: 'Nível de Energia',
+  apartment_friendly: 'Adapta-se a apartamento',
+  birth_date: 'Data de nascimento',
+  size: 'Porte'
+};
+
+const INAPPLICABLE_FIELDS_BY_TYPE = {
+  Fazenda: new Set(['apartment_friendly', 'good_with_cats', 'good_with_dogs']),
+  Marinho: new Set(['apartment_friendly', 'good_with_cats', 'good_with_dogs', 'neutered', 'dewormed']),
+  Exótico: new Set(['apartment_friendly']),
+  Outro: new Set(['apartment_friendly'])
+};
+
+function formatDetailValue(key, value) {
+  if (value === true || value === 'true') return 'Sim';
+  if (value === false || value === 'false') return 'Não';
+  if (Array.isArray(value)) return value.join(', ');
+  if (key === 'birth_date' && typeof value === 'string' && value.includes('-')) {
+    const parts = value.split('-');
+    if (parts.length === 3) return `${parts[2]}/${parts[1]}/${parts[0]}`;
+  }
+  return String(value);
+}
+
 function openAdoptionModal(post) {
   if (!post) return;
   const modal = document.getElementById('adoptionModal');
-  document.getElementById('modalImageContainer').innerHTML = generateImageCarouselHTML(post.image_urls, post.title);
-  document.getElementById('modalPostTitle').textContent = post.title;
-  document.getElementById('modalPostLocation').innerHTML = `<svg class="pin-icon" viewBox="0 0 24 24" width="14" height="14" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 5.2-8 12-8 12s-8-6.8-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="2.6"/></svg> ${formatPostLocation(post)}`;
-  document.getElementById('modalPostDescription').textContent = post.description || 'Descrição não informada.';
+  if (!modal) return;
+
+  const imageContainer = document.getElementById('modalImageContainer');
+  if (imageContainer) {
+    imageContainer.innerHTML = generateImageCarouselHTML(post.image_urls, post.title);
+  }
+  const titleEl = document.getElementById('modalPostTitle');
+  if (titleEl) titleEl.textContent = post.title;
+
+  const locEl = document.getElementById('modalPostLocation');
+  if (locEl) {
+    locEl.innerHTML = `<svg class="pin-icon" viewBox="0 0 24 24" width="14" height="14" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 5.2-8 12-8 12s-8-6.8-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="2.6"/></svg> ${formatPostLocation(post)}`;
+  }
+
+  const descEl = document.getElementById('modalPostDescription');
+  if (descEl) descEl.textContent = post.description || 'Descrição não informada.';
+
   const modalBreed = document.getElementById('modalBreed');
   const modalMotherBreed = document.getElementById('modalMotherBreed');
   const modalFatherBreed = document.getElementById('modalFatherBreed');
@@ -1999,23 +2225,70 @@ function openAdoptionModal(post) {
     modalFatherBreed.textContent = post.father_breed || 'Não informado';
     if (modalFatherBreed.parentElement) modalFatherBreed.parentElement.hidden = false;
   }
+
   const modalSize = document.getElementById('modalSize');
   const modalSizeSection = document.getElementById('modalSizeSection');
   if (modalSize && modalSizeSection) {
     modalSize.textContent = post.size || '';
     modalSizeSection.hidden = !post.size;
   }
-  document.getElementById('modalPostContact').innerHTML = renderCopyableContacts(post);
-  const additionalSection = document.getElementById('modalAdditionalDetails');
-  const additionalDetails = document.getElementById('modalPostAdditionalDetails');
-  const excludedFields = new Set(['id', 'user_id', 'profiles', 'image_urls', 'title', 'description', 'animal_type', 'state', 'city', 'breed', 'mother_breed', 'father_breed', 'phone', 'contact_phone', 'contact_info', 'status', 'created_at', 'updated_at']);
-  if (additionalSection && additionalDetails) {
-    const details = Object.entries(post).filter(([key, value]) => !excludedFields.has(key) && value !== null && value !== undefined && value !== '');
-    additionalDetails.innerHTML = details.map(([key, value]) => `<div><dt>${escapeHTML(key.replace(/_/g, ' '))}</dt><dd>${escapeHTML(Array.isArray(value) ? value.join(', ') : value)}</dd></div>`).join('');
-    additionalSection.hidden = !details.length;
+
+  const contactEl = document.getElementById('modalPostContact');
+  if (contactEl) contactEl.innerHTML = renderCopyableContacts(post);
+
+  let additionalSection = document.getElementById('modalAdditionalDetails');
+  let additionalDetails = document.getElementById('modalPostAdditionalDetails');
+  if (!additionalSection) {
+    const modalBody = modal.querySelector('.adoption-modal-body');
+    const contactSec = modal.querySelector('.modal-contact');
+    if (modalBody) {
+      additionalSection = document.createElement('section');
+      additionalSection.className = 'modal-genetics';
+      additionalSection.id = 'modalAdditionalDetails';
+      additionalSection.setAttribute('aria-labelledby', 'additionalDetailsTitle');
+      additionalSection.innerHTML = '<h3 id="additionalDetailsTitle">Mais informações</h3><dl id="modalPostAdditionalDetails"></dl>';
+      if (contactSec) {
+        modalBody.insertBefore(additionalSection, contactSec);
+      } else {
+        modalBody.appendChild(additionalSection);
+      }
+      additionalDetails = additionalSection.querySelector('#modalPostAdditionalDetails');
+    }
   }
+
+  if (additionalSection && additionalDetails) {
+    const excludedFields = new Set([
+      'id', 'user_id', 'profiles', 'image_urls', 'title', 'description',
+      'animal_type', 'state', 'city', 'breed', 'mother_breed', 'father_breed',
+      'phone', 'contact_phone', 'contact_info', 'status', 'created_at', 'updated_at'
+    ]);
+    const inapplicable = INAPPLICABLE_FIELDS_BY_TYPE[post.animal_type] || new Set();
+
+    const details = Object.entries(post).filter(([key, value]) => {
+      if (excludedFields.has(key)) return false;
+      if (inapplicable.has(key)) return false;
+      return value !== null && value !== undefined && value !== '';
+    });
+
+    if (details.length) {
+      additionalDetails.innerHTML = details.map(([key, value]) => {
+        const label = POST_FIELD_LABELS[key] || key.replace(/_/g, ' ');
+        const formattedValue = formatDetailValue(key, value);
+        return `<div><dt>${escapeHTML(label)}</dt><dd>${escapeHTML(formattedValue)}</dd></div>`;
+      }).join('');
+      additionalSection.hidden = false;
+    } else {
+      additionalDetails.innerHTML = '';
+      additionalSection.hidden = true;
+    }
+  }
+
+  const modalBody = modal.querySelector('.adoption-modal-body');
+  if (modalBody) modalBody.scrollTop = 0;
+
   modal.hidden = false;
   document.body.classList.add('modal-open');
+  document.documentElement.classList.add('modal-open');
 }
 
 function closeAdoptionModal() {
@@ -2023,6 +2296,26 @@ function closeAdoptionModal() {
   if (!modal) return;
   modal.hidden = true;
   document.body.classList.remove('modal-open');
+  document.documentElement.classList.remove('modal-open');
+}
+
+function setupGlobalModalHandlers() {
+  document.querySelectorAll('[data-modal-close]').forEach((element) => {
+    element.addEventListener('click', closeAdoptionModal);
+  });
+  document.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape') {
+      closeAdoptionModal();
+    }
+  });
+  const adoptionModal = document.getElementById('adoptionModal');
+  if (adoptionModal) {
+    adoptionModal.addEventListener('click', (event) => {
+      if (event.target === adoptionModal || event.target.classList.contains('adoption-modal-backdrop')) {
+        closeAdoptionModal();
+      }
+    });
+  }
 }
 
 async function setupCategoryPage() {
@@ -2103,9 +2396,16 @@ async function setupCategoryPage() {
     definirAberto(caixa?.dataset.estado !== 'aberto', true);
   });
 
-  document.getElementById('filtrosLimpar')?.addEventListener('click', () => {
+  const executarLimpezaFiltros = () => {
     limparFiltros();
     buscar(true);
+  };
+
+  document.getElementById('filtrosLimpar')?.addEventListener('click', executarLimpezaFiltros);
+  document.getElementById('painelFiltros')?.addEventListener('click', (evento) => {
+    if (evento.target.closest('#filtrosLimpar, .filtros-limpar')) {
+      executarLimpezaFiltros();
+    }
   });
 
   // chip de filtro ativo: clicar remove so aquele filtro
@@ -2408,16 +2708,34 @@ function setupPasswordRecovery() {
 
 async function handleLoginSubmit(event) {
   event.preventDefault();
-  const email = document.getElementById('loginEmail').value.trim();
-  const password = document.getElementById('loginPassword').value.trim();
-  if (email.toLowerCase() !== 'admin' && !isValidEmail(email)) return showToast('Informe um e-mail válido.', 'error');
+  const emailOrUser = document.getElementById('loginEmail')?.value.trim();
+  const password = document.getElementById('loginPassword')?.value.trim();
+  const submitButton = event.target.querySelector('button[type="submit"]');
+  const originalButtonText = submitButton ? submitButton.textContent : 'Entrar';
+
+  if (!emailOrUser) return showToast('Informe seu e-mail ou nome de usuário.', 'error');
+  if (!password) return showToast('Informe sua senha.', 'error');
+
   try {
-    const user = await loginWithSupabase(email, password);
+    if (submitButton) {
+      submitButton.disabled = true;
+      submitButton.textContent = 'Entrando...';
+    }
+    const user = await loginWithSupabase(emailOrUser, password);
     saveSession(user);
     resetVerificacao();
-    window.location.href = 'index.html';
+    showToast('Login realizado com sucesso!');
+    setTimeout(() => {
+      window.location.href = 'index.html';
+    }, 450);
   } catch (error) {
-    showToast(error.message || 'Erro ao entrar.', 'error');
+    console.error('Erro ao efetuar login:', error);
+    showToast(error.message || 'Erro ao entrar. Verifique suas credenciais.', 'error');
+  } finally {
+    if (submitButton) {
+      submitButton.disabled = false;
+      submitButton.textContent = originalButtonText;
+    }
   }
 }
 
@@ -2714,6 +3032,7 @@ async function initializePage() {
   bindAdminActions();
   await updateHomeUserActions();
   initCustomSelects();
+  setupGlobalModalHandlers();
 
   if (page === 'home') {
     loadSiteStatistics();
