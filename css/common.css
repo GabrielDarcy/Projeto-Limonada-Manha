@@ -2221,6 +2221,193 @@ body[data-animal-type="Cachorro"] .category-filters {
   text-align: center;
 }
 
+/* Página de Termos de Uso e Isenção */
+.terms-page-layout {
+  padding: 48px 0 80px;
+}
+
+.terms-card {
+  background: var(--surface);
+  border: 1px solid rgba(31, 27, 27, 0.08);
+  border-radius: var(--r-card);
+  padding: 42px;
+  box-shadow: 0 4px 16px rgba(31, 27, 27, 0.04);
+  max-width: 860px;
+  margin: 0 auto;
+}
+
+.terms-header {
+  margin-bottom: 24px;
+}
+
+.terms-header h1 {
+  font-size: clamp(1.8rem, 3.2vw, 2.4rem);
+  line-height: 1.15;
+  margin: 14px 0 10px;
+}
+
+.terms-subtitle {
+  color: var(--muted);
+  font-size: 0.95rem;
+  line-height: 1.6;
+}
+
+.terms-notice-box {
+  background: #fff4ea;
+  border-left: 4px solid var(--primary-dark);
+  padding: 16px 20px;
+  border-radius: var(--r-input);
+  margin-bottom: 32px;
+  color: #7c2d12;
+  font-size: 0.95rem;
+  line-height: 1.6;
+}
+
+.terms-notice-box strong {
+  color: var(--primary-dark);
+}
+
+.terms-section {
+  margin-bottom: 28px;
+}
+
+.terms-section h2 {
+  font-size: 1.22rem;
+  color: var(--primary-dark);
+  margin: 0 0 10px;
+  line-height: 1.3;
+}
+
+.terms-section p {
+  color: #374151;
+  line-height: 1.7;
+  margin: 0 0 10px;
+}
+
+.terms-section ul {
+  padding-left: 22px;
+  margin: 0 0 12px;
+  color: #374151;
+  line-height: 1.7;
+}
+
+.terms-section li {
+  margin-bottom: 8px;
+}
+
+/* Modal de Termos de Uso (Sob demanda) */
+.terms-modal .dynamic-modal-panel {
+  width: min(720px, 100%);
+  max-height: 85vh;
+  max-height: 85dvh;
+  display: flex;
+  flex-direction: column;
+  padding: 28px 24px 20px;
+  box-sizing: border-box;
+}
+
+.terms-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid rgba(31, 27, 27, 0.08);
+  flex-shrink: 0;
+}
+
+.terms-modal-header h2 {
+  margin: 0;
+  font-size: 1.25rem;
+  line-height: 1.2;
+}
+
+.terms-modal-close {
+  background: #fff4ea;
+  border: 0;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-size: 1.4rem;
+  color: var(--text);
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: transform 0.15s ease, background 0.15s ease;
+}
+
+.terms-modal-close:hover {
+  background: #ffe3cb;
+  transform: scale(1.05);
+}
+
+.terms-modal-body {
+  overflow-y: auto;
+  padding: 16px 8px 16px 0;
+  font-size: 0.92rem;
+  line-height: 1.65;
+  color: var(--text);
+}
+
+.terms-modal-body h3 {
+  margin: 18px 0 6px;
+  font-size: 1rem;
+  color: var(--primary-dark);
+}
+
+.terms-modal-body p,
+.terms-modal-body ul {
+  margin: 0 0 10px;
+  color: #4b5563;
+}
+
+.terms-modal-body ul {
+  padding-left: 20px;
+}
+
+.terms-modal-body li {
+  margin-bottom: 6px;
+}
+
+.terms-modal-footer {
+  padding-top: 14px;
+  border-top: 1px solid rgba(31, 27, 27, 0.08);
+  display: flex;
+  justify-content: flex-end;
+  flex-shrink: 0;
+}
+
+.inline-terms-btn {
+  background: none;
+  border: none;
+  padding: 0;
+  font: inherit;
+  color: var(--primary-dark);
+  font-weight: 800;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.inline-terms-btn:hover {
+  color: var(--primary);
+}
+
+.footer-link-btn {
+  background: none;
+  border: none;
+  padding: 0;
+  font: inherit;
+  font-weight: 800;
+  color: var(--primary-dark);
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.footer-link-btn:hover {
+  text-decoration: underline;
+}
+
 .help-list {
   list-style: none;
   padding: 0;

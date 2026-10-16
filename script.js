@@ -2409,6 +2409,84 @@ function closeAdoptionModal() {
   document.documentElement.classList.remove('modal-open');
 }
 
+function openTermsModal() {
+  const existing = document.querySelector('.dynamic-modal.terms-modal');
+  if (existing) closeDynamicModal(existing);
+
+  const content = `
+    <header class="terms-modal-header">
+      <h2>Termos de Uso e Isenção de Responsabilidade</h2>
+      <button type="button" class="terms-modal-close" aria-label="Fechar termos" data-close-dynamic>&times;</button>
+    </header>
+    <div class="terms-modal-body">
+      <div class="terms-notice-box" style="margin-bottom: 18px;">
+        <strong>AVISO LEGAL IMPORTANTE:</strong> O Pet Amor é exclusivamente uma plataforma comunitária voluntária e gratuita para publicação de anúncios. Não somos abrigo, canil, criadores, autoridade veterinária ou guardiões de animais. O uso deste serviço isenta total e expressamente a plataforma e seus mantenedores de quaisquer responsabilidades.
+      </div>
+
+      <h3>1. Mero Intermediário Digital Gratuito</h3>
+      <p>O <strong>Pet Amor</strong> atua unicamente disponibilizando espaço virtual (classificados online) para que a comunidade publique e encontre animais para adoção responsável e ajuda voluntária.</p>
+      <p>Nos termos do <strong>Artigo 19 do Marco Civil da Internet (Lei nº 12.965/2014)</strong>, o site não responde civilmente por atos, omissões, dados, fotos ou conteúdos veiculados por terceiros.</p>
+
+      <h3>2. Isenção Total sobre os Animais (Saúde, Temperamento e Custos)</h3>
+      <p>A plataforma <strong>não realiza inspeções físicas, triagens presenciais ou laudos veterinários</strong>. Os mantenedores e desenvolvedores do site isentam-se expressamente de qualquer responsabilidade por:</p>
+      <ul>
+        <li><strong>Saúde e Zoonoses:</strong> Doenças pré-existentes, patologias congênitas, vírus, parasitas, zoonoses (raiva, cinomose, parvovirose, leishmaniose, esporotricose) ou falecimento de animais;</li>
+        <li><strong>Comportamento e Danos:</strong> Agressividade, mordidas, ataques ou danos patrimoniais e corporais causados pelo animal a pessoas, crianças ou outros animais;</li>
+        <li><strong>Genética e Raça:</strong> Veracidade de raça, porte futuro, idade estimada ou autenticidade de vacinas e castração (que devem ser conferidas diretamente com o anunciante);</li>
+        <li><strong>Despesas:</strong> Honorários veterinários, clínicas, rações ou tratamentos após a adoção.</li>
+      </ul>
+
+      <h3>3. Isenção sobre Encontros, Conversas e Entregas</h3>
+      <p>Todo contato, conversa e entrega de animais ocorre <strong>fora da plataforma</strong>, por deliberação autônoma dos usuários (via WhatsApp ou telefone particular). A plataforma não fiscaliza a idoneidade moral, civil ou psicológica de adotantes ou anunciantes e não responde por atritos, furtos, acidentes ou crimes ocorridos em visitas ou entregas.</p>
+      <p><strong>Dica de segurança:</strong> Recomendamos sempre marcar encontros em locais públicos e movimentados (como clínicas veterinárias, pet shops ou praças de dia) e nunca repassar dados bancários ou senhas a terceiros.</p>
+
+      <h3>4. Proibição de Vendas e Isenção sobre Golpes Financeiros</h3>
+      <p>É <strong>terminantemente proibida a comercialização de animais</strong> ou a cobrança de taxas de adoção com finalidade de lucro. O Pet Amor apoia exclusivamente o resgate e a doação solidária.</p>
+      <p>A plataforma <strong>não processa nem intermedeia valores financeiros entre usuários</strong>. Isentamo-nos integralmente de prejuízos decorrentes de golpes de terceiros, pedidos indevidos de transferências ou estelionato.</p>
+
+      <h3>5. Doações Voluntárias via PIX para Manutenção do Site</h3>
+      <p>As contribuições financeiras enviadas voluntariamente através do QR Code / Chave PIX do site destinam-se exclusivamente ao custeio de infraestrutura técnica (hospedagem, banco de dados, domínio e servidores). Trata-se de <strong>doação pura e simples (Art. 538 do Código Civil)</strong> por mera liberalidade, sem contraprestação de serviços, sem planos pagos e sem direito a restituição ou reembolso.</p>
+
+      <h3>6. Responsabilidade do Anunciante e Crimes Ambientais</h3>
+      <p>O usuário que publica um anúncio assume <strong>responsabilidade civil e penal exclusiva</strong> pela veracidade de todas as informações. O <strong>abandono e os maus-tratos a animais configuram crimes inafiançáveis (Lei nº 9.605/1998 e Lei Sansão nº 14.064/2020)</strong> com pena de 2 a 5 anos de reclusão. A plataforma colaborará com autoridades policiais e judiciais mediante ordem competente.</p>
+
+      <h3>7. Moderação e Exclusão Autônoma</h3>
+      <p>A administração poderá, a qualquer tempo, sem aviso prévio ou indenização, remover publicações e suspender contas que violem estas diretrizes ou apresentem conduta suspeita.</p>
+
+      <h3>8. Privacidade (LGPD) e Foro de Eleição</h3>
+      <p>Dados de contato informados em anúncios tornam-se públicos exclusivamente para viabilizar que pretendentes à adoção entrem em contato. Fica eleito o Foro de domicílio do mantenedor para dirimir quaisquer controvérsias.</p>
+    </div>
+    <footer class="terms-modal-footer">
+      <a href="termos.html" class="btn btn-secondary" style="margin-right: auto;" target="_blank">Página completa</a>
+      <button type="button" class="btn btn-primary" data-close-dynamic>Entendi e concordo</button>
+    </footer>
+  `;
+
+  const modal = createDynamicModal(content, 'terms-modal');
+  modal.querySelectorAll('[data-close-dynamic]').forEach((button) => {
+    button.addEventListener('click', () => closeDynamicModal(modal));
+  });
+  modal.querySelector('.dynamic-modal-backdrop')?.addEventListener('click', () => closeDynamicModal(modal));
+
+  const escHandler = (event) => {
+    if (event.key === 'Escape') {
+      closeDynamicModal(modal);
+      document.removeEventListener('keydown', escHandler);
+    }
+  };
+  document.addEventListener('keydown', escHandler);
+}
+
+function setupTermsModalHandler() {
+  document.addEventListener('click', (event) => {
+    const trigger = event.target.closest('[data-open-terms]');
+    if (!trigger) return;
+    event.preventDefault();
+    event.stopPropagation();
+    openTermsModal();
+  });
+}
+
 function setupGlobalModalHandlers() {
   document.querySelectorAll('[data-modal-close]').forEach((element) => {
     element.addEventListener('click', closeAdoptionModal);
@@ -2426,6 +2504,7 @@ function setupGlobalModalHandlers() {
       }
     });
   }
+  setupTermsModalHandler();
 }
 
 async function setupCategoryPage() {
