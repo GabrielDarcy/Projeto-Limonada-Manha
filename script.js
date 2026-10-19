@@ -28,6 +28,19 @@ function escapeHTML(str) {
     .replace(/'/g, '&#39;');
 }
 
+// sanitiza URLs para impedir injeção de esquemas perigosos (javascript:, vbscript:, etc.)
+function sanitizeUrl(url) {
+  if (!url) return '';
+  const trimmed = String(url).trim();
+  if (/^(?:https?:\/\/|data:image\/(?:png|jpeg|jpg|webp|gif|svg\+xml)[;,])/i.test(trimmed)) {
+    return trimmed;
+  }
+  if (trimmed.startsWith('/') || trimmed.startsWith('./') || trimmed.startsWith('../')) {
+    return trimmed;
+  }
+  return '';
+}
+
 // o filtro do postgrest usa virgula e parenteses como sintaxe, entao tiramos esses caracteres
 function sanitizeFiltroPostgrest(valor) {
   return String(valor || '')
@@ -315,7 +328,7 @@ function renderAuthorBar(profile) {
   const authorProfile = Array.isArray(profile) ? profile[0] : profile;
   const firstName = authorProfile?.full_name?.split(' ')[0] || 'Usuário';
   const username = authorProfile?.username ? `@${escapeHTML(authorProfile.username.replace(/^@/, ''))}` : '';
-  const avatarUrl = authorProfile?.avatar_url || DEFAULT_AVATAR_URL;
+  const avatarUrl = sanitizeUrl(authorProfile?.avatar_url) || DEFAULT_AVATAR_URL;
   return `<div class="post-author-bar"><img class="post-author-avatar" src="${escapeHTML(avatarUrl)}" alt="Foto de ${escapeHTML(firstName)}"><strong class="post-author-name">${escapeHTML(firstName)}</strong>${username ? `<small class="post-author-username">${escapeHTML(username)}</small>` : ''}</div>`;
 }
 
@@ -544,6 +557,10 @@ async function loginWithSupabase(identifier, password) {
 
 async function handleAdminAccountSubmit(event) {
   event.preventDefault();
+  if (!(await isCurrentUserAdmin())) {
+    showToast('Apenas administradores podem alterar credenciais de administração.', 'error');
+    return;
+  }
   const emailField = document.getElementById('adminAccountEmail');
   const passwordField = document.getElementById('adminAccountPassword');
   const emailValue = emailField.value.trim().toLowerCase();
@@ -638,7 +655,6 @@ async function registerWithSupabase(name, username, email, password, birthDate, 
       username: normalizedUsername,
       birth_date: birthDate,
       avatar_url: avatarUrl,
-      recovery_code: recoveryCode,
       status: 'active'
     }).eq('id', userId);
     if (profileError) {
@@ -648,6 +664,13 @@ async function registerWithSupabase(name, username, email, password, birthDate, 
         await garantirUsernameLivre(client, normalizedUsername, userId);
       }
       throw new Error(mensagemDeErroSegura(profileError, 'Não foi possível salvar o perfil. Tente novamente.'));
+    }
+
+    // Salva o código de recuperação através da RPC segura com salt e hash criptográfico
+    try {
+      await client.rpc('save_recovery_code', { p_code: recoveryCode });
+    } catch (rcError) {
+      console.warn('Registro de código de recuperação criptografado:', rcError);
     }
   }
 
@@ -1845,7 +1868,7 @@ function setupAdoptionCarousel() {
 
 function getPostImageUrl(post) {
   const image = Array.isArray(post.image_urls) ? post.image_urls[0] : post.image_urls;
-  return image || 'https://images.unsplash.com/photo-1517849845537-4d257902454a?auto=format&fit=crop&w=900&q=80';
+  return sanitizeUrl(image) || 'https://images.unsplash.com/photo-1517849845537-4d257902454a?auto=format&fit=crop&w=900&q=80';
 }
 
 function getOptimizedImageUrl(url) {
@@ -1880,7 +1903,8 @@ function faixaDeIdadePorNascimento(birthDate) {
 }
 
 function generateImageCarouselHTML(imageUrls, altText) {
-  const normalizedUrls = (Array.isArray(imageUrls) ? imageUrls : imageUrls ? [imageUrls] : []).filter(Boolean);
+  const rawUrls = (Array.isArray(imageUrls) ? imageUrls : imageUrls ? [imageUrls] : []).filter(Boolean);
+  const normalizedUrls = rawUrls.map(sanitizeUrl).filter(Boolean);
   const safeAltText = escapeHTML(altText || 'Imagem do animal');
   const urls = normalizedUrls.length
     ? normalizedUrls.map(getOptimizedImageUrl)
@@ -2841,23 +2865,35 @@ function showRecoveryCodeModal(code, redirect) {
 function setupPasswordRecovery() {
   document.getElementById('forgotPasswordButton')?.addEventListener('click', () => {
     const modal = createDynamicModal(`<h2>Recuperar senha</h2>
-      <p>Informe o código de 6 dígitos que você anotou ao criar a conta.</p>
+      <p>Informe seu e-mail ou nome de usuário e o código de recuperação de 6 dígitos que você anotou ao criar a conta.</p>
       <form id="recoveryCodeForm">
+        <label>E-mail ou nome de usuário
+          <input type="text" id="recoveryIdentifier" placeholder="seu@email.com ou seu_usuario" required />
+        </label>
         <label>Código de recuperação
-          <input type="text" id="recoveryCode" inputmode="numeric" autocomplete="one-time-code" maxlength="6" required />
+          <input type="text" id="recoveryCode" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="000000" required />
         </label>
         <button class="btn btn-primary full" type="submit">Continuar</button>
       </form>
       <p class="recovery-hint">Perdeu o código? Entre em contato com a administração.</p>`);
 
+    const campoIdentificador = modal.querySelector('#recoveryIdentifier');
     const campoCodigo = modal.querySelector('#recoveryCode');
+
+    const emailLoginInput = document.getElementById('loginEmail')?.value.trim();
+    if (emailLoginInput && campoIdentificador) {
+      campoIdentificador.value = emailLoginInput;
+    }
+
     campoCodigo.addEventListener('input', (inputEvent) => {
       inputEvent.target.value = inputEvent.target.value.replace(/\D/g, '').slice(0, 6);
     });
 
     modal.querySelector('#recoveryCodeForm').addEventListener('submit', (codeEvent) => {
       codeEvent.preventDefault();
+      const identifier = campoIdentificador.value.trim();
       const code = campoCodigo.value;
+      if (!identifier) return showToast('Informe seu e-mail ou nome de usuário.', 'error');
       if (!/^\d{6}$/.test(code)) return showToast('Informe um código válido de 6 dígitos.', 'error');
 
       modal.querySelector('.dynamic-modal-panel').innerHTML = `<h2>Crie uma nova senha</h2>
@@ -2878,7 +2914,8 @@ function setupPasswordRecovery() {
         const client = getSupabaseClient();
         const { error } = await client.rpc('reset_password_with_code_v2', {
           p_recovery_code: code,
-          p_new_password: newPass
+          p_new_password: newPass,
+          p_identifier: identifier
         });
         if (error) {
           try {
@@ -3172,13 +3209,15 @@ async function initializePage() {
 
   const page = document.body.dataset.page;
 
-  if (data.user && verificacao.status === 'banned' && ['create-post', 'profile', 'my-posts', 'favorites', 'admin'].includes(page)) {
+  if (data.user && verificacao.status === 'banned') {
     await getSupabaseClient().auth.signOut();
     clearSession();
     resetVerificacao();
     showToast('Esta conta está banida. Entre em contato com a administração.', 'error');
-    window.location.href = 'index.html';
-    return;
+    if (page !== 'home') {
+      window.location.href = 'index.html';
+      return;
+    }
   }
 
   setupImageFallbacks();
