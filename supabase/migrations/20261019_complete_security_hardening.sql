@@ -116,24 +116,57 @@ create trigger trg_protect_profile_roles
   for each row
   execute function public.protect_profile_roles();
 
--- 3.1 Sincronização automática de novos usuários de auth.users para public.profiles
+-- 3.1 Sincronização automática de novos usuários (Email/Senha e OAuth Google)
 create or replace function public.handle_new_user()
 returns trigger
 language plpgsql
 security definer
 set search_path = public, auth, pg_catalog
 as $$
+declare
+  v_base_username text;
+  v_final_username text;
+  v_avatar text;
+  v_name text;
 begin
-  insert into public.profiles (id, email, full_name, role, status)
+  v_name := coalesce(
+    new.raw_user_meta_data->>'full_name',
+    new.raw_user_meta_data->>'name',
+    split_part(new.email, '@', 1)
+  );
+
+  v_avatar := coalesce(
+    new.raw_user_meta_data->>'avatar_url',
+    new.raw_user_meta_data->>'picture'
+  );
+
+  -- Gera username limpo a partir do email ou nome
+  v_base_username := lower(regexp_replace(split_part(new.email, '@', 1), '[^a-z0-9._]', '', 'g'));
+  if length(v_base_username) < 3 then
+    v_base_username := 'user_' || substr(replace(new.id::text, '-', ''), 1, 6);
+  end if;
+
+  v_final_username := v_base_username;
+  if exists (select 1 from public.profiles where lower(username) = lower(v_final_username) and id <> new.id) then
+    v_final_username := substr(v_base_username, 1, 20) || '_' || substr(replace(new.id::text, '-', ''), 1, 4);
+  end if;
+
+  insert into public.profiles (id, email, full_name, username, avatar_url, role, status)
   values (
     new.id,
     new.email,
-    coalesce(new.raw_user_meta_data->>'full_name', split_part(new.email, '@', 1)),
+    v_name,
+    v_final_username,
+    v_avatar,
     'user',
     'active'
   )
   on conflict (id) do update set
-    email = excluded.email;
+    email = excluded.email,
+    full_name = coalesce(profiles.full_name, excluded.full_name),
+    avatar_url = coalesce(profiles.avatar_url, excluded.avatar_url),
+    username = coalesce(profiles.username, excluded.username);
+
   return new;
 end;
 $$;

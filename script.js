@@ -2932,6 +2932,50 @@ function setupPasswordRecovery() {
   });
 }
 
+function cleanupAuthUrlParams() {
+  try {
+    if (window.location.hash && (window.location.hash.includes('access_token=') || window.location.hash.includes('refresh_token='))) {
+      const cleanUrl = window.location.href.split('#')[0];
+      window.history.replaceState(null, document.title, cleanUrl);
+    }
+    if (window.location.search && (window.location.search.includes('code=') || window.location.search.includes('error='))) {
+      const url = new URL(window.location.href);
+      url.searchParams.delete('code');
+      url.searchParams.delete('state');
+      url.searchParams.delete('error');
+      url.searchParams.delete('error_description');
+      window.history.replaceState(null, document.title, url.href);
+    }
+  } catch (e) {
+    console.warn('Falha ao limpar parâmetros sensíveis de autenticação da URL:', e);
+  }
+}
+
+async function signInWithGoogle() {
+  const client = getSupabaseClient();
+  if (!client) {
+    showToast('Cliente Supabase indisponível no momento.', 'error');
+    return;
+  }
+
+  const base = document.baseURI || window.location.href;
+  const redirectUrl = new URL('index.html', base).href;
+
+  try {
+    const { data, error } = await client.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        redirectTo: redirectUrl
+      }
+    });
+
+    if (error) throw error;
+  } catch (error) {
+    console.error('Erro ao autenticar com Google:', error);
+    showToast(mensagemDeErroSegura(error, 'Não foi possível conectar com o Google. Verifique a configuração do OAuth.'), 'error');
+  }
+}
+
 async function handleLoginSubmit(event) {
   event.preventDefault();
   const emailOrUser = document.getElementById('loginEmail')?.value.trim();
@@ -3232,6 +3276,10 @@ async function initializePage() {
   initCustomSelects();
   setupGlobalModalHandlers();
 
+  // Limpa parâmetros sensíveis de URL após fluxos OAuth para segurança
+  cleanupAuthUrlParams();
+  document.getElementById('googleAuthButton')?.addEventListener('click', signInWithGoogle);
+
   if (page === 'home') {
     loadSiteStatistics();
     loadHomeRealStats();
@@ -3243,10 +3291,18 @@ async function initializePage() {
     setupFeedFilters();
   } else if (page === 'category') {
     setupCategoryPage();
-  } else if (page === 'login' && !getSession()) {
+  } else if (page === 'login') {
+    if (getSession()) {
+      window.location.href = 'index.html';
+      return;
+    }
     document.getElementById('loginForm')?.addEventListener('submit', handleLoginSubmit);
     setupPasswordRecovery();
   } else if (page === 'register') {
+    if (getSession()) {
+      window.location.href = 'index.html';
+      return;
+    }
     setupRegisterBirthDateMask();
     document.getElementById('registerForm')?.addEventListener('submit', handleRegisterSubmit);
     const registerPasswordInput = document.getElementById('registerPassword');

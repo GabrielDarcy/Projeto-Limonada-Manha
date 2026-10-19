@@ -31,7 +31,7 @@
   #   connect-src -> projeto Supabase (REST/Auth/Storage) + IBGE (estados e cidades)
   #   img-src     -> Storage do Supabase + Unsplash + placehold.co + data: (prévia local)
   #   font-src    -> arquivos das Google Fonts
-  Content-Security-Policy: default-src 'self'; base-uri 'self'; form-action 'self'; object-src 'none'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https://sqosvgesugekqvgucepn.supabase.co https://images.unsplash.com https://placehold.co; connect-src 'self' https://sqosvgesugekqvgucepn.supabase.co wss://sqosvgesugekqvgucepn.supabase.co https://servicodados.ibge.gov.br; frame-ancestors 'none'; upgrade-insecure-requests
+  Content-Security-Policy: default-src 'self'; base-uri 'self'; form-action 'self'; object-src 'none'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https://sqosvgesugekqvgucepn.supabase.co https://images.unsplash.com https://placehold.co https://*.googleusercontent.com; connect-src 'self' https://sqosvgesugekqvgucepn.supabase.co wss://sqosvgesugekqvgucepn.supabase.co https://servicodados.ibge.gov.br; frame-ancestors 'none'; upgrade-insecure-requests
 
 # O HTML nunca deve ficar em cache: sempre pega a versão nova do app.
 /*.html
