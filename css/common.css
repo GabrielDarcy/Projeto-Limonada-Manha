@@ -811,7 +811,7 @@ th {
   }
 
   body {
-    padding-bottom: 75px;
+    padding-bottom: calc(76px + env(safe-area-inset-bottom, 0px));
   }
 
   .home-links {
@@ -826,22 +826,78 @@ th {
     z-index: 100;
     display: flex;
     justify-content: space-around;
-    padding: 12px 0;
-    background: #fff;
-    box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.05);
+    align-items: center;
+    padding: 6px 8px calc(8px + env(safe-area-inset-bottom, 0px));
+    background: rgba(255, 255, 255, 0.94);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border-top: 1px solid rgba(31, 27, 27, 0.08);
+    box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.06);
   }
 
   .mobile-bottom-nav .nav-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    flex: 1;
+    min-height: 48px;
+    padding: 4px 6px;
     color: var(--muted);
-    font-size: var(--t-xs);
-    font-weight: 700;
+    font-size: 0.72rem;
+    font-weight: 600;
     line-height: 1.1;
     text-align: center;
+    text-decoration: none;
+    border-radius: var(--r-input);
+    transition: color 0.15s ease, transform 0.15s cubic-bezier(0.16, 1, 0.3, 1);
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .mobile-bottom-nav .nav-item:active {
+    transform: scale(0.92);
+  }
+
+  .mobile-bottom-nav .nav-item svg {
+    width: 22px;
+    height: 22px;
+    stroke: currentColor;
+    transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), stroke 0.2s ease;
+  }
+
+  .mobile-bottom-nav .nav-item[aria-current="page"] {
+    color: var(--primary-dark);
+    font-weight: 800;
+  }
+
+  .mobile-bottom-nav .nav-item[aria-current="page"] svg {
+    stroke: var(--primary);
+    transform: scale(1.12);
   }
 
   .mobile-bottom-nav .nav-item span {
     font-size: inherit;
     font-weight: inherit;
+  }
+
+  .mobile-bottom-nav .nav-icon-plus {
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+    color: #ffffff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 4px 10px rgba(217, 97, 27, 0.35);
+    transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s ease;
+  }
+
+  .mobile-bottom-nav .nav-icon-plus svg {
+    stroke: #ffffff !important;
+    width: 17px;
+    height: 17px;
   }
 }
 
@@ -1146,7 +1202,7 @@ th {
   position: fixed;
   right: 22px;
   bottom: 22px;
-  z-index: 100;
+  z-index: 1000;
   display: flex;
   align-items: center;
   gap: 10px;
@@ -1158,13 +1214,25 @@ th {
   color: var(--text);
   box-shadow: 0 16px 36px rgba(31, 27, 27, 0.16);
   opacity: 0;
-  transform: translateY(14px);
-  transition: opacity 0.22s ease, transform 0.22s ease;
+  transform: translateY(14px) scale(0.96);
+  transition: opacity 0.22s cubic-bezier(0.16, 1, 0.3, 1), transform 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+  pointer-events: auto;
+}
+
+@media (max-width: 900px) {
+  .toast {
+    right: 16px;
+    left: 16px;
+    bottom: calc(76px + env(safe-area-inset-bottom, 0px));
+    max-width: none;
+    justify-content: center;
+    border-radius: var(--r-card);
+  }
 }
 
 .toast.is-visible {
   opacity: 1;
-  transform: translateY(0);
+  transform: translateY(0) scale(1);
 }
 
 .toast-icon {
@@ -1187,25 +1255,65 @@ th {
 .dynamic-modal {
   position: fixed;
   inset: 0;
-  z-index: 90;
-  display: grid;
-  place-items: center;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   padding: 20px;
+  box-sizing: border-box;
 }
 
 .dynamic-modal-backdrop {
   position: absolute;
   inset: 0;
-  background: rgba(31, 27, 27, 0.58);
+  background: rgba(22, 19, 18, 0.68);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  animation: modal-fade-in 0.2s ease both;
 }
 
 .dynamic-modal-panel {
   position: relative;
-  width: min(460px, 100%);
+  width: min(480px, 100%);
   padding: 28px;
   border-radius: var(--r-card);
   background: #fff;
-  box-shadow: 0 8px 20px rgba(31, 27, 27, 0.12);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.22);
+  animation: modal-slide-up 0.25s cubic-bezier(0.16, 1, 0.3, 1) both;
+  max-height: 85vh;
+  overflow-y: auto;
+  box-sizing: border-box;
+}
+
+.dynamic-modal-close {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  width: 36px;
+  height: 36px;
+  border: 1px solid rgba(31, 27, 27, 0.1);
+  border-radius: 50%;
+  background: var(--surface-warm, #f8f6f4);
+  color: var(--text);
+  font-size: 1.4rem;
+  font-weight: 700;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 0.15s ease, transform 0.15s ease;
+  z-index: 10;
+}
+
+.dynamic-modal-close:hover,
+.dynamic-modal-close:focus-visible {
+  background: #e5e0db;
+  transform: scale(1.06);
+}
+
+.dynamic-modal-close:active {
+  transform: scale(0.92);
 }
 
 .dynamic-modal-panel h2 { margin: 0 0 10px; }
@@ -3282,7 +3390,16 @@ body.modal-open,
 html.modal-open,
 .modal-open {
   overflow: hidden !important;
-  touch-action: none;
+  overscroll-behavior: contain;
+}
+
+.adoption-modal-body,
+.dynamic-modal-panel,
+.terms-modal-body,
+.support-modal-content {
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-y;
 }
 
 @keyframes modal-fade-in {
@@ -3291,8 +3408,8 @@ html.modal-open,
 }
 
 @keyframes modal-slide-up {
-  from { opacity: 0; transform: translateY(18px); }
-  to { opacity: 1; transform: translateY(0); }
+  from { opacity: 0; transform: translateY(20px) scale(0.97); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
 }
 
 .category-results {
@@ -3942,17 +4059,47 @@ html.modal-open,
     padding: 48px 0;
   }
 
-  .adoption-modal {
-    padding: 10px;
+  .adoption-modal,
+  .dynamic-modal {
+    padding: 0;
+    align-items: flex-end;
   }
 
-  .adoption-modal-content {
-    max-height: 92vh;
-    border-radius: 16px;
+  .adoption-modal-content,
+  .dynamic-modal-panel {
+    border-radius: 24px 24px 0 0;
+    width: 100%;
+    max-width: 100%;
+    max-height: 90vh;
+    animation: modalSheetUp 0.32s cubic-bezier(0.32, 0.72, 0, 1) both;
+    padding-bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+  }
+
+  .adoption-modal-content::before,
+  .dynamic-modal-panel::before {
+    content: "";
+    display: block;
+    width: 44px;
+    height: 5px;
+    border-radius: 3px;
+    background: rgba(31, 27, 27, 0.22);
+    margin: 8px auto 14px;
+    flex-shrink: 0;
+  }
+
+  @keyframes modalSheetUp {
+    from {
+      opacity: 0.7;
+      transform: translateY(100%);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
   }
 
   .adoption-modal-body {
-    padding: 20px 16px;
+    padding: 16px 18px 24px;
   }
 
   .adoption-modal-content > #modalImageContainer {
@@ -3971,11 +4118,24 @@ html.modal-open,
   }
 
   .adoption-modal-close {
-    top: 10px;
-    right: 10px;
-    width: 36px;
-    height: 36px;
-    font-size: 1.4rem;
+    top: 12px;
+    right: 12px;
+    width: 40px;
+    height: 40px;
+    font-size: 1.5rem;
+  }
+
+  input[type="text"],
+  input[type="email"],
+  input[type="password"],
+  input[type="search"],
+  input[type="tel"],
+  input[type="number"],
+  select,
+  textarea,
+  .custom-select-search,
+  .custom-select-trigger {
+    font-size: 16px !important;
   }
 
   .home-header {
@@ -4186,80 +4346,66 @@ textarea,
 .recent-post-card,
 .profile-post-card,
 .post-carousel-button {
-  transition: all 0.3s ease-in-out;
+  transition:
+    transform 0.2s cubic-bezier(0.16, 1, 0.3, 1),
+    box-shadow 0.2s cubic-bezier(0.16, 1, 0.3, 1),
+    background-color 0.18s ease-out,
+    border-color 0.18s ease-out,
+    color 0.18s ease-out,
+    opacity 0.18s ease-out;
+  touch-action: manipulation;
 }
 
 .feed-card,
 .category-pet-card,
 .recent-post-card,
 .profile-post-card {
-  animation: fadeInUP 0.45s ease both;
+  animation: fadeInUP 0.35s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
 .adoption-modal-content,
 .support-modal-content,
 .dynamic-modal-panel {
-  animation: fadeInUP 0.25s ease both;
+  animation: fadeInUP 0.25s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
-.feed-card:hover,
-.category-pet-card:hover,
-.recent-post-card:hover,
-.profile-post-card:hover,
-.category-card:hover {
-  transform: translateY(-4px);
-  box-shadow: var(--shadow-hover);
+@media (hover: hover) and (pointer: fine) {
+  .feed-card:hover,
+  .category-pet-card:hover,
+  .recent-post-card:hover,
+  .profile-post-card:hover,
+  .category-card:hover {
+    transform: translateY(-4px);
+    box-shadow: var(--shadow-hover);
+  }
+
+  .btn-primary:hover,
+  .btn-primary:focus-visible {
+    transform: translateY(-2px);
+    background: var(--primary-hover);
+    box-shadow: var(--shadow-hover);
+  }
+
+  .auth-brand:hover,
+  .profile-avatar-link:hover,
+  .favorite-button:hover,
+  .share-button:hover,
+  .header-favorite-link:hover,
+  .carousel-control:hover,
+  .btn-danger:hover {
+    box-shadow: var(--shadow-hover);
+  }
 }
 
-.btn-primary:hover,
-.btn-primary:focus-visible {
-  transform: translateY(-2px);
-  background: var(--primary-hover);
-  box-shadow: var(--shadow-hover);
-}
-
-.auth-brand:hover,
-.profile-avatar-link:hover,
-.favorite-button:hover,
-.share-button:hover,
-.header-favorite-link:hover,
-.carousel-control:hover,
-.btn-danger:hover {
-  box-shadow: var(--shadow-hover);
-}
-
-.auth-form,
-.panel,
-.stat-card,
-.recent-post-card,
-.partner-card,
-.feed-card,
-.category-pet-card,
-.profile-post-card,
-.help-action-card,
-.support-story,
-.adoption-modal-content,
-.support-modal-content,
-.dynamic-modal-panel,
-.category-result-card,
-.profile-avatar-large {
-  box-shadow: var(--shadow);
-}
-
-.favorite-button,
-.share-button,
-.header-favorite-link,
-.carousel-control,
-.btn-danger {
-  box-shadow: 0 2px 4px rgba(31, 27, 27, 0.08);
-}
-
-.mobile-bottom-nav .nav-item {
-  display: grid;
-  min-width: 64px;
-  min-height: 34px;
-  place-items: center;
-  font-size: 0.78rem;
+.btn:active,
+.admin-btn:active,
+.favorite-button:active,
+.share-button:active,
+.custom-select-trigger:active,
+.post-carousel-button:active,
+.mobile-bottom-nav .nav-item:active {
+  transform: scale(0.96) !important;
+  transition-duration: 0.08s !important;
 }
 
 @media (max-width: 900px) {
@@ -4276,4 +4422,210 @@ textarea,
     padding: 24px;
   }
 }
+
+/* ==========================================================================
+   NOVAS FUNCIONALIDADES: WhatsApp, Stories, Status de Adoção e LT/Padrinho
+   ========================================================================== */
+
+/* Botão WhatsApp */
+.btn-whatsapp {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  padding: 12px 18px;
+  background: #25d366;
+  color: #ffffff !important;
+  font-weight: 800;
+  font-size: 0.95rem;
+  border-radius: var(--r-input);
+  border: none;
+  cursor: pointer;
+  text-decoration: none;
+  box-shadow: 0 4px 14px rgba(37, 211, 102, 0.35);
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), background-color 0.15s ease, box-shadow 0.2s ease;
+  margin-bottom: 8px;
+  box-sizing: border-box;
+}
+
+.btn-whatsapp:hover,
+.btn-whatsapp:focus-visible {
+  background: #20ba59;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 18px rgba(37, 211, 102, 0.45);
+}
+
+.btn-whatsapp:active {
+  transform: scale(0.96) !important;
+}
+
+.btn-whatsapp svg {
+  flex-shrink: 0;
+}
+
+/* Botão Story (Instagram / WhatsApp Status) */
+.btn-story {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  padding: 11px 16px;
+  background: linear-gradient(135deg, #f58529, #dd2a7b, #8134af);
+  color: #ffffff !important;
+  font-weight: 800;
+  font-size: 0.92rem;
+  border-radius: var(--r-input);
+  border: none;
+  cursor: pointer;
+  text-decoration: none;
+  box-shadow: 0 4px 14px rgba(221, 42, 123, 0.35);
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s ease, opacity 0.15s ease;
+  margin-top: 6px;
+  box-sizing: border-box;
+}
+
+.btn-story:hover,
+.btn-story:focus-visible {
+  opacity: 0.94;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(221, 42, 123, 0.45);
+}
+
+.btn-story:active {
+  transform: scale(0.96) !important;
+}
+
+.btn-story svg {
+  flex-shrink: 0;
+}
+
+/* Badges de Status da Adoção */
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px;
+  border-radius: var(--r-pill);
+  font-size: 0.76rem;
+  font-weight: 800;
+  line-height: 1.2;
+}
+
+.status-badge.status-active {
+  background: #e0f2fe;
+  color: #0369a1;
+  border: 1px solid rgba(3, 105, 161, 0.25);
+}
+
+.status-badge.status-in-process {
+  background: #fef3c7;
+  color: #b45309;
+  border: 1px solid rgba(180, 83, 9, 0.25);
+}
+
+.status-badge.status-adopted {
+  background: #dcfce7;
+  color: #15803d;
+  border: 1px solid rgba(21, 128, 61, 0.25);
+}
+
+/* Badges de Modalidade de Apoio (Lar Temporário e Apadrinhamento) */
+.badge-lt {
+  background: #eff6ff !important;
+  color: #1d4ed8 !important;
+  border: 1px solid rgba(29, 78, 216, 0.25) !important;
+}
+
+.badge-padrinho {
+  background: #fdf4ff !important;
+  color: #a21caf !important;
+  border: 1px solid rgba(162, 28, 175, 0.25) !important;
+}
+
+/* Painel de Gestão de Status em Minhas Publicações */
+.my-post-status-box {
+  margin-top: 14px;
+  padding: 12px;
+  background: #f8f6f4;
+  border-radius: var(--r-input);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.my-post-status-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.my-post-status-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.my-post-status-actions .btn {
+  flex: 1 1 auto;
+  font-size: 0.78rem;
+  padding: 7px 10px;
+}
+
+/* Modal de Prévia do Card para Stories */
+.story-preview-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  text-align: center;
+}
+
+.story-preview-img {
+  width: min(280px, 70vw);
+  aspect-ratio: 9 / 16;
+  border-radius: 16px;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.2);
+  object-fit: cover;
+  background: #fdfaf6;
+}
+
+.story-preview-actions {
+  display: flex;
+  gap: 10px;
+  width: 100%;
+}
+
+.story-preview-actions .btn {
+  flex: 1;
+}
+
+/* Botão PWA Install */
+.btn-pwa-install {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: #fff0e5;
+  color: var(--primary-dark);
+  border: 1px solid rgba(184, 73, 15, 0.2);
+  border-radius: var(--r-pill);
+  padding: 6px 14px;
+  font-size: 0.8rem;
+  font-weight: 800;
+  cursor: pointer;
+  transition: transform 0.15s ease, background-color 0.15s ease;
+}
+
+.btn-pwa-install:hover {
+  background: #fee5d2;
+  transform: translateY(-1px);
+}
+
+.btn-pwa-install:active {
+  transform: scale(0.95);
+}
+
 

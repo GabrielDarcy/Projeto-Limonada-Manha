@@ -181,17 +181,55 @@ function showToast(message, type = 'success') {
   }, 3500);
 }
 
+function syncModalScrollLock() {
+  const isAnyModalOpen = Boolean(
+    document.querySelector('.dynamic-modal, #adoptionModal:not([hidden]), #supportModal:not([hidden]), #contactModal:not([hidden])')
+  );
+  if (isAnyModalOpen) {
+    document.body.classList.add('modal-open');
+    document.documentElement.classList.add('modal-open');
+  } else {
+    document.body.classList.remove('modal-open');
+    document.documentElement.classList.remove('modal-open');
+  }
+}
+
 function closeDynamicModal(modal) {
-  modal?.remove();
-  document.body.classList.remove('modal-open');
+  if (!modal) return;
+  modal.remove();
+  syncModalScrollLock();
 }
 
 function createDynamicModal(content, className = '') {
   const modal = document.createElement('div');
   modal.className = `dynamic-modal ${className}`;
-  modal.innerHTML = `<div class="dynamic-modal-backdrop"></div><section class="dynamic-modal-panel" role="dialog" aria-modal="true">${content}</section>`;
+  const hasCustomClose = content.includes('data-close-dynamic') || content.includes('terms-modal-close') || content.includes('dynamic-modal-close');
+  const closeBtnHtml = hasCustomClose ? '' : '<button type="button" class="dynamic-modal-close" aria-label="Fechar modal" data-close-dynamic>&times;</button>';
+
+  modal.innerHTML = `
+    <div class="dynamic-modal-backdrop" data-close-dynamic></div>
+    <section class="dynamic-modal-panel" role="dialog" aria-modal="true">
+      ${closeBtnHtml}
+      ${content}
+    </section>`;
   document.body.appendChild(modal);
-  document.body.classList.add('modal-open');
+  syncModalScrollLock();
+
+  const handleEsc = (event) => {
+    if (event.key === 'Escape') {
+      closeDynamicModal(modal);
+      document.removeEventListener('keydown', handleEsc);
+    }
+  };
+  document.addEventListener('keydown', handleEsc);
+
+  modal.querySelectorAll('[data-close-dynamic]').forEach((el) => {
+    el.addEventListener('click', () => {
+      closeDynamicModal(modal);
+      document.removeEventListener('keydown', handleEsc);
+    });
+  });
+
   return modal;
 }
 
@@ -774,10 +812,20 @@ function setupImageFallbacks() {
 }
 
 function setupMobileNavCurrent() {
-  const paginaAtual = window.location.pathname.split('/').pop() || 'index.html';
+  const path = window.location.pathname.toLowerCase();
+  const page = document.body.dataset.page;
+  const isHome = page === 'home' || path.endsWith('index.html') || path.endsWith('/') || (!page && !path.includes('.'));
+  const isFavorites = page === 'favorites' || path.includes('favorites');
+  const isCreate = path.includes('create-post');
+  const isProfile = page === 'profile' || path.includes('profile') || path.includes('my-posts');
+
   document.querySelectorAll('.mobile-bottom-nav .nav-item').forEach((item) => {
-    const destino = (item.getAttribute('href') || '').split('/').pop();
-    if (destino && destino === paginaAtual) item.setAttribute('aria-current', 'page');
+    item.removeAttribute('aria-current');
+    const navKey = item.dataset.nav;
+    if (navKey === 'home' && isHome) item.setAttribute('aria-current', 'page');
+    else if (navKey === 'favorites' && isFavorites) item.setAttribute('aria-current', 'page');
+    else if (navKey === 'create' && isCreate) item.setAttribute('aria-current', 'page');
+    else if (navKey === 'profile' && isProfile) item.setAttribute('aria-current', 'page');
   });
 }
 
@@ -788,19 +836,13 @@ function setupSupportModal() {
   function openModal(target) {
     if (!target) return;
     target.hidden = false;
-    document.body.classList.add('modal-open');
-    document.documentElement.classList.add('modal-open');
+    syncModalScrollLock();
   }
 
   function closeModal(target) {
     if (!target) return;
     target.hidden = true;
-    const adoptionModal = document.getElementById('adoptionModal');
-    const isAnyModalOpen = (!modal?.hidden) || (!contactModal?.hidden) || (!adoptionModal?.hidden);
-    if (!isAnyModalOpen) {
-      document.body.classList.remove('modal-open');
-      document.documentElement.classList.remove('modal-open');
-    }
+    syncModalScrollLock();
   }
 
   const openButton = document.getElementById('helpSiteButton');
@@ -2421,16 +2463,14 @@ function openAdoptionModal(post) {
   if (modalBody) modalBody.scrollTop = 0;
 
   modal.hidden = false;
-  document.body.classList.add('modal-open');
-  document.documentElement.classList.add('modal-open');
+  syncModalScrollLock();
 }
 
 function closeAdoptionModal() {
   const modal = document.getElementById('adoptionModal');
   if (!modal) return;
   modal.hidden = true;
-  document.body.classList.remove('modal-open');
-  document.documentElement.classList.remove('modal-open');
+  syncModalScrollLock();
 }
 
 function openTermsModal() {
@@ -2639,9 +2679,6 @@ async function setupCategoryPage() {
 
   if (breedField) await loadDynamicBreedOptions(animalType, breedField, label);
   await renderCategoryFeed(animalType);
-
-  document.querySelectorAll('[data-modal-close]').forEach((element) => element.addEventListener('click', closeAdoptionModal));
-  document.addEventListener('keydown', (event) => { if (event.key === 'Escape') closeAdoptionModal(); });
 }
 
 function setupPostCarouselNavigation() {
@@ -2814,7 +2851,21 @@ function initCustomSelects() {
     refresh();
   });
   document.addEventListener('click', (event) => {
-    if (!event.target.closest('.custom-select')) document.querySelectorAll('.custom-select-menu:not([hidden])').forEach((menu) => { menu.hidden = true; menu.parentElement.classList.remove('is-open'); });
+    if (!event.target.closest('.custom-select')) {
+      document.querySelectorAll('.custom-select-menu:not([hidden])').forEach((menu) => {
+        menu.hidden = true;
+        menu.parentElement.classList.remove('is-open');
+      });
+    }
+  });
+  document.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape') {
+      document.querySelectorAll('.custom-select-menu:not([hidden])').forEach((menu) => {
+        menu.hidden = true;
+        menu.parentElement.classList.remove('is-open');
+        menu.parentElement.querySelector('.custom-select-trigger')?.focus();
+      });
+    }
   });
 }
 
@@ -3285,7 +3336,6 @@ async function initializePage() {
     loadHomeRealStats();
     setupDonationRedirect();
     setupSupportModal();
-    document.querySelectorAll('[data-modal-close]').forEach((element) => element.addEventListener('click', closeAdoptionModal));
     renderRecentPosts();
     setupAdoptionCarousel();
     setupFeedFilters();
@@ -3318,7 +3368,6 @@ async function initializePage() {
   } else if (page === 'my-posts' && redirectIfLoggedOut()) {
     renderUserPosts();
   } else if (page === 'favorites' && redirectIfLoggedOut()) {
-    document.querySelectorAll('[data-modal-close]').forEach((element) => element.addEventListener('click', closeAdoptionModal));
     renderProfileFavorites();
   } else if (page === 'admin') {
     const { data: authData } = await getSupabaseClient().auth.getUser();
