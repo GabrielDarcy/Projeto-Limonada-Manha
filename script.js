@@ -1380,6 +1380,8 @@ function extractPhoneNumber(post) {
 function renderWhatsAppButton(post) {
   const phone = extractPhoneNumber(post);
   if (!phone) return '';
+  const animalTitle = post?.title ? `"${escapeHTML(post.title)}"` : 'do animal';
+  const animalType = formatAnimalType(post?.animal_type) || 'Pet';
   let defaultGreeting = `Olá! Vi o anúncio do pet ${animalTitle} (${animalType}) no Pet Amor e gostaria de saber se ele ainda está disponível para adoção responsável!`;
   if (post.support_type === 'lar_temporario') {
     defaultGreeting = `Olá! Vi o anúncio de Lar Temporário (LT) para o pet ${animalTitle} no Pet Amor e gostaria de me voluntariar/ajudar! 🏠`;
@@ -2125,6 +2127,7 @@ function renderRecentPosts() {
   getSupabaseClient().from('posts').select('*, profiles(full_name, username, avatar_url)').in('status', ['active', 'in_process']).order('created_at', { ascending: false }).limit(12)
     .then(({ data, error }) => {
       if (error) throw new Error(mensagemDeErroSegura(error));
+      registerPostsInGlobalCache(data);
       target.innerHTML = (data || []).map((post) => `
         <article class="recent-post-card ${post.status === 'adopted' ? 'adopted-card' : ''}">
           <div class="card-utility-actions">${favoriteButtonHTML(post.id)}${shareButtonHTML(post)}</div>
@@ -2588,6 +2591,7 @@ async function renderCategoryFeed(animalType) {
     return;
   }
 
+  registerPostsInGlobalCache(data);
   target.innerHTML = renderProximityDivider(data, f.city, (post) => `
     <article class="category-pet-card">
       <div class="card-utility-actions">${favoriteButtonHTML(post.id)}${shareButtonHTML(post)}</div>
@@ -2643,6 +2647,7 @@ async function renderFavorites() {
 
   const postsById = new Map(orderedPosts.map((post) => [String(post.id), post]));
 
+  registerPostsInGlobalCache(orderedPosts);
   target.innerHTML = orderedPosts.map((post) => `
     <article class="recent-post-card profile-post-card ${post.status === 'adopted' ? 'adopted-card' : ''}" data-card-post-id="${escapeHTML(post.id)}">
       <div class="card-utility-actions">${favoriteButtonHTML(post.id)}${shareButtonHTML(post)}</div>
@@ -2973,10 +2978,45 @@ async function generateInstagramStory(post) {
   }
 }
 
-function openAdoptionModal(post) {
-  if (!post) return;
+// Cache global para acesso imediato aos posts carregados por ID
+const globalPostsMap = new Map();
+
+function registerPostsInGlobalCache(posts) {
+  if (!Array.isArray(posts)) return;
+  posts.forEach((p) => {
+    if (p && p.id) globalPostsMap.set(String(p.id), p);
+  });
+}
+
+async function openAdoptionModal(postOrId) {
+  if (!postOrId) return;
   const modal = document.getElementById('adoptionModal');
   if (!modal) return;
+
+  let post = typeof postOrId === 'object' ? postOrId : globalPostsMap.get(String(postOrId));
+
+  if (!post) {
+    try {
+      const { data, error } = await getSupabaseClient()
+        .from('posts')
+        .select('*, profiles(full_name, username, avatar_url)')
+        .eq('id', postOrId)
+        .single();
+      if (!error && data) {
+        post = data;
+        globalPostsMap.set(String(post.id), post);
+      }
+    } catch (fetchErr) {
+      console.warn('Erro ao carregar publicaÃ§Ã£o para modal:', fetchErr);
+    }
+  }
+
+  if (!post) {
+    showToast('NÃ£o foi possÃ­vel carregar os detalhes desta publicaÃ§Ã£o.', 'error');
+    return;
+  }
+
+  try {
 
   const imageContainer = document.getElementById('modalImageContainer');
   if (imageContainer) {
@@ -3113,8 +3153,13 @@ function openAdoptionModal(post) {
   const modalBody = modal.querySelector('.adoption-modal-body');
   if (modalBody) modalBody.scrollTop = 0;
 
-  modal.hidden = false;
-  syncModalScrollLock();
+
+  } catch (err) {
+    console.error('Erro ao preencher dados no modal de adoÃ§Ã£o:', err);
+  } finally {
+    modal.hidden = false;
+    syncModalScrollLock();
+  }
 }
 
 function closeAdoptionModal() {
@@ -3220,6 +3265,18 @@ function setupGlobalModalHandlers() {
       }
     });
   }
+  // DelegaÃ§Ã£o global: garante que qualquer botÃ£o ou card "Ver detalhes" abra o modal com 100% de confiabilidade
+  document.body.addEventListener('click', (event) => {
+    const trigger = event.target.closest('[data-post-details], [data-adoption-post]');
+    if (!trigger) return;
+    if (event.target.closest('[data-carousel-action], [data-carousel-dot], [data-action="delete-post"], .favorite-button, .share-button, .btn-whatsapp, .copy-contact-btn')) return;
+    const postId = trigger.dataset.postDetails || trigger.dataset.adoptionPost;
+    if (postId) {
+      event.preventDefault();
+      openAdoptionModal(postId);
+    }
+  });
+
   setupTermsModalHandler();
 }
 
@@ -3931,6 +3988,7 @@ async function renderUserPosts() {
     return;
   }
 
+  registerPostsInGlobalCache(data);
   target.innerHTML = data.map((post) => {
     const isAdopted = post.status === 'adopted';
     const isInProcess = post.status === 'in_process';
