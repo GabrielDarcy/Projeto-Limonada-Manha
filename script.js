@@ -196,6 +196,12 @@ function syncModalScrollLock() {
 
 function closeDynamicModal(modal) {
   if (!modal) return;
+  modal.querySelectorAll('[src^="blob:"], [href^="blob:"]').forEach((el) => {
+    const url = el.getAttribute('src') || el.getAttribute('href');
+    if (url && url.startsWith('blob:')) {
+      try { URL.revokeObjectURL(url); } catch (_) {}
+    }
+  });
   modal.remove();
   syncModalScrollLock();
 }
@@ -3096,7 +3102,7 @@ async function openAdoptionModal(postOrId) {
           <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"/>
           <line x1="17.5" x2="17.51" y1="6.5" y2="6.5"/>
         </svg>
-        <span>Gerar Card para Stories (Instagram)</span>
+        <span>Gerar Card para Stories</span>
       </button>
     `;
     contactEl.innerHTML = renderCopyableContacts(post) + storyBtnHtml;

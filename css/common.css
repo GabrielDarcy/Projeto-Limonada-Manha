@@ -1255,7 +1255,7 @@ th {
 .dynamic-modal {
   position: fixed;
   inset: 0;
-  z-index: 1000;
+  z-index: 1050;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -2008,8 +2008,10 @@ body[data-animal-type="Cachorro"] .category-filters {
 
 .post-action-row .btn { flex: 1 1 150px; }
 
-.mobile-bottom-nav {
-  display: none;
+@media (min-width: 901px) {
+  .mobile-bottom-nav {
+    display: none !important;
+  }
 }
 
 .admin-feed-delete { background: var(--danger); }
@@ -2251,7 +2253,7 @@ body[data-animal-type="Cachorro"] .category-filters {
 .support-modal {
   position: fixed;
   inset: 0;
-  z-index: 30;
+  z-index: 1100;
   display: grid;
   place-items: center;
   padding: 24px;
@@ -2286,13 +2288,25 @@ body[data-animal-type="Cachorro"] .category-filters {
   position: absolute;
   top: 12px;
   right: 12px;
-  width: 38px;
-  height: 38px;
+  width: 44px;
+  height: 44px;
   border: 0;
   border-radius: 50%;
   background: #fff4ea;
   color: var(--text);
   font-size: 1.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  touch-action: manipulation;
+  transition: background 0.18s ease, transform 0.15s ease;
+}
+
+.support-modal-close:hover,
+.support-modal-close:focus-visible {
+  background: #ffe3d1;
+  transform: scale(1.08);
 }
 
 .support-email {
@@ -3078,8 +3092,9 @@ body[data-animal-type="Cachorro"] .category-filters {
   z-index: 1;
   display: grid;
   place-items: center;
-  width: 38px;
-  height: 38px;
+  width: 44px;
+  height: 44px;
+  touch-action: manipulation;
   border: 1px solid rgba(255, 255, 255, 0.7);
   border-radius: 50%;
   background: rgba(31, 27, 27, 0.62);
@@ -3343,8 +3358,9 @@ body[data-animal-type="Cachorro"] .category-filters {
   margin-bottom: 8px;
 }
 
-.modal-contact-header h3 {
-  margin: 0;
+.modal-contact-header h3,
+.modal-contact h3 {
+  margin: 14px 0 6px;
   font-size: 1.05rem;
   font-weight: 800;
   color: var(--text);
@@ -3425,9 +3441,16 @@ body[data-animal-type="Cachorro"] .category-filters {
   display: flex;
   align-items: center;
   gap: 10px;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.copy-btn-text {
+  display: inline-block;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  min-width: 0;
 }
 
 .contact-type-icon {
@@ -3473,8 +3496,9 @@ body[data-animal-type="Cachorro"] .category-filters {
   top: 14px;
   right: 14px;
   z-index: 50;
-  width: 40px;
-  height: 40px;
+  width: 44px;
+  height: 44px;
+  touch-action: manipulation;
   border: 2px solid rgba(255, 255, 255, 0.95);
   border-radius: 50%;
   background: rgba(31, 27, 27, 0.88);
@@ -4147,7 +4171,10 @@ html.modal-open,
   .adoption-modal-body {
     width: 100%;
     max-height: calc(90vh - 270px);
+    max-height: calc(90dvh - 270px);
     overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
     padding: 24px 20px;
   }
 }
@@ -4184,8 +4211,11 @@ html.modal-open,
     width: 100%;
     max-width: 100%;
     max-height: 90vh;
+    max-height: 90dvh;
     animation: modalSheetUp 0.32s cubic-bezier(0.32, 0.72, 0, 1) both;
     padding-bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
   }
 
   .adoption-modal-content::before,
@@ -4233,9 +4263,17 @@ html.modal-open,
   .adoption-modal-close {
     top: 12px;
     right: 12px;
-    width: 40px;
-    height: 40px;
+    width: 44px;
+    height: 44px;
     font-size: 1.5rem;
+    touch-action: manipulation;
+  }
+
+  .favorite-button,
+  .share-button {
+    width: 44px;
+    height: 44px;
+    touch-action: manipulation;
   }
 
   input[type="text"],
