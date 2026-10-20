@@ -4,9 +4,9 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <base href="../" />
-    <title>ADMINISTRATIVO</title>
+    <title>ADMINISTRATIVO | Pet Amor</title>
     <meta name="description" content="Área administrativa privada da Pet Amor." />
-    <meta name="keywords" content="Pet Amor, administração" />
+    <meta name="keywords" content="Pet Amor, administração, moderação" />
     <meta name="robots" content="noindex, nofollow" />
     <link rel="canonical" href="https://SEU-DOMINIO.com.br/admin/admin.html" />
     <meta property="og:type" content="website" />
@@ -24,8 +24,8 @@
       href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap"
       rel="stylesheet"
     />
-    <link rel="stylesheet" href="admin/admin.css?v=2" />
-      <link rel="manifest" href="manifest.webmanifest" />
+    <link rel="stylesheet" href="admin/admin.css?v=3" />
+    <link rel="manifest" href="manifest.webmanifest" />
     <meta name="theme-color" content="#d9611b" />
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
@@ -40,16 +40,88 @@
           <span>Pet Amor Admin</span>
         </a>
 
-        <button class="btn btn-secondary" id="logoutButton">Sair</button>
+        <button class="btn btn-secondary" id="logoutButton" type="button">Sair</button>
       </header>
 
       <main id="conteudo" tabindex="-1" class="admin-content">
         <div class="admin-header">
           <div>
             <h1>Moderação e gestão</h1>
+            <p style="color: var(--muted); margin: 4px 0 0 0; font-size: 0.95rem;">Controle central de segurança, aprovações e métricas do sistema.</p>
           </div>
         </div>
 
+        <!-- MODO DE APROVAÇÃO PRÉVIA (TOGGLE SWITCH) -->
+        <section class="panel moderation-toggle-panel" id="moderationToggleCard">
+          <div class="moderation-toggle-info">
+            <h2>
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+              Modo de Aprovação de Publicações
+            </h2>
+            <p>Quando ativado, toda nova publicação criada por usuários entra como <strong>"Aguardando aprovação"</strong> e só se torna pública após aprovação manual.</p>
+          </div>
+          <div class="moderation-toggle-action">
+            <span id="approvalStatusLabel" class="approval-status-badge badge-off">Desativado</span>
+            <label class="toggle-switch" for="togglePostApproval">
+              <input type="checkbox" id="togglePostApproval" aria-label="Ativar ou desativar aprovação obrigatória de posts" />
+              <span class="toggle-slider"></span>
+            </label>
+          </div>
+        </section>
+
+        <!-- FILA DE PUBLICAÇÕES PENDENTES DE APROVAÇÃO -->
+        <section class="panel pending-posts-section" id="pendingPostsSection">
+          <div class="panel-header">
+            <div>
+              <h2>Publicações Pendentes de Moderação <span id="pendingPostsCount" class="pending-badge-counter">0</span></h2>
+              <p style="color: var(--muted); margin: 4px 0 0 0; font-size: 0.9rem;">Examine os detalhes e fotos antes de autorizar ou recusar a publicação.</p>
+            </div>
+            <button class="admin-btn secondary" type="button" id="refreshPendingPostsBtn">Atualizar fila</button>
+          </div>
+
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Pet / Título</th>
+                  <th>Modalidade</th>
+                  <th>Autor</th>
+                  <th>Cidade / UF</th>
+                  <th>Data</th>
+                  <th>Ações de Moderação</th>
+                </tr>
+              </thead>
+              <tbody id="pendingPostsTableBody">
+                <tr><td colspan="6">Carregando fila de moderação...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <!-- CARDS DE ESTATÍSTICAS -->
+        <section class="stats-grid">
+          <article class="stat-card stat-pending">
+            <p class="stat-label">Pendentes de aprovação</p>
+            <strong id="totalPending">0</strong>
+          </article>
+
+          <article class="stat-card">
+            <p class="stat-label">Anúncios ativos</p>
+            <strong id="totalAds">0</strong>
+          </article>
+
+          <article class="stat-card">
+            <p class="stat-label">Usuários ativos</p>
+            <strong id="totalUsers">0</strong>
+          </article>
+
+          <article class="stat-card">
+            <p class="stat-label">Usuários banidos</p>
+            <strong id="totalBans">0</strong>
+          </article>
+        </section>
+
+        <!-- CONFIGURAÇÕES DE CONTA ADMIN -->
         <section class="panel admin-account-panel">
           <div class="panel-header">
             <div>
@@ -69,23 +141,7 @@
           </form>
         </section>
 
-        <section class="stats-grid">
-          <article class="stat-card">
-            <p class="stat-label">Anúncios ativos</p>
-            <strong id="totalAds">0</strong>
-          </article>
-
-          <article class="stat-card">
-            <p class="stat-label">Usuários ativos</p>
-            <strong id="totalUsers">0</strong>
-          </article>
-
-          <article class="stat-card">
-            <p class="stat-label">Usuários banidos</p>
-            <strong id="totalBans">0</strong>
-          </article>
-        </section>
-
+        <!-- GESTÃO DE ESTATÍSTICAS DO SITE -->
         <section class="panel admin-statistics-panel">
           <div class="panel-header">
             <div>
@@ -104,6 +160,7 @@
           </form>
         </section>
 
+        <!-- BUSCA E MODERAÇÃO DE USUÁRIOS -->
         <section class="panel admin-user-search-panel">
           <div class="panel-header">
             <div>
@@ -120,13 +177,13 @@
           <div id="adminUserResults" class="admin-user-results" aria-live="polite"></div>
         </section>
 
+        <!-- GRID DE GESTÃO GERAL -->
         <section class="admin-grid">
           <div class="panel">
             <div class="panel-header">
               <div>
-                <h2>Posts de adoção</h2>
+                <h2>Todas as publicações do site</h2>
               </div>
-              <button class="admin-btn secondary" id="createTestPostsButton" type="button">Criar 3 posts de teste</button>
             </div>
 
             <div class="table-wrap">
@@ -146,28 +203,7 @@
 
           <div class="panel">
             <div class="panel-header">
-              <h2>Anúncios</h2>
-            </div>
-
-            <div class="table-wrap">
-              <table>
-                <thead>
-                  <tr>
-                    <th>Título</th>
-                    <th>Pet</th>
-                    <th>Responsável</th>
-                    <th>Status</th>
-                    <th>Ação</th>
-                  </tr>
-                </thead>
-                <tbody id="adsTableBody"></tbody>
-              </table>
-            </div>
-          </div>
-
-          <div class="panel">
-            <div class="panel-header">
-              <h2>Usuários</h2>
+              <h2>Usuários cadastrados</h2>
             </div>
 
             <div class="table-wrap">
@@ -189,6 +225,37 @@
       </main>
     </div>
 
-    <script type="module" src="script.js?v=46"></script>
+    <!-- MODAL DE VISUALIZAÇÃO COMPLETA DE DETALHES DO PET (PARA REVISÃO DO ADMIN) -->
+    <div class="adoption-modal" id="adoptionModal" role="dialog" aria-modal="true" aria-labelledby="modalPostTitle" hidden>
+      <div class="adoption-modal-backdrop" data-modal-close></div>
+      <article class="adoption-modal-content">
+        <button class="adoption-modal-close" type="button" aria-label="Fechar detalhes" data-modal-close>&times;</button>
+        <div id="modalImageContainer"></div>
+        <div class="adoption-modal-body">
+          <span class="mini-tag">Animal</span>
+          <h2 id="modalPostTitle"></h2>
+          <p class="modal-location" id="modalPostLocation"></p>
+          <p id="modalPostDescription"></p>
+          <section class="modal-genetics" aria-labelledby="geneticsTitle">
+            <h3 id="geneticsTitle">Informações de genética</h3>
+            <dl>
+              <div><dt>Raça do animal</dt><dd id="modalBreed"></dd></div>
+              <div><dt>Raça da mãe</dt><dd id="modalMotherBreed"></dd></div>
+              <div><dt>Raça do pai</dt><dd id="modalFatherBreed"></dd></div>
+            </dl>
+          </section>
+          <section class="modal-genetics" id="modalAdditionalDetails" aria-labelledby="additionalDetailsTitle" hidden>
+            <h3 id="additionalDetailsTitle">Mais informações</h3>
+            <dl id="modalPostAdditionalDetails"></dl>
+          </section>
+          <section class="modal-contact" aria-labelledby="contactTitle">
+            <h3 id="contactTitle">Contatos do Anunciante</h3>
+            <div id="modalPostContact"></div>
+          </section>
+        </div>
+      </article>
+    </div>
+
+    <script type="module" src="script.js?v=47"></script>
   </body>
 </html>

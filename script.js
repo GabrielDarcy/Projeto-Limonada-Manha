@@ -1112,27 +1112,298 @@ function redirectIfLoggedOut() {
   return session;
 }
 
+async function getPostApprovalSetting() {
+  try {
+    const { data, error } = await getSupabaseClient()
+      .from('system_settings')
+      .select('value')
+      .eq('key', 'require_post_approval')
+      .maybeSingle();
+
+    if (error || !data) return false;
+    const val = data.value;
+    if (typeof val === 'boolean') return val;
+    if (typeof val === 'string') return val === 'true';
+    if (typeof val === 'object' && val !== null) {
+      return Boolean(val);
+    }
+    return false;
+  } catch (e) {
+    console.warn('Erro ao consultar configuração de aprovação:', e);
+    return false;
+  }
+}
+
+async function setPostApprovalMode(enabled) {
+  if (!(await isCurrentUserAdmin())) {
+    showToast('Apenas administradores podem alterar esta configuração.', 'error');
+    return false;
+  }
+
+  // Tenta via RPC blindada no banco
+  const { data, error } = await getSupabaseClient().rpc('admin_set_post_approval_mode', {
+    p_enabled: Boolean(enabled)
+  });
+
+  if (error) {
+    // Fallback para upsert direto na tabela system_settings
+    const { error: updateErr } = await getSupabaseClient()
+      .from('system_settings')
+      .upsert({
+        key: 'require_post_approval',
+        value: Boolean(enabled),
+        updated_at: new Date().toISOString()
+      });
+
+    if (updateErr) {
+      showToast(`Não foi possível alterar a configuração: ${mensagemDeErroSegura(updateErr)}`, 'error');
+      return false;
+    }
+  }
+
+  return true;
+}
+
+async function setupPostApprovalToggle() {
+  const toggle = document.getElementById('togglePostApproval');
+  const label = document.getElementById('approvalStatusLabel');
+  const panel = document.getElementById('moderationToggleCard');
+  if (!toggle) return;
+
+  const isEnabled = await getPostApprovalSetting();
+  toggle.checked = isEnabled;
+  updateToggleUI(isEnabled);
+
+  toggle.addEventListener('change', async () => {
+    const desiredState = toggle.checked;
+    toggle.disabled = true;
+
+    const success = await setPostApprovalMode(desiredState);
+    toggle.disabled = false;
+
+    if (success) {
+      updateToggleUI(desiredState);
+      showToast(
+        desiredState
+          ? 'Modo de aprovação ativado: novas publicações exigirão validação manual. 🛡️'
+          : 'Modo de aprovação desativado: publicações serão ativadas diretamente. 🚀'
+      );
+    } else {
+      toggle.checked = !desiredState;
+      updateToggleUI(!desiredState);
+    }
+  });
+
+  function updateToggleUI(enabled) {
+    if (label) {
+      label.textContent = enabled ? 'Ativado' : 'Desativado';
+      label.className = `approval-status-badge ${enabled ? 'badge-on' : 'badge-off'}`;
+    }
+    if (panel) {
+      panel.classList.toggle('active-mode', enabled);
+    }
+  }
+}
+
+async function renderPendingPostsAdmin() {
+  const tbody = document.getElementById('pendingPostsTableBody');
+  const countBadge = document.getElementById('pendingPostsCount');
+  const totalPendingEl = document.getElementById('totalPending');
+  if (!tbody) return;
+
+  tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:1.5rem;">Carregando fila de moderação...</td></tr>';
+
+  const { data: posts, error } = await getSupabaseClient()
+    .from('posts')
+    .select('*, profiles(full_name, email, username)')
+    .eq('status', 'pending')
+    .order('created_at', { ascending: false });
+
+  if (error) {
+    tbody.innerHTML = `<tr><td colspan="6">Não foi possível carregar as publicações pendentes: ${escapeHTML(error.message)}</td></tr>`;
+    return;
+  }
+
+  const count = posts?.length || 0;
+  if (countBadge) countBadge.textContent = String(count);
+  if (totalPendingEl) totalPendingEl.textContent = String(count);
+
+  if (!posts || posts.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding: 2rem; color: var(--muted);">Nenhuma publicação pendente de aprovação. Tudo limpo! ✨</td></tr>';
+    return;
+  }
+
+  registerPostsInGlobalCache(posts);
+
+  tbody.innerHTML = posts.map((post) => {
+    const rawImage = Array.isArray(post.image_urls) ? post.image_urls[0] : (post.image_urls || 'img/pet-placeholder.webp');
+    const authorName = post.profiles?.full_name || post.profiles?.username || 'Usuário';
+    const authorEmail = post.profiles?.email || 'Não informado';
+    const postDate = post.created_at ? new Date(post.created_at).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' }) : '—';
+    const location = [post.city, post.state].filter(Boolean).join('/') || 'Não informada';
+
+    let modalityBadge = '<span class="status-badge" style="background:#f1f5f9; color:#475569;">Adoção</span>';
+    if (post.support_type === 'lar_temporario') {
+      modalityBadge = '<span class="status-badge badge-lt">🏠 Lar Temp.</span>';
+    } else if (post.support_type === 'apadrinhamento') {
+      modalityBadge = '<span class="status-badge badge-padrinho">⭐ Padrinho</span>';
+    }
+
+    return `
+      <tr data-pending-id="${escapeHTML(post.id)}">
+        <td>
+          <div class="admin-pet-cell">
+            <img src="${escapeHTML(rawImage)}" alt="${escapeHTML(post.title)}" class="admin-pet-thumb" loading="lazy" />
+            <div class="admin-pet-details">
+              <strong>${escapeHTML(post.title)}</strong>
+              <small>${escapeHTML(formatAnimalType(post.animal_type))}</small>
+            </div>
+          </div>
+        </td>
+        <td>${modalityBadge}</td>
+        <td>
+          <div class="admin-pet-details">
+            <strong>${escapeHTML(authorName)}</strong>
+            <small>${escapeHTML(authorEmail)}</small>
+          </div>
+        </td>
+        <td>${escapeHTML(location)}</td>
+        <td><small>${escapeHTML(postDate)}</small></td>
+        <td>
+          <div class="admin-action-group">
+            <button class="admin-btn inspect" type="button" data-action="inspect-pending" data-id="${escapeHTML(post.id)}" title="Ver detalhes completos do anúncio">
+              Inspecionar
+            </button>
+            <button class="admin-btn approve" type="button" data-action="approve-post" data-id="${escapeHTML(post.id)}" title="Aprovar e publicar no site">
+              ✓ Aprovar
+            </button>
+            <button class="admin-btn reject" type="button" data-action="reject-post" data-id="${escapeHTML(post.id)}" title="Recusar anúncio">
+              ✕ Recusar
+            </button>
+          </div>
+        </td>
+      </tr>
+    `;
+  }).join('');
+}
+
+async function moderatePost(postId, action) {
+  if (!(await isCurrentUserAdmin())) {
+    showToast('Apenas administradores podem moderar publicações.', 'error');
+    return;
+  }
+
+  const isApproval = action === 'approve';
+  const actionLabel = isApproval ? 'aprovar' : 'recusar';
+
+  if (!isApproval) {
+    const confirmReject = window.confirm('Deseja realmente recusar esta publicação? Ela não será exibida publicamente no site.');
+    if (!confirmReject) return;
+  }
+
+  // Tenta via RPC blindada
+  const { data, error } = await getSupabaseClient().rpc('admin_moderate_post', {
+    p_post_id: postId,
+    p_action: action
+  });
+
+  if (error) {
+    // Fallback para update direto
+    const newStatus = isApproval ? 'active' : 'rejected';
+    const { error: updateErr } = await getSupabaseClient()
+      .from('posts')
+      .update({ status: newStatus, updated_at: new Date().toISOString() })
+      .eq('id', postId);
+
+    if (updateErr) {
+      showToast(`Não foi possível ${actionLabel} a publicação: ${mensagemDeErroSegura(updateErr)}`, 'error');
+      return;
+    }
+  }
+
+  showToast(
+    isApproval
+      ? 'Publicação aprovada com sucesso! Ela agora está disponível publicamente no site. 🎉'
+      : 'Publicação recusada pela moderação.',
+    isApproval ? 'success' : 'info'
+  );
+
+  await renderPendingPostsAdmin();
+  await renderAdminDashboard();
+}
+
 async function renderAdminDashboard() {
+  const client = getSupabaseClient();
+
+  // Atualiza métricas rápidas nos cards
+  try {
+    const [adsRes, usersRes, bansRes, pendingRes] = await Promise.all([
+      client.from('posts').select('id', { count: 'exact', head: true }).eq('status', 'active'),
+      client.from('profiles').select('id', { count: 'exact', head: true }).eq('status', 'active'),
+      client.from('profiles').select('id', { count: 'exact', head: true }).eq('status', 'banned'),
+      client.from('posts').select('id', { count: 'exact', head: true }).eq('status', 'pending')
+    ]);
+
+    if (document.getElementById('totalAds')) document.getElementById('totalAds').textContent = String(adsRes.count ?? 0);
+    if (document.getElementById('totalUsers')) document.getElementById('totalUsers').textContent = String(usersRes.count ?? 0);
+    if (document.getElementById('totalBans')) document.getElementById('totalBans').textContent = String(bansRes.count ?? 0);
+    if (document.getElementById('totalPending')) document.getElementById('totalPending').textContent = String(pendingRes.count ?? 0);
+    if (document.getElementById('pendingPostsCount')) document.getElementById('pendingPostsCount').textContent = String(pendingRes.count ?? 0);
+  } catch (err) {
+    console.warn('Erro ao carregar estatísticas do admin:', err);
+  }
+
+  // Tabela de todas as publicações do site
   const postsTableBody = document.getElementById('postsTableBody');
   if (postsTableBody) {
-    const { data: posts, error } = await getSupabaseClient()
+    const { data: posts, error } = await client
       .from('posts')
-      .select('id, title, animal_type, city')
-      .order('created_at', { ascending: false });
+      .select('id, title, animal_type, city, status')
+      .order('created_at', { ascending: false })
+      .limit(50);
 
     if (error) {
       postsTableBody.innerHTML = `<tr><td colspan="4">Não foi possível carregar os posts: ${escapeHTML(error.message)}</td></tr>`;
-      return;
+    } else {
+      postsTableBody.innerHTML = (posts || []).map((post) => `
+        <tr>
+          <td>
+            <strong>${escapeHTML(post.title)}</strong>
+            ${post.status === 'pending' ? ' <span class="status-badge status-pending" style="font-size:0.7rem;">Pendente</span>' : ''}
+            ${post.status === 'rejected' ? ' <span class="status-badge status-rejected" style="font-size:0.7rem;">Recusado</span>' : ''}
+          </td>
+          <td>${escapeHTML(post.animal_type || 'Não informado')}</td>
+          <td>${escapeHTML(post.city || 'Não informada')}</td>
+          <td><button class="admin-btn danger" data-action="delete-post" data-id="${escapeHTML(post.id)}">Excluir</button></td>
+        </tr>
+      `).join('') || '<tr><td colspan="4">Nenhum post publicado.</td></tr>';
     }
+  }
 
-    postsTableBody.innerHTML = (posts || []).map((post) => `
-      <tr>
-        <td>${escapeHTML(post.title)}</td>
-        <td>${escapeHTML(post.animal_type || 'Não informado')}</td>
-        <td>${escapeHTML(post.city || 'Não informada')}</td>
-        <td><button class="admin-btn danger" data-action="delete-post" data-id="${escapeHTML(post.id)}">Excluir</button></td>
-      </tr>
-    `).join('') || '<tr><td colspan="4">Nenhum post publicado.</td></tr>';
+  // Tabela de usuários cadastrados
+  const usersTableBody = document.getElementById('usersTableBody');
+  if (usersTableBody) {
+    const { data: users, error: userErr } = await client
+      .from('profiles')
+      .select('id, full_name, email, role, status')
+      .order('created_at', { ascending: false })
+      .limit(30);
+
+    if (users && !userErr) {
+      usersTableBody.innerHTML = users.map((u) => `
+        <tr>
+          <td>${escapeHTML(u.full_name || 'Sem nome')}</td>
+          <td>${escapeHTML(u.email || 'Não informado')}</td>
+          <td><span class="mini-tag">${escapeHTML(u.role || 'user')}</span></td>
+          <td>${escapeHTML(u.status || 'active')}</td>
+          <td>
+            <button class="admin-btn danger" type="button" data-action="ban-user" data-id="${escapeHTML(u.id)}" ${u.status === 'banned' ? 'disabled' : ''}>
+              ${u.status === 'banned' ? 'Banido' : 'Banir'}
+            </button>
+          </td>
+        </tr>
+      `).join('') || '<tr><td colspan="5">Nenhum usuário encontrado.</td></tr>';
+    }
   }
 }
 
@@ -1316,11 +1587,24 @@ function bindAdminActions() {
   document.body.addEventListener('click', (event) => {
     const button = event.target.closest('button[data-action]');
     if (!button) return;
-    if (button.dataset.action === 'delete-post') {
-      deletePost(button.dataset.id);
-    }
-    if (button.dataset.action === 'ban-user') {
-      banAdminUser(button.dataset.id);
+    const action = button.dataset.action;
+    const id = button.dataset.id;
+
+    if (action === 'delete-post') {
+      deletePost(id);
+    } else if (action === 'ban-user') {
+      banAdminUser(id);
+    } else if (action === 'approve-post') {
+      moderatePost(id, 'approve');
+    } else if (action === 'reject-post') {
+      moderatePost(id, 'reject');
+    } else if (action === 'inspect-pending') {
+      const post = globalPostsMap.get(String(id));
+      if (post) {
+        openAdoptionModal(post);
+      } else {
+        openAdoptionModal(id);
+      }
     }
   });
 }
@@ -2023,6 +2307,13 @@ async function handleCreatePostSubmit(event) {
       status: 'active'
     };
 
+    // Validação e enquadramento do status conforme modo de aprovação prévia
+    const requireApproval = await getPostApprovalSetting();
+    const isAdmin = await isCurrentUserAdmin();
+    if (requireApproval && !isAdmin) {
+      post.status = 'pending';
+    }
+
     const { error } = await getSupabaseClient().from('posts').insert([post]).select().single();
     if (error) {
       console.error(error);
@@ -2040,8 +2331,13 @@ async function handleCreatePostSubmit(event) {
       return;
     }
 
-    showToast('Publicação criada com sucesso.');
-    window.location.href = 'index.html';
+    if (post.status === 'pending') {
+      showToast('Publicação enviada com sucesso! Ela está em análise pela moderação e ficará visível publicamente assim que aprovada. ⏳', 'info');
+      window.location.href = 'conta/minhas-publicacoes.html';
+    } else {
+      showToast('Publicação criada com sucesso! 🐾');
+      window.location.href = 'index.html';
+    }
   } catch (error) {
     // Se falhar durante qualquer ponto do upload ou processamento, desfaz uploads já concluídos
     if (uploadedResults && uploadedResults.length > 0) {
@@ -2765,6 +3061,12 @@ function renderSupportTypeBadge(supportType) {
 }
 
 function renderPostStatusBadge(status) {
+  if (status === 'pending') {
+    return '<span class="status-badge status-pending">Aguardando aprovação ⏳</span>';
+  }
+  if (status === 'rejected') {
+    return '<span class="status-badge status-rejected">Não aprovado ❌</span>';
+  }
   if (status === 'in_process') {
     return '<span class="status-badge status-in-process">Em processo ⏳</span>';
   }
@@ -4086,9 +4388,16 @@ async function renderUserPosts() {
     const isAdopted = post.status === 'adopted';
     const isInProcess = post.status === 'in_process';
     const isActive = post.status === 'active';
+    const isPending = post.status === 'pending';
+    const isRejected = post.status === 'rejected';
 
     let actionButtons = '';
-    if (isActive) {
+    let statusNotice = '';
+    if (isPending) {
+      statusNotice = '<p class="my-post-notice" style="font-size: 0.8rem; color: #b45309; margin: 4px 0 0 0;">⏳ Em análise pela moderação. Ficará visível para o público assim que aprovada.</p>';
+    } else if (isRejected) {
+      statusNotice = '<p class="my-post-notice" style="font-size: 0.8rem; color: #b91c1c; margin: 4px 0 0 0;">❌ Publicação não autorizada pela moderação. Entre em contato com o suporte para orientações.</p>';
+    } else if (isActive) {
       actionButtons = `
         <button class="btn btn-secondary" type="button" data-change-status="in_process" data-post-id="${escapeHTML(post.id)}">Pausar (Em entrevista ⏳)</button>
         <button class="btn btn-primary" type="button" data-change-status="adopted" data-post-id="${escapeHTML(post.id)}">Marcar como Adotado! 🎉</button>
@@ -4109,6 +4418,8 @@ async function renderUserPosts() {
         <div class="card-utility-actions">${favoriteButtonHTML(post.id)}${shareButtonHTML(post)}</div>
         ${isAdopted ? '<div class="adopted-ribbon">Adotado! 🎉</div>' : ''}
         ${isInProcess ? '<div class="adopted-ribbon" style="background: #f59e0b;">Em processo</div>' : ''}
+        ${isPending ? '<div class="adopted-ribbon" style="background: #f59e0b;">Em moderação ⏳</div>' : ''}
+        ${isRejected ? '<div class="adopted-ribbon" style="background: #ef4444;">Recusado ❌</div>' : ''}
         ${generateImageCarouselHTML(post.image_urls, post.title)}
         <div class="profile-post-card-body">
           ${renderAuthorBar(post.profiles)}
@@ -4124,6 +4435,7 @@ async function renderUserPosts() {
               <span>Status atual:</span>
               ${renderPostStatusBadge(post.status)}
             </div>
+            ${statusNotice}
             <div class="my-post-status-actions">
               <button class="btn btn-secondary" type="button" data-post-details="${escapeHTML(post.id)}">Ver anúncio & Story 🎨</button>
               ${actionButtons}
@@ -4299,6 +4611,10 @@ async function initializePage() {
       event.preventDefault();
       searchAdminUsers(document.getElementById('adminUserSearch').value);
     });
+    bindAdminActions();
+    setupPostApprovalToggle();
+    renderPendingPostsAdmin();
+    document.getElementById('refreshPendingPostsBtn')?.addEventListener('click', renderPendingPostsAdmin);
     renderAdminDashboard();
   }
   await checkSharedPostOnLoad();

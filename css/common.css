@@ -4647,6 +4647,17 @@ textarea,
   border: 1px solid rgba(180, 83, 9, 0.25);
 }
 
+.status-badge.status-pending {
+  background: #fffbeb;
+  color: #b45309;
+  border: 1px solid rgba(180, 83, 9, 0.35);
+}
+
+.status-badge.status-rejected {
+  background: #fef2f2;
+  color: #b91c1c;
+  border: 1px solid rgba(185, 28, 28, 0.35);
+}
 .status-badge.status-adopted {
   background: #dcfce7;
   color: #15803d;

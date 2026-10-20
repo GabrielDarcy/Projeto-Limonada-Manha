@@ -1,1 +1,271 @@
 @import url("../css/common.css");
+
+/* ==========================================================================
+   PAINEL DE MODERAÇÃO E CONTROLE ADMINISTRATIVO
+   ========================================================================== */
+
+/* Card de Controle do Modo de Aprovação */
+.moderation-toggle-panel {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1.5rem;
+  padding: 1.25rem 1.5rem;
+  background: var(--surface);
+  border: 1.5px solid var(--border);
+  border-radius: var(--r-card);
+  margin-bottom: 1.5rem;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03);
+  transition: border-color 0.25s ease;
+}
+
+.moderation-toggle-panel.active-mode {
+  border-color: #10b981;
+  background: linear-gradient(to right, var(--surface), rgba(16, 185, 129, 0.04));
+}
+
+.moderation-toggle-info h2 {
+  font-size: 1.2rem;
+  font-weight: 800;
+  margin: 0 0 0.3rem 0;
+  color: var(--text);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.moderation-toggle-info p {
+  font-size: 0.92rem;
+  color: var(--muted);
+  margin: 0;
+  line-height: 1.45;
+}
+
+.moderation-toggle-action {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-shrink: 0;
+}
+
+/* Custom Accessible Toggle Switch */
+.toggle-switch {
+  position: relative;
+  display: inline-block;
+  width: 58px;
+  height: 32px;
+}
+
+.toggle-switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+  position: absolute;
+}
+
+.toggle-slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: #cbd5e1;
+  transition: background-color 0.25s ease, box-shadow 0.2s ease;
+  border-radius: 34px;
+}
+
+.toggle-slider:before {
+  position: absolute;
+  content: "";
+  height: 24px;
+  width: 24px;
+  left: 4px;
+  bottom: 4px;
+  background-color: #ffffff;
+  transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  border-radius: 50%;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.22);
+}
+
+.toggle-switch input:focus-visible + .toggle-slider {
+  outline: 3px solid var(--primary);
+  outline-offset: 3px;
+}
+
+.toggle-switch input:checked + .toggle-slider {
+  background-color: #10b981;
+}
+
+.toggle-switch input:checked + .toggle-slider:before {
+  transform: translateX(26px);
+}
+
+.approval-status-badge {
+  font-size: 0.85rem;
+  font-weight: 800;
+  padding: 6px 12px;
+  border-radius: var(--r-pill);
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  transition: all 0.2s ease;
+}
+
+.approval-status-badge.badge-off {
+  background: #f1f5f9;
+  color: #64748b;
+  border: 1px solid #cbd5e1;
+}
+
+.approval-status-badge.badge-on {
+  background: #ecfdf5;
+  color: #047857;
+  border: 1px solid rgba(4, 120, 87, 0.35);
+  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.15);
+}
+
+/* Card estatístico de pendentes */
+.stat-card.stat-pending {
+  border-left: 4px solid #f59e0b;
+}
+
+/* Tabela de Moderação de Posts Pendentes */
+.pending-posts-section {
+  margin-bottom: 2rem;
+}
+
+.pending-badge-counter {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: #f59e0b;
+  color: #ffffff;
+  font-size: 0.8rem;
+  font-weight: 800;
+  padding: 2px 8px;
+  border-radius: var(--r-pill);
+  margin-left: 6px;
+}
+
+.admin-pet-cell {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.admin-pet-thumb {
+  width: 44px;
+  height: 44px;
+  border-radius: 8px;
+  object-fit: cover;
+  flex-shrink: 0;
+  border: 1px solid var(--border);
+  background: #f8fafc;
+}
+
+.admin-pet-details {
+  display: flex;
+  flex-direction: column;
+}
+
+.admin-pet-details strong {
+  font-size: 0.95rem;
+  color: var(--text);
+}
+
+.admin-pet-details small {
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+.admin-action-group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.admin-btn.approve {
+  background: #10b981;
+  color: #ffffff;
+  border: none;
+  font-weight: 700;
+  padding: 0.45rem 0.8rem;
+  font-size: 0.82rem;
+  border-radius: var(--r-button);
+  cursor: pointer;
+  transition: all 0.18s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.admin-btn.approve:hover {
+  background: #059669;
+  transform: translateY(-1px);
+}
+
+.admin-btn.reject {
+  background: #ef4444;
+  color: #ffffff;
+  border: none;
+  font-weight: 700;
+  padding: 0.45rem 0.8rem;
+  font-size: 0.82rem;
+  border-radius: var(--r-button);
+  cursor: pointer;
+  transition: all 0.18s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.admin-btn.reject:hover {
+  background: #dc2626;
+  transform: translateY(-1px);
+}
+
+.admin-btn.inspect {
+  background: #f1f5f9;
+  color: #334155;
+  border: 1px solid #cbd5e1;
+  font-weight: 600;
+  padding: 0.45rem 0.8rem;
+  font-size: 0.82rem;
+  border-radius: var(--r-button);
+  cursor: pointer;
+  transition: all 0.18s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.admin-btn.inspect:hover {
+  background: #e2e8f0;
+}
+
+/* Responsividade Mobile para Admin */
+@media (max-width: 768px) {
+  .moderation-toggle-panel {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1rem;
+    padding: 1rem;
+  }
+
+  .moderation-toggle-action {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .admin-action-group {
+    flex-direction: column;
+    align-items: stretch;
+    width: 100%;
+  }
+
+  .admin-action-group .admin-btn {
+    justify-content: center;
+    width: 100%;
+  }
+}
