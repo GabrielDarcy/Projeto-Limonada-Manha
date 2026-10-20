@@ -12,8 +12,6 @@ on conflict (id) do update set
   file_size_limit = 204800,
   allowed_mime_types = array['image/webp'];
 
-alter table storage.objects enable row level security;
-
 drop policy if exists "Imagens de adocao publicas para leitura" on storage.objects;
 create policy "Imagens de adocao publicas para leitura"
   on storage.objects for select

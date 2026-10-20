@@ -359,10 +359,13 @@ function getPostPhone(post) {
 function postActionButtonsHTML(post, podeAdministrar = false) {
   const phone = getPostPhone(post);
   const title = encodeURIComponent(`Olá, vi o post do ${post.title || 'animal'} no Pet Amor e gostaria de saber mais!`);
-  const adoptionAction = phone
-    ? `<a class="btn btn-primary" href="https://wa.me/55${phone}?text=${title}" target="_blank" rel="noopener noreferrer">Conversar no WhatsApp</a>`
-    : `<button class="btn btn-primary" type="button" data-adoption-post="${escapeHTML(post.id)}">Quero Adotar!</button>`;
-  return `${adoptionAction}${adminPostActions(post.id, podeAdministrar)}`;
+  const adminActions = adminPostActions(post.id, podeAdministrar);
+
+  if (phone) {
+    return `<button class="btn btn-secondary" type="button" data-post-details="${escapeHTML(post.id)}">Ver detalhes</button><a class="btn btn-primary" href="https://wa.me/55${phone}?text=${title}" target="_blank" rel="noopener noreferrer">Conversar no WhatsApp</a>${adminActions}`;
+  }
+
+  return `<button class="btn btn-primary" type="button" data-post-details="${escapeHTML(post.id)}">Ver detalhes</button>${adminActions}`;
 }
 
 function postActionHTML(post, podeAdministrar = false) {
@@ -2100,7 +2103,6 @@ function renderFeed(append = false) {
             <p class="post-breed-info"><strong>Raça:</strong> ${escapeHTML(post.breed || 'Não informado')}</p>
           </div>
           <div class="post-action-row">
-            <button class="btn btn-secondary" type="button" data-post-details="${escapeHTML(post.id)}">Ver detalhes</button>
             ${postActionButtonsHTML(post, podeAdministrarAgora())}
           </div>
         </div>
@@ -2148,7 +2150,7 @@ function renderRecentPosts() {
             </div>
             <h3>${escapeHTML(post.title)}</h3>
             <p class="recent-post-location"><svg class="pin-icon" viewBox="0 0 24 24" width="14" height="14" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 5.2-8 12-8 12s-8-6.8-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="2.6"/></svg> ${escapeHTML(formatPostLocation(post))}</p>
-            ${post.status === 'active' || post.status === 'in_process' ? `<div class="post-action-row"><button class="btn btn-secondary" type="button" data-post-details="${escapeHTML(post.id)}">Ver detalhes</button>${postActionButtonsHTML(post, podeAdministrarAgora())}</div>` : ''}
+            ${post.status === 'active' || post.status === 'in_process' ? `<div class="post-action-row">${postActionButtonsHTML(post, podeAdministrarAgora())}</div>` : ''}
           </div>
         </article>
       `).join('');
@@ -2353,25 +2355,14 @@ function chipsDeAtributos(post) {
   const chips = [];
   const add = (texto, tom) => chips.push(`<span class="atributo atributo-${tom || 'neutro'}">${escapeHTML(texto)}</span>`);
 
-  if (post.support_type === 'lar_temporario') add('🏠 Lar Temporário', 'atencao');
-  else if (post.support_type === 'apadrinhamento') add('⭐ Padrinho Solidário', 'ok');
-
-  if (post.status === 'in_process') add('Em processo ⏳', 'atencao');
-  else if (post.status === 'adopted') add('Adotado! 🎉', 'ok');
-
   if (post.gender) add(post.gender);
   if (post.age_group) add(post.age_group);
   if (post.size) add(`Porte ${post.size}`);
   if (post.energy_level) add(post.energy_level);
 
-  const simNao = (valor, rotulo) => {
-    if (valor === true) add(rotulo, 'ok');
-    else if (valor === false) add(`${rotulo}: não`, 'nao');
-    else add(`${rotulo}: não informado`, 'vazio');
-  };
-  simNao(post.neutered, 'Castrado');
-  simNao(post.vaccinated, 'Vacinado');
-  simNao(post.good_with_kids, 'Com crianças');
+  if (post.neutered === true) add('Castrado', 'ok');
+  if (post.vaccinated === true) add('Vacinado', 'ok');
+  if (post.good_with_kids === true) add('Dócil c/ crianças', 'ok');
   if (post.special_needs === true) add('Necessidades especiais', 'atencao');
 
   return chips.length ? `<div class="post-atributos">${chips.join('')}</div>` : '';
@@ -2613,7 +2604,6 @@ async function renderCategoryFeed(animalType) {
         <p class="category-pet-breed"><strong>Raça:</strong> ${escapeHTML(post.breed || 'Não informado')}</p>
         ${chipsDeAtributos(post)}
         <div class="post-action-row">
-          <button class="btn btn-secondary" type="button" data-post-details="${escapeHTML(post.id)}">Ver detalhes</button>
           ${postActionButtonsHTML(post, podeAdministrarAgora())}
         </div>
       </div>
@@ -2670,7 +2660,7 @@ async function renderFavorites() {
         </div>
         <h3 class="post-card-title-trigger" data-post-details="${escapeHTML(post.id)}" style="cursor: pointer;" title="Clique para ver detalhes">${escapeHTML(post.title)}</h3>
         <p class="recent-post-location"><svg class="pin-icon" viewBox="0 0 24 24" width="14" height="14" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 5.2-8 12-8 12s-8-6.8-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="2.6"/></svg> ${escapeHTML(formatPostLocation(post))}</p>
-        ${post.status === 'active' || post.status === 'in_process' ? `<div class="post-action-row"><button class="btn btn-secondary" type="button" data-post-details="${escapeHTML(post.id)}">Ver detalhes</button>${postActionButtonsHTML(post, podeAdministrarAgora())}</div>` : ''}
+        ${post.status === 'active' || post.status === 'in_process' ? `<div class="post-action-row">${postActionButtonsHTML(post, podeAdministrarAgora())}</div>` : ''}
       </div>
     </article>
   `).join('');
@@ -3018,7 +3008,7 @@ async function openAdoptionModal(postOrId) {
   }
 
   if (!post) {
-    showToast('NÃ£o foi possÃ­vel carregar os detalhes desta publicaÃ§Ã£o.', 'error');
+    showToast('Não foi possÃ­vel carregar os detalhes desta publicaÃ§Ã£o.', 'error');
     return;
   }
 
@@ -3070,21 +3060,29 @@ async function openAdoptionModal(postOrId) {
   const modalMotherBreed = document.getElementById('modalMotherBreed');
   const modalFatherBreed = document.getElementById('modalFatherBreed');
   const geneticsSection = modalBreed?.closest('.modal-genetics');
-  const geneticsValues = [post.breed, post.mother_breed, post.father_breed];
-  const hasGeneticsInformation = geneticsValues.some((value) => {
-    const normalized = String(value || '').trim().toLocaleLowerCase('pt-BR');
-    return normalized && normalized !== 'não informado';
-  });
-  if (geneticsSection) geneticsSection.hidden = !hasGeneticsInformation;
-  if (modalBreed) modalBreed.textContent = post.breed || 'Não informado';
+
+  const isMeaningfulValue = (val) => {
+    const s = String(val || '').trim().toLowerCase();
+    return s && s !== 'Não informado' && s !== 'desconhecido' && s !== 'null';
+  };
+
+  const hasBreed = isMeaningfulValue(post.breed);
+  const hasMother = isMeaningfulValue(post.mother_breed);
+  const hasFather = isMeaningfulValue(post.father_breed);
+
+  if (modalBreed) {
+    modalBreed.textContent = post.breed || 'Não informado';
+    if (modalBreed.parentElement) modalBreed.parentElement.hidden = !hasBreed;
+  }
   if (modalMotherBreed) {
-    modalMotherBreed.textContent = post.mother_breed || 'Não informado';
-    if (modalMotherBreed.parentElement) modalMotherBreed.parentElement.hidden = false;
+    modalMotherBreed.textContent = post.mother_breed || '';
+    if (modalMotherBreed.parentElement) modalMotherBreed.parentElement.hidden = !hasMother;
   }
   if (modalFatherBreed) {
-    modalFatherBreed.textContent = post.father_breed || 'Não informado';
-    if (modalFatherBreed.parentElement) modalFatherBreed.parentElement.hidden = false;
+    modalFatherBreed.textContent = post.father_breed || '';
+    if (modalFatherBreed.parentElement) modalFatherBreed.parentElement.hidden = !hasFather;
   }
+  if (geneticsSection) geneticsSection.hidden = !(hasBreed || hasMother || hasFather);
 
   const modalSize = document.getElementById('modalSize');
   const modalSizeSection = document.getElementById('modalSizeSection');
@@ -3132,7 +3130,7 @@ async function openAdoptionModal(postOrId) {
   if (additionalSection && additionalDetails) {
     const excludedFields = new Set([
       'id', 'user_id', 'profiles', 'image_urls', 'title', 'description',
-      'animal_type', 'state', 'city', 'breed', 'mother_breed', 'father_breed',
+      'animal_type', 'state', 'city', 'breed', 'mother_breed', 'father_breed', 'size',
       'phone', 'contact_phone', 'contact_info', 'status', 'support_type', 'created_at', 'updated_at'
     ]);
     const inapplicable = INAPPLICABLE_FIELDS_BY_TYPE[post.animal_type] || new Set();
