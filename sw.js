@@ -52,15 +52,23 @@ self.addEventListener('fetch', (event) => {
     caches.match(event.request).then((cachedResponse) => {
       const fetchPromise = fetch(event.request)
         .then((networkResponse) => {
-          if (networkResponse && networkResponse.status === 200) {
+          if (networkResponse && networkResponse.status === 200 && (networkResponse.type === 'basic' || networkResponse.type === 'cors')) {
             const responseClone = networkResponse.clone();
             caches.open(CACHE_NAME).then((cache) => cache.put(event.request, responseClone));
           }
           return networkResponse;
-        })
-        .catch(() => cachedResponse);
+        });
 
-      return cachedResponse || fetchPromise;
+      if (cachedResponse) {
+        // Atualiza o cache em segundo plano sem bloquear a resposta rápida
+        fetchPromise.catch(() => {});
+        return cachedResponse;
+      }
+
+      return fetchPromise.catch(() => {
+        // Fallback seguro caso esteja sem internet e o recurso não esteja no cache
+        return caches.match('index.html') || new Response('Offline', { status: 503, headers: { 'Content-Type': 'text/plain; charset=utf-8' } });
+      });
     })
   );
 });

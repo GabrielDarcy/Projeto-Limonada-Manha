@@ -217,6 +217,7 @@ function createDynamicModal(content, className = '') {
 
   const handleEsc = (event) => {
     if (event.key === 'Escape') {
+      event.stopImmediatePropagation();
       closeDynamicModal(modal);
       document.removeEventListener('keydown', handleEsc);
     }
@@ -638,25 +639,166 @@ async function handleAdminAccountSubmit(event) {
   }
 }
 
+/**
+ * Comprime e converte qualquer imagem para WebP via Canvas mantendo o consumo de memória sob controle
+ * (URL.revokeObjectURL) e garantindo tamanho final do Blob < 150 KB.
+ * Perfis:
+ * - 'perfil': max 300x300, qualidade inicial 0.75
+ * - 'pet': max 900px no maior lado mantendo proporção, qualidade inicial 0.80
+ */
+function compressAndValidateImage(file, profileName = 'pet') {
+  if (typeof window !== 'undefined' && window.ImageService && typeof window.ImageService.compressAndValidateImage === 'function') {
+    return window.ImageService.compressAndValidateImage(file, profileName);
+  }
+
+  return new Promise((resolve, reject) => {
+    const fileError = validateImageFile(file);
+    if (fileError) return reject(new Error(fileError));
+
+    const objectUrl = URL.createObjectURL(file);
+    const img = new Image();
+
+    const cleanup = () => {
+      try { URL.revokeObjectURL(objectUrl); } catch (_) {}
+    };
+
+    img.onload = () => {
+      cleanup();
+      try {
+        const origW = img.naturalWidth || img.width;
+        const origH = img.naturalHeight || img.height;
+        let targetW = origW;
+        let targetH = origH;
+        let initialQuality = 0.80;
+
+        if (profileName === 'perfil') {
+          initialQuality = 0.75;
+          const maxDim = 300;
+          if (origW > maxDim || origH > maxDim) {
+            const ratio = Math.min(maxDim / origW, maxDim / origH);
+            targetW = Math.round(origW * ratio);
+            targetH = Math.round(origH * ratio);
+          }
+        } else {
+          initialQuality = 0.80;
+          const maxDim = 900;
+          if (origW > maxDim || origH > maxDim) {
+            if (origW >= origH) {
+              targetW = maxDim;
+              targetH = Math.round((origH * maxDim) / origW);
+            } else {
+              targetH = maxDim;
+              targetW = Math.round((origW * maxDim) / origH);
+            }
+          }
+        }
+
+        const canvas = document.createElement('canvas');
+        canvas.width = Math.max(1, targetW);
+        canvas.height = Math.max(1, targetH);
+        const ctx = canvas.getContext('2d', { alpha: false });
+        if (!ctx) {
+          canvas.width = 0; canvas.height = 0;
+          return reject(new Error('Não foi possível inicializar o canvas 2D.'));
+        }
+
+        ctx.fillStyle = '#FFFFFF';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.imageSmoothingEnabled = true;
+        ctx.imageSmoothingQuality = 'high';
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+        const MAX_BLOB_BYTES = 150 * 1024; // 150 KB
+
+        const tryEncode = (quality) => {
+          canvas.toBlob((blob) => {
+            if (!blob) {
+              canvas.width = 0; canvas.height = 0;
+              return reject(new Error('Falha ao gerar WebP a partir do canvas.'));
+            }
+            if (blob.size <= MAX_BLOB_BYTES) {
+              canvas.width = 0; canvas.height = 0;
+              return resolve(blob);
+            }
+            if (quality > 0.45) {
+              return tryEncode(Number((quality - 0.12).toFixed(2)));
+            }
+            canvas.width = 0; canvas.height = 0;
+            return reject(new Error(`A imagem comprimida (${(blob.size / 1024).toFixed(1)} KB) excedeu o limite máximo de 150 KB.`));
+          }, 'image/webp', quality);
+        };
+
+        tryEncode(initialQuality);
+      } catch (err) {
+        reject(new Error(`Erro ao processar imagem no canvas: ${err.message}`));
+      }
+    };
+
+    img.onerror = () => {
+      cleanup();
+      reject(new Error('Não foi possível processar o arquivo de imagem enviado.'));
+    };
+
+    img.src = objectUrl;
+  });
+}
+
+/**
+ * Exclui com segurança um arquivo do Supabase Storage prevenindo arquivos órfãos.
+ */
+async function deleteStorageImageByUrl(urlOrPath, bucket = 'imagens-adocao') {
+  if (typeof window !== 'undefined' && window.ImageService && typeof window.ImageService.deleteStorageImage === 'function') {
+    return window.ImageService.deleteStorageImage(urlOrPath, getSupabaseClient(), bucket);
+  }
+  if (!urlOrPath) return false;
+  let path = null;
+  const cleanUrl = String(urlOrPath).split('?')[0];
+  const marker = `/storage/v1/object/public/${bucket}/`;
+  if (cleanUrl.includes(marker)) {
+    path = decodeURIComponent(cleanUrl.split(marker)[1]);
+  } else if (cleanUrl.includes('/storage/v1/object/public/pet_images/')) {
+    path = decodeURIComponent(cleanUrl.split('/storage/v1/object/public/pet_images/')[1]);
+    bucket = 'pet_images';
+  } else if (cleanUrl.includes('/storage/v1/object/public/avatars/')) {
+    path = decodeURIComponent(cleanUrl.split('/storage/v1/object/public/avatars/')[1]);
+    bucket = 'avatars';
+  } else if (!cleanUrl.startsWith('http')) {
+    path = cleanUrl;
+  }
+  if (!path) return false;
+
+  try {
+    const { error } = await getSupabaseClient().storage.from(bucket).remove([path]);
+    if (error) console.warn('[Storage Anti-Orphan] Aviso ao remover:', error.message);
+    return !error;
+  } catch (e) {
+    console.warn('[Storage Anti-Orphan] Exceção:', e);
+    return false;
+  }
+}
+
 async function uploadAvatar(file, userId) {
   const fileError = validateImageFile(file);
   if (fileError) throw new Error(fileError);
 
-  const extension = file.name.split('.').pop().toLowerCase();
-  const fileName = `${userId}/avatar.${extension}`;
+  const webpBlob = await compressAndValidateImage(file, 'perfil');
+  const uuid = (crypto && typeof crypto.randomUUID === 'function')
+    ? crypto.randomUUID()
+    : `av-${Date.now()}-${Math.round(Math.random() * 1e9)}`;
+  const fileName = `${userId}/${uuid}.webp`;
 
   const client = getSupabaseClient();
-  const { data, error } = await client.storage.from('avatars').upload(fileName, file, {
-    cacheControl: '3600',
-    upsert: true,
-    contentType: file.type
+  const { data, error } = await client.storage.from('imagens-adocao').upload(fileName, webpBlob, {
+    cacheControl: '31536000',
+    upsert: false,
+    contentType: 'image/webp'
   });
 
   if (error) throw new Error(`Não foi possível enviar a foto de perfil: ${mensagemDeErroSegura(error)}`);
-  const { data: publicUrlData } = client.storage.from('avatars').getPublicUrl(data.path);
-  if (!publicUrlData?.publicUrl) throw new Error('Não foi possível obter a URL.');
+  const { data: publicUrlData } = client.storage.from('imagens-adocao').getPublicUrl(data.path);
+  if (!publicUrlData?.publicUrl) throw new Error('Não foi possível obter a URL pública.');
 
-  return `${publicUrlData.publicUrl}?t=${Date.now()}`;
+  return publicUrlData.publicUrl;
 }
 
 async function registerWithSupabase(name, username, email, password, birthDate, avatarFile, recoveryCode) {
@@ -696,6 +838,9 @@ async function registerWithSupabase(name, username, email, password, birthDate, 
       status: 'active'
     }).eq('id', userId);
     if (profileError) {
+      if (avatarUrl) {
+        await deleteStorageImageByUrl(avatarUrl);
+      }
       // o 23505 aqui e o indice do username. confere antes de acusar, senao
       // qualquer outra constraint vira "nome de usuario ja em uso".
       if (profileError.code === '23505') {
@@ -763,7 +908,13 @@ async function updateHomeUserActions() {
     getSupabaseClient().auth.signOut().finally(() => {
       clearSession();
       resetVerificacao();
-      updateHomeUserActions();
+      const page = document.body.dataset.page;
+      const protectedPages = ['profile', 'my-posts', 'favorites', 'create-post', 'admin'];
+      if (protectedPages.includes(page)) {
+        window.location.href = 'index.html';
+      } else {
+        updateHomeUserActions();
+      }
     });
   });
 }
@@ -797,6 +948,37 @@ function setupScrollReveal() {
   }, { rootMargin: '0px 0px -8% 0px', threshold: 0.08 });
 
   alvos.forEach((el) => observador.observe(el));
+}
+
+function setupPWA() {
+  if ('serviceWorker' in navigator && (window.location.protocol === 'https:' || window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')) {
+    const swUrl = new URL('sw.js', document.baseURI || window.location.href).href;
+    navigator.serviceWorker.register(swUrl).catch((err) => {
+      console.warn('Falha ao registrar Service Worker do Pet Amor:', err);
+    });
+  }
+
+  window.addEventListener('beforeinstallprompt', (event) => {
+    event.preventDefault();
+    const deferredPrompt = event;
+    const actionsArea = document.querySelector('.profile-intro') || document.querySelector('.home-actions');
+    if (actionsArea && !document.getElementById('pwaInstallBtn')) {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.id = 'pwaInstallBtn';
+      btn.className = 'btn-pwa-install';
+      btn.innerHTML = `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> Instalar App`;
+      btn.addEventListener('click', async () => {
+        btn.remove();
+        deferredPrompt.prompt();
+        const { outcome } = await deferredPrompt.userChoice;
+        if (outcome === 'accepted') {
+          showToast('Obrigado por instalar o Pet Amor! 🐾');
+        }
+      });
+      actionsArea.appendChild(btn);
+    }
+  });
 }
 
 // imagem quebrada vira uma pata, sem loop infinito
@@ -905,6 +1087,7 @@ function setupSupportModal() {
 
   document.addEventListener('keydown', (event) => {
     if (event.key === 'Escape') {
+      if (document.querySelector('.dynamic-modal')) return;
       if (modal && !modal.hidden) closeModal(modal);
       if (contactModal && !contactModal.hidden) closeModal(contactModal);
     }
@@ -1019,18 +1202,55 @@ function setupStatisticsManagement() {
   document.getElementById('resetStatisticsButton')?.addEventListener('click', () => updateSiteStatistics(0, true));
 }
 
-// defesa em profundidade: o rls do banco e a barreira de verdade
+// Exclusão segura de publicação com remoção ativa de imagens no Supabase Storage (anti-órfão)
 async function deletePost(postId) {
-  if (!(await isCurrentUserAdmin())) {
-    showToast('Apenas administradores podem excluir publicações.', 'error');
+  const session = getSession();
+  const isAdmin = await isCurrentUserAdmin();
+  const client = getSupabaseClient();
+
+  const { data: post, error: fetchErr } = await client
+    .from('posts')
+    .select('id, user_id, image_urls')
+    .eq('id', postId)
+    .single();
+
+  if (fetchErr || !post) {
+    showToast('Publicação não encontrada.', 'error');
     return;
   }
-  const { error } = await getSupabaseClient().from('posts').delete().eq('id', postId);
+
+  // Barreira de autorização: apenas o dono ou um administrador pode excluir
+  if (post.user_id !== session?.userId && !isAdmin) {
+    showToast('Apenas o autor da publicação ou administradores podem excluí-la.', 'error');
+    return;
+  }
+
+  if (!window.confirm('Tem certeza que deseja excluir esta publicação? As fotos associadas também serão apagadas.')) {
+    return;
+  }
+
+  const { error } = await client.from('posts').delete().eq('id', postId);
   if (error) {
     showToast(`Não foi possível excluir o post: ${mensagemDeErroSegura(error)}`, 'error');
     return;
   }
-  renderAdminDashboard();
+
+  // Prevenção de arquivos órfãos: expurga todas as imagens da publicação no Storage
+  if (post.image_urls) {
+    const rawUrls = Array.isArray(post.image_urls) ? post.image_urls : [post.image_urls];
+    for (const url of rawUrls) {
+      await deleteStorageImageByUrl(url);
+    }
+  }
+
+  showToast('Publicação e imagens associadas excluídas com sucesso.');
+  if (isAdmin && typeof renderAdminDashboard === 'function' && document.getElementById('adminPostsTable')) {
+    renderAdminDashboard();
+  } else if (typeof renderUserPosts === 'function' && document.getElementById('userPosts')) {
+    renderUserPosts();
+  } else {
+    window.location.reload();
+  }
 }
 
 async function searchAdminUsers(queryValue) {
@@ -1102,10 +1322,11 @@ function validateImageFile(file) {
   const allowedExtensions = /\.(jpe?g|png|webp)$/i;
   const allowedTypes = ['image/jpeg', 'image/png', 'image/webp'];
   if (!allowedExtensions.test(name) || !allowedTypes.includes(file.type)) {
-    return 'Só aceitamos fotos JPG/PNG/WebP de até 8MB.';
+    return 'Aceitamos apenas fotos em formato JPG, PNG ou WebP.';
   }
-  if (file.size > 8 * 1024 * 1024) {
-    return 'Só aceitamos fotos JPG/PNG/WebP de até 8MB.';
+  if (file.size > 15 * 1024 * 1024) {
+    const tamanhoMB = (file.size / (1024 * 1024)).toFixed(1);
+    return `A imagem original é muito grande (${tamanhoMB} MB). O limite máximo de envio é 15 MB.`;
   }
   return null;
 }
@@ -1134,13 +1355,85 @@ function getContactItems(post) {
   return directItems.length ? directItems : parsedItems;
 }
 
+function extractPhoneNumber(post) {
+  let rawPhone = post?.phone || post?.contact_phone || '';
+  if (!rawPhone && post?.contact_info) {
+    const parts = String(post.contact_info).split('|');
+    for (const part of parts) {
+      const cleaned = part.replace(/\D/g, '');
+      if (cleaned.length >= 10 && cleaned.length <= 13) {
+        rawPhone = cleaned;
+        break;
+      }
+    }
+  }
+  const digits = String(rawPhone || '').replace(/\D/g, '');
+  if (digits.length === 10 || digits.length === 11) {
+    return `55${digits}`;
+  }
+  if (digits.length === 12 || digits.length === 13) {
+    return digits;
+  }
+  return null;
+}
+
+function renderWhatsAppButton(post) {
+  const phone = extractPhoneNumber(post);
+  if (!phone) return '';
+  let defaultGreeting = `Olá! Vi o anúncio do pet ${animalTitle} (${animalType}) no Pet Amor e gostaria de saber se ele ainda está disponível para adoção responsável!`;
+  if (post.support_type === 'lar_temporario') {
+    defaultGreeting = `Olá! Vi o anúncio de Lar Temporário (LT) para o pet ${animalTitle} no Pet Amor e gostaria de me voluntariar/ajudar! 🏠`;
+  } else if (post.support_type === 'apadrinhamento') {
+    defaultGreeting = `Olá! Vi a campanha de Apadrinhamento/Cuidados para o pet ${animalTitle} no Pet Amor e gostaria de ajudar com os custos/cuidados! ⭐`;
+  }
+  const message = encodeURIComponent(defaultGreeting);
+  const waUrl = `https://wa.me/${phone}?text=${message}`;
+
+  return `
+    <a href="${waUrl}" target="_blank" rel="noopener noreferrer" class="btn-whatsapp" aria-label="Conversar com o anunciante no WhatsApp">
+      <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor" aria-hidden="true">
+        <path d="M12.04 2c-5.46 0-9.91 4.45-9.91 9.91 0 1.75.46 3.45 1.32 4.95L2.05 22l5.25-1.38c1.45.79 3.08 1.21 4.74 1.21 5.46 0 9.91-4.45 9.91-9.91 0-2.65-1.03-5.14-2.9-7.01A9.816 9.816 0 0 0 12.04 2m.01 1.67c2.2 0 4.26.86 5.82 2.42a8.225 8.225 0 0 1 2.41 5.83c0 4.54-3.7 8.24-8.24 8.24-1.48 0-2.93-.4-4.2-1.15l-.3-.18-3.12.82.83-3.04-.2-.31a8.196 8.196 0 0 1-1.26-4.38c0-4.54 3.7-8.24 8.24-8.24m4.52 11.66c-.25-.13-1.47-.72-1.7-.81-.23-.08-.39-.13-.56.13-.17.25-.64.81-.79.97-.14.17-.29.19-.54.06-.25-.13-1.06-.39-2.03-1.25-.75-.67-1.26-1.5-1.41-1.75-.14-.25-.02-.39.11-.51.11-.11.25-.29.37-.44.13-.15.17-.25.25-.42.08-.17.04-.31-.02-.44-.06-.13-.56-1.35-.77-1.85-.2-.49-.41-.42-.56-.43h-.48c-.17 0-.44.06-.67.31-.23.25-.88.86-.88 2.1 0 1.24.9 2.44 1.03 2.61.13.17 1.77 2.7 4.29 3.79.6.26 1.07.41 1.44.53.6.19 1.15.16 1.58.1.48-.07 1.47-.6 1.68-1.18.21-.58.21-1.07.15-1.18-.06-.11-.23-.17-.48-.29z"/>
+      </svg>
+      <span>Conversar no WhatsApp</span>
+    </a>
+  `;
+}
+
 function renderCopyableContacts(post) {
-  return getContactItems(post).map((item) => {
+  const waBtn = renderWhatsAppButton(post);
+  const copyBtns = getContactItems(post).map((item) => {
     const contact = String(item);
     const match = contact.match(/^(Tel|Telefone|Email|E-mail|IG|Instagram)\s*:\s*(.+)$/i);
+    const label = match?.[1] || 'Contato';
     const value = match?.[2]?.trim() || contact;
-    return `<button type="button" class="copy-contact-btn" data-copy="${escapeHTML(value)}">${escapeHTML(contact)}</button>`;
-  }).join('') || '<p class="contact-empty">Contato não informado</p>';
+
+    let iconSvg = '';
+    if (/tel|telefone/i.test(label)) {
+      iconSvg = `<svg class="contact-type-icon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>`;
+    } else if (/email|e-mail/i.test(label)) {
+      iconSvg = `<svg class="contact-type-icon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>`;
+    } else {
+      iconSvg = `<svg class="contact-type-icon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="20" height="20" x="2" y="2" rx="5" ry="5"/><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"/><line x1="17.5" x2="17.51" y1="6.5" y2="6.5"/></svg>`;
+    }
+
+    return `
+      <button type="button" class="copy-contact-btn" data-copy="${escapeHTML(value)}" aria-label="Copiar ${escapeHTML(label)}: ${escapeHTML(value)}" title="Clique para copiar">
+        <span class="copy-btn-info">
+          ${iconSvg}
+          <span class="copy-btn-text"><strong>${escapeHTML(label)}:</strong> ${escapeHTML(value)}</span>
+        </span>
+        <span class="copy-action-indicator" aria-hidden="true">
+          <svg class="icon-copy" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+          </svg>
+          <span class="copy-state-label">Copiar</span>
+        </span>
+      </button>
+    `;
+  }).join('');
+  const contactList = copyBtns || '<p class="contact-empty">Contato não informado</p>';
+  return waBtn ? `${waBtn}${contactList}` : contactList;
 }
 
 function renderContactItems(post) {
@@ -1153,27 +1446,36 @@ function adminPostActions(postId, podeAdministrar = false) {
     : '';
 }
 
-async function uploadPostImage(file) {
+async function uploadPostImage(file, userId) {
   const client = getSupabaseClient();
   const fileError = validateImageFile(file);
   if (fileError) throw new Error(fileError);
-  const extension = file.name.split('.').pop().toLowerCase();
+
+  const effectiveUserId = userId || getSession()?.userId || (await client.auth.getUser())?.data?.user?.id;
+  if (!effectiveUserId) throw new Error('Usuário não autenticado para envio da imagem.');
+
+  const webpBlob = await compressAndValidateImage(file, 'pet');
   const uuid = (crypto && typeof crypto.randomUUID === 'function')
     ? crypto.randomUUID()
-    : `up-${Date.now()}-${Math.round(Math.random() * 1e9)}`;
-  const fileName = `${uuid}.${extension}`;
+    : `pet-${Date.now()}-${Math.round(Math.random() * 1e9)}`;
+  const fileName = `${effectiveUserId}/${uuid}.webp`;
 
-  const { data, error } = await client.storage.from('pet_images').upload(fileName, file, {
-    cacheControl: '3600',
+  const { data, error } = await client.storage.from('imagens-adocao').upload(fileName, webpBlob, {
+    cacheControl: '31536000',
     upsert: false,
-    contentType: file.type
+    contentType: 'image/webp'
   });
 
   if (error) throw new Error(`Não foi possível enviar a imagem: ${mensagemDeErroSegura(error)}`);
-  const { data: publicUrlData } = client.storage.from('pet_images').getPublicUrl(data.path);
+  const { data: publicUrlData } = client.storage.from('imagens-adocao').getPublicUrl(data.path);
   if (!publicUrlData?.publicUrl) throw new Error('Não foi possível obter a URL da imagem.');
 
-  return publicUrlData.publicUrl;
+  const res = {
+    publicUrl: publicUrlData.publicUrl,
+    path: data.path,
+    toString() { return this.publicUrl; }
+  };
+  return res;
 }
 
 const BREED_CATALOGS = {
@@ -1656,11 +1958,13 @@ async function handleCreatePostSubmit(event) {
     return;
   }
 
+  let uploadedResults = [];
   try {
-    const imageUrls = await Promise.all(photoFiles.map((file) => uploadPostImage(file)));
+    uploadedResults = await Promise.all(photoFiles.map((file) => uploadPostImage(file, userData.user.id)));
+    const imageUrls = uploadedResults.map((item) => (typeof item === 'object' && item.publicUrl ? item.publicUrl : String(item)));
     const contatoFinal = [phone && `Tel: ${phone}`, email && `Email: ${email}`, instagram && `IG: @${instagram}`].filter(Boolean).join(' | ');
 
-      const post = {
+    const post = {
       user_id: userData.user.id,
       title,
       description,
@@ -1673,6 +1977,7 @@ async function handleCreatePostSubmit(event) {
       mother_breed: motherBreed,
       father_breed: fatherBreed,
       image_urls: imageUrls,
+      support_type: form.elements.supportType?.value || 'adocao',
       // campos de filtro de adocao
       age_group: textoOuNulo('ageGroup'),
       gender: textoOuNulo('gender'),
@@ -1691,6 +1996,12 @@ async function handleCreatePostSubmit(event) {
     const { error } = await getSupabaseClient().from('posts').insert([post]).select().single();
     if (error) {
       console.error(error);
+      // ROLLBACK TRANSAÇÃO: Remove todas as fotos enviadas caso o INSERT no banco falhe
+      const pathsToRollback = uploadedResults.map((r) => r.path).filter(Boolean);
+      if (pathsToRollback.length > 0) {
+        await getSupabaseClient().storage.from('imagens-adocao').remove(pathsToRollback);
+      }
+
       if (error.message.includes('RATE_LIMIT_EXCEEDED')) {
         showToast('Você excedeu os limites da nossa infraestrutura que é modesta. Você poderá postar mais daqui a uma hora.', 'error');
         return;
@@ -1702,6 +2013,15 @@ async function handleCreatePostSubmit(event) {
     showToast('Publicação criada com sucesso.');
     window.location.href = 'index.html';
   } catch (error) {
+    // Se falhar durante qualquer ponto do upload ou processamento, desfaz uploads já concluídos
+    if (uploadedResults && uploadedResults.length > 0) {
+      const pathsToClean = uploadedResults.map((r) => r.path).filter(Boolean);
+      if (pathsToClean.length > 0) {
+        try {
+          await getSupabaseClient().storage.from('imagens-adocao').remove(pathsToClean);
+        } catch (_) {}
+      }
+    }
     showToast(mensagemDeErroSegura(error, 'Erro ao criar a publicação.'), 'error');
   }
 }
@@ -1802,20 +2122,24 @@ function renderRecentPosts() {
   const target = document.getElementById('recentPosts');
   if (!target) return;
 
-  getSupabaseClient().from('posts').select('*, profiles(full_name, username, avatar_url)').eq('status', 'active').order('created_at', { ascending: false }).limit(12)
+  getSupabaseClient().from('posts').select('*, profiles(full_name, username, avatar_url)').in('status', ['active', 'in_process']).order('created_at', { ascending: false }).limit(12)
     .then(({ data, error }) => {
       if (error) throw new Error(mensagemDeErroSegura(error));
       target.innerHTML = (data || []).map((post) => `
         <article class="recent-post-card ${post.status === 'adopted' ? 'adopted-card' : ''}">
           <div class="card-utility-actions">${favoriteButtonHTML(post.id)}${shareButtonHTML(post)}</div>
-            ${post.status === 'adopted' ? '<div class="adopted-ribbon">Adotado</div>' : ''}
+          ${post.status === 'adopted' ? '<div class="adopted-ribbon">Adotado! 🎉</div>' : ''}
+          ${post.status === 'in_process' ? '<div class="adopted-ribbon" style="background: #f59e0b;">Em processo ⏳</div>' : ''}
           ${generateImageCarouselHTML(post.image_urls, post.title)}
           <div class="recent-post-body">
             ${renderAuthorBar(post.profiles)}
-            <span class="mini-tag">${escapeHTML(formatAnimalType(post.animal_type))}</span>
+            <div style="display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-bottom: 6px;">
+              <span class="mini-tag">${escapeHTML(formatAnimalType(post.animal_type))}</span>
+              ${renderSupportTypeBadge(post.support_type)}
+            </div>
             <h3>${escapeHTML(post.title)}</h3>
             <p class="recent-post-location"><svg class="pin-icon" viewBox="0 0 24 24" width="14" height="14" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 5.2-8 12-8 12s-8-6.8-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="2.6"/></svg> ${escapeHTML(formatPostLocation(post))}</p>
-            ${post.status === 'active' ? `<div class="post-action-row"><button class="btn btn-secondary" type="button" data-post-details="${escapeHTML(post.id)}">Ver detalhes</button>${postActionButtonsHTML(post, podeAdministrarAgora())}</div>` : ''}
+            ${post.status === 'active' || post.status === 'in_process' ? `<div class="post-action-row"><button class="btn btn-secondary" type="button" data-post-details="${escapeHTML(post.id)}">Ver detalhes</button>${postActionButtonsHTML(post, podeAdministrarAgora())}</div>` : ''}
           </div>
         </article>
       `).join('');
@@ -1914,10 +2238,18 @@ function getPostImageUrl(post) {
 }
 
 function getOptimizedImageUrl(url) {
-  if (!url || !String(url).includes('/storage/v1/object/public/pet_images/')) return url;
-  const path = decodeURIComponent(String(url).split('/storage/v1/object/public/pet_images/')[1].split('?')[0]);
-  const { data } = getSupabaseClient().storage.from('pet_images').getPublicUrl(path);
-  return data?.publicUrl || url;
+  if (!url) return url;
+  if (String(url).includes('/storage/v1/object/public/imagens-adocao/')) {
+    const path = decodeURIComponent(String(url).split('/storage/v1/object/public/imagens-adocao/')[1].split('?')[0]);
+    const { data } = getSupabaseClient().storage.from('imagens-adocao').getPublicUrl(path);
+    return data?.publicUrl || url;
+  }
+  if (String(url).includes('/storage/v1/object/public/pet_images/')) {
+    const path = decodeURIComponent(String(url).split('/storage/v1/object/public/pet_images/')[1].split('?')[0]);
+    const { data } = getSupabaseClient().storage.from('pet_images').getPublicUrl(path);
+    return data?.publicUrl || url;
+  }
+  return url;
 }
 
 function formatPostLocation(post) {
@@ -1953,13 +2285,13 @@ function generateImageCarouselHTML(imageUrls, altText) {
     : ['https://images.unsplash.com/photo-1517849845537-4d257902454a?auto=format&fit=crop&w=900&q=80'];
 
   if (urls.length === 1) {
-    return `<img class="post-single-image" src="${escapeHTML(urls[0])}" alt="${safeAltText}" />`;
+    return `<img class="post-single-image" src="${escapeHTML(urls[0])}" alt="${safeAltText}" width="600" height="450" loading="lazy" decoding="async" />`;
   }
 
   return `
     <div class="post-carousel" data-carousel-index="0">
       <div class="post-carousel-track">
-        ${urls.map((url, index) => `<img class="post-carousel-image" src="${escapeHTML(url)}" alt="${safeAltText} - imagem ${index + 1}" />`).join('')}
+        ${urls.map((url, index) => `<img class="post-carousel-image" src="${escapeHTML(url)}" alt="${safeAltText} - imagem ${index + 1}" width="600" height="450" loading="lazy" decoding="async" />`).join('')}
       </div>
       <button class="post-carousel-button post-carousel-previous" type="button" data-carousel-action="previous" aria-label="Imagem anterior">&#8592;</button>
       <button class="post-carousel-button post-carousel-next" type="button" data-carousel-action="next" aria-label="Próxima imagem">&#8594;</button>
@@ -1980,6 +2312,7 @@ function lerFiltrosDaTela() {
   const v = (id) => (document.getElementById(id)?.value || '').trim();
   return {
     state: v('categoryState'), city: v('categoryCity'), breed: v('categoryBreed'),
+    support_type: v('categorySupportType'),
     gender: v('categoryGender'), age: v('categoryAge'), size: v('categorySize'),
     energy: v('categoryEnergy'), neutered: v('categoryNeutered'),
     vaccinated: v('categoryVaccinated'), dewormed: v('categoryDewormed'),
@@ -2010,6 +2343,12 @@ function fotoVazia() {
 function chipsDeAtributos(post) {
   const chips = [];
   const add = (texto, tom) => chips.push(`<span class="atributo atributo-${tom || 'neutro'}">${escapeHTML(texto)}</span>`);
+
+  if (post.support_type === 'lar_temporario') add('🏠 Lar Temporário', 'atencao');
+  else if (post.support_type === 'apadrinhamento') add('⭐ Padrinho Solidário', 'ok');
+
+  if (post.status === 'in_process') add('Em processo ⏳', 'atencao');
+  else if (post.status === 'adopted') add('Adotado! 🎉', 'ok');
 
   if (post.gender) add(post.gender);
   if (post.age_group) add(post.age_group);
@@ -2201,12 +2540,13 @@ async function renderCategoryFeed(animalType) {
     .from('posts')
     .select('*, profiles(full_name, username, avatar_url)')
     .eq('animal_type', animalType)
-    .eq('status', 'active')
+    .in('status', ['active', 'in_process'])
     .order('created_at', { ascending: false })
     .limit(120);
 
   if (f.state) query = query.eq('state', f.state);
   if (f.city) query = query.eq('city', f.city);
+  if (f.support_type) query = query.eq('support_type', f.support_type);
   if (f.breed) {
     if (f.breed === 'Não sei') {
       query = query.or('breed.eq.Não sei,breed.ilike.%Não sei%');
@@ -2251,10 +2591,14 @@ async function renderCategoryFeed(animalType) {
   target.innerHTML = renderProximityDivider(data, f.city, (post) => `
     <article class="category-pet-card">
       <div class="card-utility-actions">${favoriteButtonHTML(post.id)}${shareButtonHTML(post)}</div>
+      ${post.status === 'in_process' ? '<div class="adopted-ribbon" style="background: #f59e0b;">Em processo ⏳</div>' : ''}
       ${generateImageCarouselHTML(post.image_urls, post.title)}
       <div class="category-pet-card-body">
         ${renderAuthorBar(post.profiles)}
-        <h2>${escapeHTML(post.title)}</h2>
+        <div style="display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-bottom: 6px;">
+          <h2>${escapeHTML(post.title)}</h2>
+          ${renderSupportTypeBadge(post.support_type)}
+        </div>
         <p class="category-pet-location">${ICONE_PIN} ${escapeHTML(formatPostLocation(post))}</p>
         <p class="category-pet-breed"><strong>Raça:</strong> ${escapeHTML(post.breed || 'Não informado')}</p>
         ${chipsDeAtributos(post)}
@@ -2302,21 +2646,25 @@ async function renderFavorites() {
   target.innerHTML = orderedPosts.map((post) => `
     <article class="recent-post-card profile-post-card ${post.status === 'adopted' ? 'adopted-card' : ''}" data-card-post-id="${escapeHTML(post.id)}">
       <div class="card-utility-actions">${favoriteButtonHTML(post.id)}${shareButtonHTML(post)}</div>
-      ${post.status === 'adopted' ? '<div class="adopted-ribbon">Adotado</div>' : ''}
+      ${post.status === 'adopted' ? '<div class="adopted-ribbon">Adotado! 🎉</div>' : ''}
+      ${post.status === 'in_process' ? '<div class="adopted-ribbon" style="background: #f59e0b;">Em processo ⏳</div>' : ''}
       <div class="post-card-media-trigger" data-post-details="${escapeHTML(post.id)}" style="cursor: pointer;" title="Clique para ver detalhes">
         ${generateImageCarouselHTML(post.image_urls, post.title)}
       </div>
       <div class="recent-post-body profile-post-card-body">
         ${renderAuthorBar(post.profiles)}
-        <span class="mini-tag">${escapeHTML(formatAnimalType(post.animal_type))}</span>
+        <div style="display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-bottom: 6px;">
+          <span class="mini-tag">${escapeHTML(formatAnimalType(post.animal_type))}</span>
+          ${renderSupportTypeBadge(post.support_type)}
+        </div>
         <h3 class="post-card-title-trigger" data-post-details="${escapeHTML(post.id)}" style="cursor: pointer;" title="Clique para ver detalhes">${escapeHTML(post.title)}</h3>
         <p class="recent-post-location"><svg class="pin-icon" viewBox="0 0 24 24" width="14" height="14" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 5.2-8 12-8 12s-8-6.8-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="2.6"/></svg> ${escapeHTML(formatPostLocation(post))}</p>
-        ${post.status === 'active' ? `<div class="post-action-row"><button class="btn btn-secondary" type="button" data-post-details="${escapeHTML(post.id)}">Ver detalhes</button>${postActionButtonsHTML(post, podeAdministrarAgora())}</div>` : ''}
+        ${post.status === 'active' || post.status === 'in_process' ? `<div class="post-action-row"><button class="btn btn-secondary" type="button" data-post-details="${escapeHTML(post.id)}">Ver detalhes</button>${postActionButtonsHTML(post, podeAdministrarAgora())}</div>` : ''}
       </div>
     </article>
   `).join('');
 
-  bindAdoptionButtons(target, orderedPosts.filter((post) => post.status === 'active'));
+  bindAdoptionButtons(target, orderedPosts.filter((post) => post.status === 'active' || post.status === 'in_process'));
 
   target.querySelectorAll('[data-post-details]').forEach((trigger) => {
     trigger.addEventListener('click', (e) => {
@@ -2362,6 +2710,269 @@ function formatDetailValue(key, value) {
   return String(value);
 }
 
+function drawRoundedRect(ctx, x, y, width, height, radius) {
+  ctx.beginPath();
+  ctx.moveTo(x + radius, y);
+  ctx.lineTo(x + width - radius, y);
+  ctx.quadraticCurveTo(x + width, y, x + width, y + radius);
+  ctx.lineTo(x + width, y + height - radius);
+  ctx.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
+  ctx.lineTo(x + radius, y + height);
+  ctx.quadraticCurveTo(x, y + height, x, y + height - radius);
+  ctx.lineTo(x, y + radius);
+  ctx.quadraticCurveTo(x, y, x + radius, y);
+  ctx.closePath();
+}
+
+function loadImageAsync(url) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => resolve(img);
+    img.onerror = (e) => reject(e);
+    img.src = url;
+  });
+}
+
+function renderSupportTypeBadge(supportType) {
+  if (supportType === 'lar_temporario') {
+    return '<span class="status-badge badge-lt">🏠 Lar Temporário</span>';
+  }
+  if (supportType === 'apadrinhamento') {
+    return '<span class="status-badge badge-padrinho">⭐ Padrinho Solidário</span>';
+  }
+  return '';
+}
+
+function renderPostStatusBadge(status) {
+  if (status === 'in_process') {
+    return '<span class="status-badge status-in-process">Em processo ⏳</span>';
+  }
+  if (status === 'adopted') {
+    return '<span class="status-badge status-adopted">Adotado! 🎉</span>';
+  }
+  return '<span class="status-badge status-active">Disponível</span>';
+}
+
+async function generateInstagramStory(post) {
+  showToast('Gerando card para Stories... 🎨');
+
+  try {
+    if (document.fonts) {
+      await document.fonts.ready;
+    }
+    const canvas = document.createElement('canvas');
+    canvas.width = 1080;
+    canvas.height = 1920;
+    const ctx = canvas.getContext('2d');
+
+    // 1. Fundo Gradiente Elegante
+    const bgGrad = ctx.createLinearGradient(0, 0, 0, 1920);
+    bgGrad.addColorStop(0, '#fffbf7');
+    bgGrad.addColorStop(0.5, '#fef5eb');
+    bgGrad.addColorStop(1, '#fde8d7');
+    ctx.fillStyle = bgGrad;
+    ctx.fillRect(0, 0, 1080, 1920);
+
+    // Decorações de fundo suaves
+    ctx.save();
+    ctx.fillStyle = 'rgba(217, 97, 27, 0.05)';
+    ctx.beginPath();
+    ctx.arc(950, 150, 260, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.arc(100, 1750, 320, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+
+    // 2. Cabeçalho Superior do Story
+    ctx.save();
+    ctx.fillStyle = '#b8490f';
+    ctx.font = 'bold 44px Manrope, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('🐾 Pet Amor • Adoção Responsável', 540, 120);
+
+    ctx.fillStyle = '#786f68';
+    ctx.font = '500 32px Manrope, sans-serif';
+    const subtitle = post.support_type === 'lar_temporario'
+      ? 'Precisa de um Lar Temporário com carinho 🏠'
+      : post.support_type === 'apadrinhamento'
+      ? 'Campanha de Apadrinhamento e Cuidados ⭐'
+      : 'Uma vida cheia de amor esperando por você! ✨';
+    ctx.fillText(subtitle, 540, 175);
+    ctx.restore();
+
+    // 3. Moldura da Foto Principal (920 x 960 px)
+    const cardX = 80;
+    const cardY = 230;
+    const cardW = 920;
+    const cardH = 960;
+    const radius = 36;
+
+    ctx.save();
+    ctx.shadowColor = 'rgba(31, 27, 27, 0.16)';
+    ctx.shadowBlur = 40;
+    ctx.shadowOffsetY = 16;
+    ctx.fillStyle = '#ffffff';
+    drawRoundedRect(ctx, cardX, cardY, cardW, cardH, radius);
+    ctx.fill();
+    ctx.restore();
+
+    // Imagem do Animal
+    const imgUrl = (Array.isArray(post.image_urls) && post.image_urls[0]) ? post.image_urls[0] : DEFAULT_AVATAR_URL;
+    try {
+      const img = await loadImageAsync(imgUrl);
+      ctx.save();
+      drawRoundedRect(ctx, cardX, cardY, cardW, cardH, radius);
+      ctx.clip();
+
+      const imgRatio = img.width / img.height;
+      const boxRatio = cardW / cardH;
+      let sx, sy, sWidth, sHeight;
+      if (imgRatio > boxRatio) {
+        sHeight = img.height;
+        sWidth = img.height * boxRatio;
+        sx = (img.width - sWidth) / 2;
+        sy = 0;
+      } else {
+        sWidth = img.width;
+        sHeight = img.width / boxRatio;
+        sx = 0;
+        sy = (img.height - sHeight) / 2;
+      }
+      ctx.drawImage(img, sx, sy, sWidth, sHeight, cardX, cardY, cardW, cardH);
+      ctx.restore();
+    } catch {
+      ctx.save();
+      ctx.fillStyle = '#fbe9dc';
+      drawRoundedRect(ctx, cardX, cardY, cardW, cardH, radius);
+      ctx.fill();
+      ctx.fillStyle = '#b8490f';
+      ctx.font = 'bold 90px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('🐾', 540, cardY + cardH / 2);
+      ctx.restore();
+    }
+
+    // 4. Informações do Pet
+    const infoY = 1270;
+    ctx.save();
+    ctx.fillStyle = '#1f1b1b';
+    ctx.font = '800 66px Manrope, sans-serif';
+    ctx.textAlign = 'center';
+    const petName = post.title || 'Amiguinho sem nome';
+    ctx.fillText(petName.length > 25 ? petName.substring(0, 23) + '...' : petName, 540, infoY);
+
+    ctx.fillStyle = '#66605b';
+    ctx.font = '600 36px Manrope, sans-serif';
+    ctx.fillText(`📍 ${formatPostLocation(post)}`, 540, infoY + 65);
+    ctx.restore();
+
+    // 5. Pílulas de Características
+    const badges = [
+      formatAnimalType(post.animal_type) || 'Animal',
+      post.breed || 'SRD',
+      post.gender || null,
+      post.neutered ? 'Castrado ✓' : null,
+      post.vaccinated ? 'Vacinado ✓' : null,
+      post.support_type === 'lar_temporario' ? 'Lar Temporário 🏠' : post.support_type === 'apadrinhamento' ? 'Padrinho Solidário ⭐' : null
+    ].filter(Boolean);
+
+    ctx.save();
+    ctx.font = 'bold 30px Manrope, sans-serif';
+    const badgeY = infoY + 130;
+    const chipWidths = badges.map((b) => ctx.measureText(b).width + 44);
+    const totalRowW = chipWidths.reduce((a, b) => a + b, 0) + (badges.length - 1) * 16;
+    let currentX = Math.max(60, 540 - Math.min(totalRowW, 960) / 2);
+
+    badges.slice(0, 4).forEach((badge, idx) => {
+      const w = chipWidths[idx];
+      ctx.fillStyle = '#ffffff';
+      ctx.strokeStyle = 'rgba(184, 73, 15, 0.2)';
+      ctx.lineWidth = 2;
+      drawRoundedRect(ctx, currentX, badgeY, w, 56, 28);
+      ctx.fill();
+      ctx.stroke();
+
+      ctx.fillStyle = '#b8490f';
+      ctx.textAlign = 'center';
+      ctx.fillText(badge, currentX + w / 2, badgeY + 39);
+      currentX += w + 16;
+    });
+    ctx.restore();
+
+    // 6. Rodapé
+    ctx.save();
+    const footerBoxY = 1570;
+    ctx.fillStyle = '#ffffff';
+    ctx.shadowColor = 'rgba(31, 27, 27, 0.08)';
+    ctx.shadowBlur = 24;
+    ctx.shadowOffsetY = 8;
+    drawRoundedRect(ctx, 100, footerBoxY, 880, 240, 32);
+    ctx.fill();
+
+    ctx.fillStyle = '#1f1b1b';
+    ctx.font = '800 38px Manrope, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('Ajude a encontrar um lar para este pet!', 540, footerBoxY + 70);
+
+    ctx.fillStyle = '#b8490f';
+    ctx.font = '700 34px Manrope, sans-serif';
+    ctx.fillText('Compartilhe no seu Story 🐾', 540, footerBoxY + 130);
+
+    ctx.fillStyle = '#786f68';
+    ctx.font = '500 28px Manrope, sans-serif';
+    ctx.fillText('Acesse: petamor.com.br', 540, footerBoxY + 190);
+    ctx.restore();
+
+    // 7. Exportação e Compartilhamento
+    canvas.toBlob(async (blob) => {
+      if (!blob) {
+        showToast('Não foi possível gerar a imagem.', 'error');
+        return;
+      }
+
+      const safeFileName = `pet-amor-${(post.title || 'story').toLowerCase().replace(/[^a-z0-9]/g, '-')}.png`;
+      const file = new File([blob], safeFileName, { type: 'image/png' });
+
+      if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        try {
+          await navigator.share({
+            files: [file],
+            title: `Adoção: ${post.title}`,
+            text: `Conheça ${post.title} no Pet Amor!`
+          });
+          showToast('Story compartilhado com sucesso!');
+          return;
+        } catch (e) {
+          if (e.name === 'AbortError') return;
+        }
+      }
+
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = safeFileName;
+      a.click();
+
+      createDynamicModal(`
+        <div class="story-preview-container">
+          <h2>Card para Stories Gerado! 🎉</h2>
+          <p>A imagem em formato 9:16 foi baixada. Você já pode publicá-la no seu <strong>Instagram Stories</strong> ou <strong>WhatsApp Status</strong>!</p>
+          <img src="${url}" alt="Prévia do Story" class="story-preview-img" />
+          <div class="story-preview-actions">
+            <a href="${url}" download="${safeFileName}" class="btn btn-primary">Baixar Novamente</a>
+            <button type="button" class="btn btn-secondary" data-close-dynamic>Fechar</button>
+          </div>
+        </div>
+      `, 'story-modal');
+    }, 'image/png');
+  } catch (err) {
+    console.error('Erro ao gerar Story:', err);
+    showToast('Não foi possível gerar o card para Stories.', 'error');
+  }
+}
+
 function openAdoptionModal(post) {
   if (!post) return;
   const modal = document.getElementById('adoptionModal');
@@ -2381,6 +2992,33 @@ function openAdoptionModal(post) {
 
   const descEl = document.getElementById('modalPostDescription');
   if (descEl) descEl.textContent = post.description || 'Descrição não informada.';
+
+  // Atualiza as tags do topo do modal (animal, suporte, status)
+  const modalBodyEl = modal.querySelector('.adoption-modal-body');
+  if (modalBodyEl) {
+    let tagsContainer = modalBodyEl.querySelector('.modal-tags-row');
+    if (!tagsContainer) {
+      const existingTag = modalBodyEl.querySelector('.mini-tag');
+      if (existingTag) {
+        tagsContainer = document.createElement('div');
+        tagsContainer.className = 'modal-tags-row';
+        tagsContainer.style.cssText = 'display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-bottom: 8px;';
+        existingTag.parentNode.insertBefore(tagsContainer, existingTag);
+        existingTag.remove();
+      }
+    }
+    if (tagsContainer) {
+      const animalLabel = escapeHTML(formatAnimalType(post.animal_type));
+      const supportBadge = renderSupportTypeBadge(post.support_type);
+      let statusBadge = '';
+      if (post.status === 'in_process') {
+        statusBadge = '<span class="status-badge status-in-process">Em processo de adoção ⏳</span>';
+      } else if (post.status === 'adopted') {
+        statusBadge = '<span class="status-badge status-adopted">Adotado com amor! 🎉</span>';
+      }
+      tagsContainer.innerHTML = `<span class="mini-tag">${animalLabel}</span>${supportBadge}${statusBadge}`;
+    }
+  }
 
   const modalBreed = document.getElementById('modalBreed');
   const modalMotherBreed = document.getElementById('modalMotherBreed');
@@ -2410,7 +3048,20 @@ function openAdoptionModal(post) {
   }
 
   const contactEl = document.getElementById('modalPostContact');
-  if (contactEl) contactEl.innerHTML = renderCopyableContacts(post);
+  if (contactEl) {
+    const storyBtnHtml = `
+      <button type="button" class="btn-story" id="btnGenerateStory" aria-label="Gerar card do animal para Stories do Instagram">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <rect width="20" height="20" x="2" y="2" rx="5" ry="5"/>
+          <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"/>
+          <line x1="17.5" x2="17.51" y1="6.5" y2="6.5"/>
+        </svg>
+        <span>Gerar Card para Stories (Instagram)</span>
+      </button>
+    `;
+    contactEl.innerHTML = renderCopyableContacts(post) + storyBtnHtml;
+    contactEl.querySelector('#btnGenerateStory')?.addEventListener('click', () => generateInstagramStory(post));
+  }
 
   let additionalSection = document.getElementById('modalAdditionalDetails');
   let additionalDetails = document.getElementById('modalPostAdditionalDetails');
@@ -2436,7 +3087,7 @@ function openAdoptionModal(post) {
     const excludedFields = new Set([
       'id', 'user_id', 'profiles', 'image_urls', 'title', 'description',
       'animal_type', 'state', 'city', 'breed', 'mother_breed', 'father_breed',
-      'phone', 'contact_phone', 'contact_info', 'status', 'created_at', 'updated_at'
+      'phone', 'contact_phone', 'contact_info', 'status', 'support_type', 'created_at', 'updated_at'
     ]);
     const inapplicable = INAPPLICABLE_FIELDS_BY_TYPE[post.animal_type] || new Set();
 
@@ -2557,6 +3208,7 @@ function setupGlobalModalHandlers() {
   });
   document.addEventListener('keydown', (event) => {
     if (event.key === 'Escape') {
+      if (document.querySelector('.dynamic-modal')) return;
       closeAdoptionModal();
     }
   });
@@ -2603,7 +3255,7 @@ async function setupCategoryPage() {
 
   // todo filtro do painel dispara a busca
   [
-    'categoryGender', 'categoryAge', 'categorySize', 'categoryEnergy',
+    'categorySupportType', 'categoryGender', 'categoryAge', 'categorySize', 'categoryEnergy',
     'categoryNeutered', 'categoryVaccinated', 'categoryDewormed',
     'categoryApartment', 'categoryWithKids', 'categoryWithDogs',
     'categoryWithCats', 'categorySpecial',
@@ -2748,9 +3400,31 @@ function setupCopyContactInteractions() {
   document.body.addEventListener('click', async (event) => {
     const button = event.target.closest('.copy-contact-btn');
     if (!button) return;
+    const value = button.dataset.copy || '';
     try {
-      await navigator.clipboard.writeText(button.dataset.copy || '');
-      showToast('Copiado!');
+      if (navigator.clipboard && window.isSecureContext) {
+        await navigator.clipboard.writeText(value);
+      } else {
+        const temp = document.createElement('textarea');
+        temp.value = value;
+        temp.style.position = 'fixed';
+        temp.style.left = '-9999px';
+        document.body.appendChild(temp);
+        temp.select();
+        document.execCommand('copy');
+        temp.remove();
+      }
+
+      button.classList.add('is-copied');
+      const stateLabel = button.querySelector('.copy-state-label');
+      const originalText = stateLabel ? stateLabel.textContent : '';
+      if (stateLabel) stateLabel.textContent = 'Copiado! ✓';
+      showToast('Contato copiado para a área de transferência! 📋');
+
+      window.setTimeout(() => {
+        button.classList.remove('is-copied');
+        if (stateLabel) stateLabel.textContent = originalText;
+      }, 2000);
     } catch (error) {
       showToast('Não foi possível copiar o contato.', 'error');
     }
@@ -3142,12 +3816,22 @@ async function handleAvatarUpdate(event) {
   const file = document.getElementById('profileAvatarInput').files[0];
   const session = redirectIfLoggedOut();
   if (!session || !file) return showToast('Selecione uma foto para continuar.', 'error');
+  const oldAvatarUrl = session.avatar_url;
+  let newAvatarUrl = null;
   try {
-    const avatarUrl = await uploadAvatar(file, session.userId);
-    const { error } = await getSupabaseClient().from('profiles').update({ avatar_url: avatarUrl }).eq('id', session.userId);
-    if (error) throw new Error(mensagemDeErroSegura(error));
-    saveSession({ ...session, id: session.userId, avatar_url: avatarUrl });
-    document.getElementById('profileAvatarPreview').src = avatarUrl;
+    newAvatarUrl = await uploadAvatar(file, session.userId);
+    const { error } = await getSupabaseClient().from('profiles').update({ avatar_url: newAvatarUrl }).eq('id', session.userId);
+    if (error) {
+      // ROLLBACK: desfaz o envio no Storage se o banco falhar
+      if (newAvatarUrl) await deleteStorageImageByUrl(newAvatarUrl);
+      throw new Error(mensagemDeErroSegura(error));
+    }
+    // ANTI-ÓRFÃO: remove foto antiga do Storage para economizar a cota gratuita
+    if (oldAvatarUrl && oldAvatarUrl !== newAvatarUrl) {
+      deleteStorageImageByUrl(oldAvatarUrl);
+    }
+    saveSession({ ...session, id: session.userId, avatar_url: newAvatarUrl });
+    document.getElementById('profileAvatarPreview').src = newAvatarUrl;
     showToast('Foto de perfil atualizada com sucesso.');
   } catch (error) {
     showToast(`Não foi possível atualizar a foto: ${mensagemDeErroSegura(error)}`, 'error');
@@ -3203,11 +3887,26 @@ async function deleteAccount() {
   }
 }
 
-async function updatePostStatus(postId) {
-  const { error } = await getSupabaseClient().from('posts').update({ status: 'adopted' }).eq('id', postId).eq('user_id', getSession().userId);
+async function updatePostStatus(postId, newStatus = 'adopted') {
+  const session = getSession();
+  if (!session) return;
+  const { error } = await getSupabaseClient()
+    .from('posts')
+    .update({ status: newStatus })
+    .eq('id', postId)
+    .eq('user_id', session.userId);
+
   if (error) {
-    showToast(`Não foi possível concluir a publicação: ${mensagemDeErroSegura(error)}`, 'error');
+    showToast(`Não foi possível atualizar a publicação: ${mensagemDeErroSegura(error)}`, 'error');
     return;
+  }
+
+  if (newStatus === 'adopted') {
+    showToast('Parabéns! Que alegria ver mais um pet encontrando um lar! 🎉');
+  } else if (newStatus === 'in_process') {
+    showToast('Publicação atualizada: Em processo de adoção ⏳');
+  } else {
+    showToast('Publicação reaberta como Disponível.');
   }
   renderUserPosts();
 }
@@ -3217,7 +3916,12 @@ async function renderUserPosts() {
   const session = getSession();
   if (!target || !session) return;
   target.innerHTML = '<div class="empty-state">Carregando suas publicações...</div>';
-  const { data, error } = await getSupabaseClient().from('posts').select('*, profiles(full_name, username, avatar_url)').eq('user_id', session.userId).order('created_at', { ascending: false });
+  const { data, error } = await getSupabaseClient()
+    .from('posts')
+    .select('*, profiles(full_name, username, avatar_url)')
+    .eq('user_id', session.userId)
+    .order('created_at', { ascending: false });
+
   if (error) {
     target.innerHTML = `<div class="empty-state">Não foi possível carregar suas publicações: ${escapeHTML(error.message)}</div>`;
     return;
@@ -3226,22 +3930,74 @@ async function renderUserPosts() {
     target.innerHTML = '<div class="empty-state">Você ainda não criou nenhuma publicação.</div>';
     return;
   }
-  target.innerHTML = data.map((post) => `
-    <article class="profile-post-card ${post.status === 'adopted' ? 'adopted-card' : ''}">
-      <div class="card-utility-actions">${favoriteButtonHTML(post.id)}${shareButtonHTML(post)}</div>
-      ${post.status === 'adopted' ? '<div class="adopted-ribbon">Concluído</div>' : ''}
-      ${generateImageCarouselHTML(post.image_urls, post.title)}
-      <div class="profile-post-card-body">
-        ${renderAuthorBar(post.profiles)}
-        <span class="mini-tag">${escapeHTML(formatAnimalType(post.animal_type))}</span>
-        <h3>${escapeHTML(post.title)}</h3>
-        <p><svg class="pin-icon" viewBox="0 0 24 24" width="14" height="14" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 5.2-8 12-8 12s-8-6.8-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="2.6"/></svg> ${escapeHTML(formatPostLocation(post))}</p>
-        ${post.status === 'active' ? `<div class="post-status-actions"><button class="btn btn-secondary" type="button" data-mark-adopted="${escapeHTML(post.id)}">Já doei</button><button class="btn btn-secondary" type="button" data-mark-adopted="${escapeHTML(post.id)}">Decidi ficar com ele</button></div>` : '<span class="completed-label">Concluído</span>'}
-      </div>
-    </article>
-  `).join('');
-  target.querySelectorAll('[data-mark-adopted]').forEach((button) => {
-    button.addEventListener('click', () => updatePostStatus(button.dataset.markAdopted));
+
+  target.innerHTML = data.map((post) => {
+    const isAdopted = post.status === 'adopted';
+    const isInProcess = post.status === 'in_process';
+    const isActive = post.status === 'active';
+
+    let actionButtons = '';
+    if (isActive) {
+      actionButtons = `
+        <button class="btn btn-secondary" type="button" data-change-status="in_process" data-post-id="${escapeHTML(post.id)}">Pausar (Em entrevista ⏳)</button>
+        <button class="btn btn-primary" type="button" data-change-status="adopted" data-post-id="${escapeHTML(post.id)}">Marcar como Adotado! 🎉</button>
+      `;
+    } else if (isInProcess) {
+      actionButtons = `
+        <button class="btn btn-secondary" type="button" data-change-status="active" data-post-id="${escapeHTML(post.id)}">Voltar para Disponível</button>
+        <button class="btn btn-primary" type="button" data-change-status="adopted" data-post-id="${escapeHTML(post.id)}">Confirmar: Adotado! 🎉</button>
+      `;
+    } else if (isAdopted) {
+      actionButtons = `
+        <button class="btn btn-secondary" type="button" data-change-status="active" data-post-id="${escapeHTML(post.id)}">Reabrir publicação</button>
+      `;
+    }
+
+    return `
+      <article class="profile-post-card ${isAdopted ? 'adopted-card' : ''}">
+        <div class="card-utility-actions">${favoriteButtonHTML(post.id)}${shareButtonHTML(post)}</div>
+        ${isAdopted ? '<div class="adopted-ribbon">Adotado! 🎉</div>' : ''}
+        ${isInProcess ? '<div class="adopted-ribbon" style="background: #f59e0b;">Em processo</div>' : ''}
+        ${generateImageCarouselHTML(post.image_urls, post.title)}
+        <div class="profile-post-card-body">
+          ${renderAuthorBar(post.profiles)}
+          <div style="display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-bottom: 6px;">
+            <span class="mini-tag">${escapeHTML(formatAnimalType(post.animal_type))}</span>
+            ${renderSupportTypeBadge(post.support_type)}
+          </div>
+          <h3>${escapeHTML(post.title)}</h3>
+          <p><svg class="pin-icon" viewBox="0 0 24 24" width="14" height="14" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 5.2-8 12-8 12s-8-6.8-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="2.6"/></svg> ${escapeHTML(formatPostLocation(post))}</p>
+
+        <div class="my-post-status-box">
+            <div class="my-post-status-header">
+              <span>Status atual:</span>
+              ${renderPostStatusBadge(post.status)}
+            </div>
+            <div class="my-post-status-actions">
+              <button class="btn btn-secondary" type="button" data-post-details="${escapeHTML(post.id)}">Ver anúncio & Story 🎨</button>
+              ${actionButtons}
+              ${adminPostActions(post.id, true)}
+            </div>
+          </div>
+        </div>
+      </article>
+    `;
+  }).join('');
+
+  const postsById = new Map(data.map((post) => [String(post.id), post]));
+  target.querySelectorAll('[data-post-details]').forEach((button) => {
+    button.addEventListener('click', () => {
+      const post = postsById.get(button.dataset.postDetails);
+      if (post) openAdoptionModal(post);
+    });
+  });
+
+  target.querySelectorAll('[data-change-status]').forEach((button) => {
+    button.addEventListener('click', () => {
+      const postId = button.dataset.postId;
+      const newStatus = button.dataset.changeStatus;
+      if (postId && newStatus) updatePostStatus(postId, newStatus);
+    });
   });
 }
 
@@ -3316,6 +4072,7 @@ async function initializePage() {
   }
 
   setupImageFallbacks();
+  setupPWA();
   setupMobileNavCurrent();
   setupScrollReveal();
   setupPostCarouselNavigation();
