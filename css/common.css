@@ -4751,3 +4751,173 @@ textarea,
 }
 
 
+
+
+/* ==========================================================================
+   MODALIDADES DE POST (Lar TemporÃ¡rio e Apadrinhamento)
+   ========================================================================== */
+
+/* Estilos dos Fieldsets no FormulÃ¡rio */
+.modality-fieldset {
+  margin-top: 14px;
+  border-radius: var(--r-card);
+  transition: all 0.25s ease-out;
+}
+
+.lt-fieldset {
+  background: #f0f7ff;
+  border: 1px solid rgba(29, 78, 216, 0.22);
+}
+
+.lt-fieldset legend {
+  color: #1d4ed8;
+}
+
+.sponsorship-fieldset {
+  background: #fdf4ff;
+  border: 1px solid rgba(162, 28, 175, 0.22);
+}
+
+.sponsorship-fieldset legend {
+  color: #86198f;
+}
+
+.modality-legend-icon {
+  margin-right: 4px;
+  font-size: 1.1rem;
+}
+
+/* Card Destacado no Modal de Detalhes */
+.modal-modality-highlight {
+  margin: 16px 0;
+  padding: 16px 18px;
+  border-radius: var(--r-card);
+  animation: fadeInUP 0.28s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.modal-modality-highlight.lt-highlight {
+  background: #f0f7ff;
+  border: 1px solid rgba(29, 78, 216, 0.2);
+}
+
+.modal-modality-highlight.sponsorship-highlight {
+  background: #fdf4ff;
+  border: 1px solid rgba(162, 28, 175, 0.2);
+}
+
+.modality-highlight-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.lt-highlight .modality-highlight-header h4 {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 800;
+  color: #1d4ed8;
+}
+
+.sponsorship-highlight .modality-highlight-header h4 {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 800;
+  color: #86198f;
+}
+
+.modality-highlight-dl {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 10px;
+  margin: 0;
+}
+
+.modality-highlight-dl .full-dl {
+  grid-column: 1 / -1;
+}
+
+.modality-highlight-dl div {
+  background: #ffffff;
+  padding: 10px 12px;
+  border-radius: var(--r-input);
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.modality-highlight-dl dt {
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--muted);
+  letter-spacing: 0.03em;
+}
+
+.modality-highlight-dl dd {
+  margin: 0;
+  font-size: 0.92rem;
+  font-weight: 800;
+  color: var(--text);
+  line-height: 1.35;
+}
+
+/* Callout PIX dentro do Modal de Apadrinhamento */
+.pix-donation-callout {
+  margin-top: 14px;
+  padding: 12px 14px;
+  background: #ffffff;
+  border: 1px dashed rgba(162, 28, 175, 0.4);
+  border-radius: var(--r-input);
+}
+
+.pix-callout-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.82rem;
+  color: #86198f;
+  margin-bottom: 8px;
+}
+
+.pix-callout-body {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.pix-key-code {
+  font-family: monospace;
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: var(--text);
+  background: #fbf8f5;
+  padding: 4px 8px;
+  border-radius: var(--r-pill);
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  word-break: break-all;
+  flex: 1;
+  min-width: 140px;
+}
+
+.pix-sponsor-copy {
+  width: auto !important;
+  margin-bottom: 0 !important;
+  padding: 6px 12px !important;
+  background: #86198f !important;
+  border-color: #86198f !important;
+  color: #ffffff !important;
+}
+
+.pix-sponsor-copy .copy-action-indicator {
+  background: transparent !important;
+  color: #ffffff !important;
+}
+
+.pix-sponsor-copy:hover {
+  background: #701a75 !important;
+  transform: translateY(-1px);
+}

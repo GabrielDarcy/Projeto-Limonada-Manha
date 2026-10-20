@@ -1886,12 +1886,25 @@ function setupCreatePostForm() {
     submitButton.hidden = !detailsReady;
   }
 
+  const updateModalityFields = () => {
+    const val = form.elements.supportType?.value || 'adocao';
+    const ltFields = document.getElementById('larTemporarioFields');
+    const sponsorshipFields = document.getElementById('apadrinhamentoFields');
+    if (ltFields) revealStep(ltFields, val === 'lar_temporario');
+    if (sponsorshipFields) revealStep(sponsorshipFields, val === 'apadrinhamento');
+  };
+
   stateField.addEventListener('change', loadCities);
   typeField.addEventListener('change', updateBreedFields);
   speciesField.addEventListener('change', updateBreedFields);
+  form.elements.supportType?.addEventListener('change', () => {
+    updateModalityFields();
+    updateProgressiveStages();
+  });
   form.addEventListener('input', updateProgressiveStages);
   form.addEventListener('change', updateProgressiveStages);
   updateBreedFields();
+  updateModalityFields();
   loadStates();
   form.addEventListener('submit', handleCreatePostSubmit);
 }
@@ -1989,6 +2002,12 @@ async function handleCreatePostSubmit(event) {
       father_breed: fatherBreed,
       image_urls: imageUrls,
       support_type: form.elements.supportType?.value || 'adocao',
+      lt_duration: form.elements.supportType?.value === 'lar_temporario' ? textoOuNulo('ltDuration') : null,
+      lt_costs_covered: form.elements.supportType?.value === 'lar_temporario' ? textoOuNulo('ltCostsCovered') : null,
+      lt_home_requirements: form.elements.supportType?.value === 'lar_temporario' ? textoOuNulo('ltHomeRequirements') : null,
+      sponsorship_purpose: form.elements.supportType?.value === 'apadrinhamento' ? textoOuNulo('sponsorshipPurpose') : null,
+      sponsorship_goal: form.elements.supportType?.value === 'apadrinhamento' ? textoOuNulo('sponsorshipGoal') : null,
+      sponsorship_pix: form.elements.supportType?.value === 'apadrinhamento' ? textoOuNulo('sponsorshipPix') : null,
       // campos de filtro de adocao
       age_group: textoOuNulo('ageGroup'),
       gender: textoOuNulo('gender'),
@@ -3091,6 +3110,76 @@ async function openAdoptionModal(postOrId) {
     modalSizeSection.hidden = !post.size;
   }
 
+  let modalitySection = document.getElementById('modalModalitySection');
+  if (!modalitySection) {
+    modalitySection = document.createElement('section');
+    modalitySection.id = 'modalModalitySection';
+    const modalBody = modal.querySelector('.adoption-modal-body');
+    const contactSec = modal.querySelector('.modal-contact');
+    if (modalBody && contactSec) {
+      modalBody.insertBefore(modalitySection, contactSec);
+    } else if (modalBody) {
+      modalBody.appendChild(modalitySection);
+    }
+  }
+
+  if (modalitySection) {
+    if (post.support_type === 'lar_temporario') {
+      modalitySection.hidden = false;
+      modalitySection.className = 'modal-modality-highlight lt-highlight';
+      modalitySection.innerHTML = `
+        <div class="modality-highlight-header">
+          <span class="modality-badge-icon" aria-hidden="true">&#127968;</span>
+          <h4>Necessidade de Lar Temporário (LT)</h4>
+        </div>
+        <dl class="modality-highlight-dl">
+          ${post.lt_duration ? `<div><dt>Tempo estimado</dt><dd>${escapeHTML(post.lt_duration)}</dd></div>` : ''}
+          ${post.lt_costs_covered ? `<div><dt>Custos cobertos</dt><dd>${escapeHTML(post.lt_costs_covered)}</dd></div>` : ''}
+          ${post.lt_home_requirements ? `<div class="full-dl"><dt>Requisitos de moradia</dt><dd>${escapeHTML(post.lt_home_requirements)}</dd></div>` : ''}
+        </dl>
+      `;
+    } else if (post.support_type === 'apadrinhamento') {
+      modalitySection.hidden = false;
+      modalitySection.className = 'modal-modality-highlight sponsorship-highlight';
+      const pixKeyEscaped = post.sponsorship_pix ? escapeHTML(post.sponsorship_pix) : '';
+      const pixBlock = post.sponsorship_pix ? `
+        <div class="pix-donation-callout">
+          <div class="pix-callout-header">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" aria-hidden="true"><path d="M12 2 3.5 10.5 12 19l8.5-8.5L12 2Zm0 3.8 5.3 5.3-5.3 5.3-5.3-5.3 5.3-5.3Z"/></svg>
+            <strong>Chave PIX do Protetor:</strong>
+          </div>
+          <div class="pix-callout-body">
+            <code class="pix-key-code">${pixKeyEscaped}</code>
+            <button type="button" class="copy-contact-btn pix-sponsor-copy" data-copy="${pixKeyEscaped}" aria-label="Copiar chave PIX" title="Clique para copiar chave PIX">
+              <span class="copy-action-indicator" aria-hidden="true">
+                <svg class="icon-copy" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                  <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                  <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                </svg>
+                <span class="copy-state-label">Copiar PIX</span>
+              </span>
+            </button>
+          </div>
+        </div>
+      ` : '';
+
+      modalitySection.innerHTML = `
+        <div class="modality-highlight-header">
+          <span class="modality-badge-icon" aria-hidden="true">&#11088;</span>
+          <h4>Campanha de Apadrinhamento Solidário</h4>
+        </div>
+        <dl class="modality-highlight-dl">
+          ${post.sponsorship_purpose ? `<div><dt>Finalidade da ajuda</dt><dd>${escapeHTML(post.sponsorship_purpose)}</dd></div>` : ''}
+          ${post.sponsorship_goal ? `<div><dt>Meta / Valor sugerido</dt><dd>${escapeHTML(post.sponsorship_goal)}</dd></div>` : ''}
+        </dl>
+        ${pixBlock}
+      `;
+    } else {
+      modalitySection.hidden = true;
+      modalitySection.innerHTML = '';
+    }
+  }
+
   const contactEl = document.getElementById('modalPostContact');
   if (contactEl) {
     const storyBtnHtml = `
@@ -3130,7 +3219,7 @@ async function openAdoptionModal(postOrId) {
   if (additionalSection && additionalDetails) {
     const excludedFields = new Set([
       'id', 'user_id', 'profiles', 'image_urls', 'title', 'description',
-      'animal_type', 'state', 'city', 'breed', 'mother_breed', 'father_breed', 'size',
+      'animal_type', 'state', 'city', 'breed', 'mother_breed', 'father_breed', 'size', 'lt_duration', 'lt_costs_covered', 'lt_home_requirements', 'sponsorship_purpose', 'sponsorship_goal', 'sponsorship_pix',
       'phone', 'contact_phone', 'contact_info', 'status', 'support_type', 'created_at', 'updated_at'
     ]);
     const inapplicable = INAPPLICABLE_FIELDS_BY_TYPE[post.animal_type] || new Set();

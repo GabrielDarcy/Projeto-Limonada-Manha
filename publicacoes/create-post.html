@@ -111,6 +111,71 @@
             <textarea name="description" placeholder="Conte um pouco sobre a história, comportamento e necessidades do animal."></textarea>
           </label>
 
+          <fieldset class="full-span care-fieldset modality-fieldset lt-fieldset" id="larTemporarioFields" hidden>
+            <legend><span class="modality-legend-icon" aria-hidden="true">&#127968;</span> Detalhes do Lar Tempor&aacute;rio (LT)</legend>
+            <p class="care-hint">Defina as condi&ccedil;&otilde;es do acolhimento provis&oacute;rio para orientar quem pode receber o animal.</p>
+            <div class="care-options modality-options">
+              <label class="care-option">
+                Tempo estimado de acolhimento
+                <select name="ltDuration" id="ltDuration">
+                  <option value="">Selecione ou a combinar</option>
+                  <option value="At&eacute; 15 dias">At&eacute; 15 dias</option>
+                  <option value="At&eacute; 1 m&ecirc;s">At&eacute; 1 m&ecirc;s</option>
+                  <option value="2 a 3 meses">2 a 3 meses</option>
+                  <option value="At&eacute; ado&ccedil;&atilde;o definitiva">At&eacute; ado&ccedil;&atilde;o definitiva</option>
+                  <option value="A combinar">A combinar</option>
+                </select>
+              </label>
+
+              <label class="care-option">
+                Custos cobertos pelo protetor
+                <select name="ltCostsCovered" id="ltCostsCovered">
+                  <option value="">Selecione</option>
+                  <option value="Tudo pago pelo protetor (ra&ccedil;&atilde;o e veterin&aacute;rio)">Tudo pago pelo protetor (ra&ccedil;&atilde;o e veterin&aacute;rio)</option>
+                  <option value="Apenas alimenta&ccedil;&atilde;o fornecida">Apenas alimenta&ccedil;&atilde;o fornecida</option>
+                  <option value="Apenas custos veterin&aacute;rios/rem&eacute;dios">Apenas custos veterin&aacute;rios/rem&eacute;dios</option>
+                  <option value="Ajuda volunt&aacute;ria de custos">Ajuda volunt&aacute;ria de custos</option>
+                  <option value="A combinar com o acolhedor">A combinar com o acolhedor</option>
+                </select>
+              </label>
+
+              <label class="care-option full-span">
+                Requisitos do espa&ccedil;o / Moradia
+                <input type="text" name="ltHomeRequirements" id="ltHomeRequirements" placeholder="Ex.: Casa com quintal fechado / Apartamento telado obrigat&oacute;rio" maxlength="200" />
+              </label>
+            </div>
+          </fieldset>
+
+          <fieldset class="full-span care-fieldset modality-fieldset sponsorship-fieldset" id="apadrinhamentoFields" hidden>
+            <legend><span class="modality-legend-icon" aria-hidden="true">&#11088;</span> Detalhes do Apadrinhamento Solid&aacute;rio</legend>
+            <p class="care-hint">Informe a finalidade dos custos e como as pessoas podem contribuir para manter os cuidados deste animal.</p>
+            <div class="care-options modality-options">
+              <label class="care-option">
+                Finalidade principal da ajuda
+                <select name="sponsorshipPurpose" id="sponsorshipPurpose">
+                  <option value="">Selecione a finalidade</option>
+                  <option value="Castra&ccedil;&atilde;o e p&oacute;s-operat&oacute;rio">Castra&ccedil;&atilde;o e p&oacute;s-operat&oacute;rio</option>
+                  <option value="Tratamento veterin&aacute;rio / Medicamentos">Tratamento veterin&aacute;rio / Medicamentos</option>
+                  <option value="Alimenta&ccedil;&atilde;o / Ra&ccedil;&atilde;o especial">Alimenta&ccedil;&atilde;o / Ra&ccedil;&atilde;o especial</option>
+                  <option value="Hospedagem / Lar pago provis&oacute;rio">Hospedagem / Lar pago provis&oacute;rio</option>
+                  <option value="Cirurgia / Emerg&ecirc;ncia de sa&uacute;de">Cirurgia / Emerg&ecirc;ncia de sa&uacute;de</option>
+                  <option value="Cuidados gerais cont&iacute;nuos">Cuidados gerais cont&iacute;nuos</option>
+                </select>
+              </label>
+
+              <label class="care-option">
+                Meta ou valor sugerido
+                <input type="text" name="sponsorshipGoal" id="sponsorshipGoal" placeholder="Ex.: R$ 150,00 ou qualquer valor" maxlength="80" />
+              </label>
+
+              <label class="care-option full-span">
+                Chave PIX para contribui&ccedil;&atilde;o direta (opcional)
+                <input type="text" name="sponsorshipPix" id="sponsorshipPix" placeholder="Chave PIX (CPF, CNPJ, e-mail, telefone ou chave aleat&oacute;ria)" maxlength="120" autocomplete="off" />
+                <small>Se informado, um bot&atilde;o r&aacute;pido para copiar sua chave PIX ser&aacute; exibido no an&uacute;ncio.</small>
+              </label>
+            </div>
+          </fieldset>
+
           <label>
             Estado
             <select name="state" id="postState">
@@ -322,6 +387,6 @@
       </a>
     </nav>
 
-    <script type="module" src="script.js?v=45"></script>
+    <script type="module" src="script.js?v=46"></script>
   </body>
 </html>
