@@ -31,4 +31,4 @@ Desktop.ini
 *.bak
 .supabase
 .agent
-.agents
+.agents.worktrees/

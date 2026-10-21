@@ -1331,7 +1331,7 @@ async function moderatePost(postId, action) {
     const newStatus = isApproval ? 'active' : 'rejected';
     const { error: updateErr } = await getSupabaseClient()
       .from('posts')
-      .update({ status: newStatus, updated_at: new Date().toISOString() })
+      .update({ status: newStatus })
       .eq('id', postId);
 
     if (updateErr) {
@@ -2450,10 +2450,26 @@ async function handleCreatePostSubmit(event) {
 
     if (post.status === 'pending') {
       showToast('Publica\u00e7\u00e3o enviada com sucesso! Ela est\u00e1 em an\u00e1lise pela modera\u00e7\u00e3o e ficar\u00e1 vis\u00edvel publicamente assim que aprovada.', 'info');
-      window.location.href = 'conta/minhas-publicacoes.html';
+      try {
+        sessionStorage.setItem('petamor_flash_toast', JSON.stringify({
+          msg: 'Publica\u00e7\u00e3o enviada com sucesso! Ela est\u00e1 em an\u00e1lise pela modera\u00e7\u00e3o e ficar\u00e1 vis\u00edvel publicamente assim que aprovada.',
+          type: 'info'
+        }));
+      } catch (_) {}
+      setTimeout(() => {
+        window.location.href = 'publicacoes/my-posts.html';
+      }, 700);
     } else {
       showToast('Publica\u00e7\u00e3o criada com sucesso!');
-      window.location.href = 'index.html';
+      try {
+        sessionStorage.setItem('petamor_flash_toast', JSON.stringify({
+          msg: 'Publica\u00e7\u00e3o criada com sucesso!',
+          type: 'success'
+        }));
+      } catch (_) {}
+      setTimeout(() => {
+        window.location.href = 'index.html';
+      }, 700);
     }
   } catch (error) {
     // Se falhar durante qualquer ponto do upload ou processamento, desfaz uploads já concluídos
@@ -4663,6 +4679,17 @@ async function initializePage() {
   await updateHomeUserActions();
   initCustomSelects();
   setupGlobalModalHandlers();
+  // Exibe toasts pendentes entre redirecionamentos de página (flash message)
+  try {
+    const flashToast = sessionStorage.getItem('petamor_flash_toast');
+    if (flashToast) {
+      sessionStorage.removeItem('petamor_flash_toast');
+      const parsed = JSON.parse(flashToast);
+      if (parsed?.msg) {
+        showToast(parsed.msg, parsed.type || 'success');
+      }
+    }
+  } catch (_) {}
 
   // Limpa parâmetros sensíveis de URL após fluxos OAuth para segurança
   cleanupAuthUrlParams();
