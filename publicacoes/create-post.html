@@ -227,7 +227,7 @@
             </select>
           </label>
 
-          <label>
+          <label id="postEnergyLevelField">
             Nível de energia
             <select name="energyLevel" id="postEnergyLevel">
               <option value="">Não informado</option>
@@ -237,7 +237,7 @@
             </select>
           </label>
 
-          <fieldset class="full-span care-fieldset">
+          <fieldset class="full-span care-fieldset" id="postCareFieldset">
             <legend>Saúde e cuidado</legend>
             <p class="care-hint">Marque só o que você tem certeza. O que ficar em branco aparece como “não informado” e não esconde o animal da busca.</p>
             <div class="care-options">
@@ -273,7 +273,7 @@
                   <option value="nao">Não</option>
                 </select>
               </label>
-              <label class="care-option">
+              <label class="care-option" id="postApartmentField">
                 Adapta-se a apartamento
                 <select name="apartmentFriendly">
                   <option value="">Não informado</option>
@@ -284,7 +284,7 @@
             </div>
           </fieldset>
 
-          <fieldset class="full-span care-fieldset">
+          <fieldset class="full-span care-fieldset" id="postLivingFieldset">
             <legend>Convivência</legend>
             <p class="care-hint">Deixe em branco se não souber. Escolher “não” só faz sentido quando você tem certeza.</p>
             <div class="care-options">
@@ -387,6 +387,6 @@
       </a>
     </nav>
 
-    <script type="module" src="script.js?v=49"></script>
+    <script type="module" src="script.js?v=50"></script>
   </body>
 </html>
