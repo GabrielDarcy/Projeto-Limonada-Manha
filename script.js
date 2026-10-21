@@ -87,7 +87,8 @@ const ERROS_PT = {
   'over_request_rate_limit': 'Muitas tentativas. Aguarde alguns minutos.',
   // auth: sessao
   'session_expired': 'Sua sessão expirou. Entre novamente.',
-  'refresh_token_not_found': 'Sua sessão expirou. Entre novamente.',
+    'refresh_token_not_found': 'Sua sessão expirou. Entre novamente.',
+  'email_provider_disabled': 'O cadastro por e-mail está desativado no painel da Supabase. Ative o provedor "Email" em Authentication > Providers no painel da Supabase.',
 };
 
 function mensagemDeErroSegura(error, alternativa) {
@@ -112,6 +113,7 @@ function mensagemDeErroSegura(error, alternativa) {
   if (/violates foreign key/i.test(texto)) return ERROS_PT['23503'];
   if (/violates row-level security|permission denied/i.test(texto)) return ERROS_PT['42501'];
   if (/value too long/i.test(texto)) return ERROS_PT['22001'];
+    if (/email.*provider.*disabled|signups are disabled|logins are disabled/i.test(texto + chave)) return 'O cadastro/login por e-mail está desativado no painel da Supabase. Ative o provedor "Email" em Authentication > Providers.';
   if (/jwt|token.*expired|session.*expired/i.test(texto)) return 'Sua sessão expirou. Entre novamente.';
 
   // qualquer outro erro tecnico fica generico de proposito
@@ -126,6 +128,9 @@ function mensagemDeAuthSegura(error) {
   if (/banned|banida/i.test(texto)) return texto;
   if (ehFalhaDeRede(codigo, texto)) return 'Não foi possível conectar. Verifique sua internet e tente novamente.';
   if (/rate|too many|429/i.test(codigo + texto + chave)) return 'Muitas tentativas. Aguarde alguns minutos e tente novamente.';
+    if (/email.*provider.*disabled|email logins are disabled/i.test(texto + chave)) {
+    return 'O login por e-mail está desativado no painel do Supabase. Ative o provedor "Email" em Authentication > Providers.';
+  }
   if (chave === 'email_not_confirmed' || /email not confirmed/i.test(texto)) {
     return 'E-mail ainda não confirmado no Supabase.';
   }
@@ -834,6 +839,19 @@ async function registerWithSupabase(name, username, email, password, birthDate, 
 
   if (error) throw new Error(mensagemDeErroSegura(error));
 
+  let currentSession = data.session;
+  // Login instantâneo automático se o signUp não tiver gerado a sessão imediata
+  if (!currentSession && data.user) {
+    try {
+      const loginRes = await client.auth.signInWithPassword({ email, password });
+      if (loginRes.data?.session) {
+        currentSession = loginRes.data.session;
+      }
+    } catch (_) {
+      // Continua caso o login pendente falhe
+    }
+  }
+
   const userId = data.user?.id;
   let avatarUrl = null;
   if (userId && avatarFile) avatarUrl = await uploadAvatar(avatarFile, userId);
@@ -876,7 +894,8 @@ async function registerWithSupabase(name, username, email, password, birthDate, 
     birth_date: birthDate,
     avatar_url: avatarUrl,
     recovery_code: recoveryCode,
-    favorite_posts: []
+    favorite_posts: [],
+    has_session: Boolean(currentSession)
   };
 }
 
@@ -4214,7 +4233,7 @@ async function handleRegisterSubmit(event) {
     const recoveryCode = generateRecoveryCode();
     const user = await registerWithSupabase(name, username, email, password, isoDate, avatarFile, recoveryCode);
     const { data: sessionData } = await getSupabaseClient().auth.getSession();
-    if (sessionData.session) {
+    if (sessionData?.session || user.has_session) {
       saveSession(user);
       saveVerifiedSession({ ...user, role: 'user', status: 'active' });
     }
