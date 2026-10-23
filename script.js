@@ -32,7 +32,7 @@ function calculateConversionRate(conversions = 0, total = 0) {
   const conv = Number(conversions) || 0;
   const tot = Number(total) || 0;
   if (tot <= 0 || conv < 0) return '0.0%';
-  return ${((conv / tot) * 100).toFixed(1)}%;
+  return ((conv / tot) * 100).toFixed(1) + '%';
 }
 
 // registra visualizacao de post uma vez por sessao para nao inflar os numeros
@@ -62,12 +62,7 @@ function initCookieConsent() {
   const banner = document.createElement('aside');
   banner.id = 'cookieConsentBanner';
   banner.style.cssText = 'position:fixed;bottom:20px;left:20px;right:20px;max-width:500px;margin:0 auto;background:#fff;border:1px solid #fed7aa;border-radius:12px;box-shadow:0 10px 25px rgba(0,0,0,0.1);padding:16px 20px;z-index:99999;color:#1e293b;';
-  banner.innerHTML = 
-    <p style="margin:0 0 10px;font-size:0.88rem;line-height:1.4;">Usamos cookies essenciais para autenticação e navegação no site. Veja nossos <a href="termos.html" style="color:#d9611b;text-decoration:underline;">Termos</a>.</p>
-    <div style="display:flex;gap:8px;justify-content:flex-end;">
-      <button type="button" id="btnAcceptCookies" style="background:#d9611b;color:#fff;border:none;padding:8px 16px;border-radius:8px;font-size:0.82rem;font-weight:700;cursor:pointer;">Entendi</button>
-    </div>
-  ;
+  banner.innerHTML = '<p style="margin:0 0 10px;font-size:0.88rem;line-height:1.4;">Usamos cookies essenciais para autentica\u00e7\u00e3o e navega\u00e7\u00e3o no site. Veja nossos <a href="termos.html" style="color:#d9611b;text-decoration:underline;">Termos</a>.</p><div style="display:flex;gap:8px;justify-content:flex-end;"><button type="button" id="btnAcceptCookies" style="background:#d9611b;color:#fff;border:none;padding:8px 16px;border-radius:8px;font-size:0.82rem;font-weight:700;cursor:pointer;">Entendi</button></div>';
   document.body.appendChild(banner);
   document.getElementById('btnAcceptCookies')?.addEventListener('click', () => {
     localStorage.setItem(key, 'accepted');
