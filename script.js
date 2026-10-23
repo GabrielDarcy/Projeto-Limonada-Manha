@@ -4673,7 +4673,7 @@ async function renderUserPosts() {
             </div>
             ${statusNotice}
             <div class="my-post-status-actions">
-              <button class="btn btn-secondary" type="button" data-post-details="${escapeHTML(post.id)}">Ver anúncio & Story 🎨</button>
+              <button class="btn btn-secondary" type="button" data-post-details="${escapeHTML(post.id)}">Ver anúncio e Story 🎨</button>
               ${actionButtons}
               ${adminPostActions(post.id, true)}
             </div>
