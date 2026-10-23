@@ -2224,7 +2224,7 @@ function setupCreatePostForm() {
     speciesLabel.hidden = !needsSpecies;
     speciesField.disabled = !needsSpecies;
 
-    // GenÃ©tica Ã© exclusiva de AdoÃ§Ã£o Definitiva!
+    // Genética é exclusiva de Adoção Definitiva!
     if (!isAdoption) {
       geneticsFields.hidden = true;
       [breedField, motherBreedField, fatherBreedField].forEach((select) => {
@@ -2253,22 +2253,22 @@ function setupCreatePostForm() {
     sizeInput.required = false;
     if (!showSize) sizeInput.value = '';
 
-    const parentOptions = ['Desconhecido', 'NÃ£o informado'];
+    const parentOptions = ['Desconhecido', 'Não informado'];
     if (canChooseBreed && needsSpecies && isAdoption) {
       const breeds = getSpeciesBreedOptions(species);
-      populateBreedSelect(breedField, breeds, 'Selecione a raÃ§a', [], species);
-      populateBreedSelect(motherBreedField, breeds, 'Selecione a raÃ§a', parentOptions, species);
-      populateBreedSelect(fatherBreedField, breeds, 'Selecione a raÃ§a', parentOptions, species);
+      populateBreedSelect(breedField, breeds, 'Selecione a raça', [], species);
+      populateBreedSelect(motherBreedField, breeds, 'Selecione a raça', parentOptions, species);
+      populateBreedSelect(fatherBreedField, breeds, 'Selecione a raça', parentOptions, species);
     } else if (canChooseBreed && isAdoption) {
       void Promise.all([
-        loadDynamicBreedOptions(animalType, breedField, 'Selecione a raÃ§a/espÃ©cie'),
-        loadDynamicBreedOptions(animalType, motherBreedField, 'Selecione a raÃ§a/espÃ©cie', parentOptions),
-        loadDynamicBreedOptions(animalType, fatherBreedField, 'Selecione a raÃ§a/espÃ©cie', parentOptions)
+        loadDynamicBreedOptions(animalType, breedField, 'Selecione a raça/espécie'),
+        loadDynamicBreedOptions(animalType, motherBreedField, 'Selecione a raça/espécie', parentOptions),
+        loadDynamicBreedOptions(animalType, fatherBreedField, 'Selecione a raça/espécie', parentOptions)
       ]).then(updateProgressiveStages);
     } else {
-      populateBreedSelect(breedField, [], 'Selecione a espÃ©cie primeiro');
-      populateBreedSelect(motherBreedField, [], 'Selecione a espÃ©cie primeiro', parentOptions);
-      populateBreedSelect(fatherBreedField, [], 'Selecione a espÃ©cie primeiro', parentOptions);
+      populateBreedSelect(breedField, [], 'Selecione a espécie primeiro');
+      populateBreedSelect(motherBreedField, [], 'Selecione a espécie primeiro', parentOptions);
+      populateBreedSelect(fatherBreedField, [], 'Selecione a espécie primeiro', parentOptions);
     }
     updateProgressiveStages();
   };
@@ -2293,7 +2293,7 @@ function setupCreatePostForm() {
     const needsSpecies = Boolean(SPECIES_OPTIONS[typeField.value]?.length);
     const hasSpecies = !needsSpecies || Boolean(speciesField.value);
     
-    // GenÃ©tica sÃ³ Ã© exigida em AdoÃ§Ã£o Definitiva
+    // Genética só é exigida em Adoção Definitiva
     const requiresGenetics = isAdoption && (!needsSpecies || Boolean(BREEDS_BY_SPECIES[speciesField.value]));
     revealStep(detailsStep, hasType);
 
@@ -2309,7 +2309,7 @@ function setupCreatePostForm() {
       breedField.value.trim() && parentMatches && motherBreedField.value.trim() && fatherBreedField.value.trim()
     );
 
-    // ValidaÃ§Ã£o de porte: dispensado em apadrinhamento e para nÃ£o-caninos
+    // Validação de porte: dispensado em apadrinhamento e para não-caninos
     const sizeReady = isSponsorship || typeField.value !== 'Cachorro' || Boolean(sizeInput.value);
 
     const detailsReady = Boolean(
@@ -2328,7 +2328,7 @@ function setupCreatePostForm() {
     const isLT = val === 'lar_temporario';
     const isSponsorship = val === 'apadrinhamento';
 
-    // 1. Fieldsets especÃ­ficos de cada modalidade
+    // 1. Fieldsets específicos de cada modalidade
     const ltFields = document.getElementById('larTemporarioFields');
     const sponsorshipFields = document.getElementById('apadrinhamentoFields');
     if (ltFields) {
@@ -2350,7 +2350,7 @@ function setupCreatePostForm() {
       }
     }
 
-    // 2. ConvivÃªncia: oculta e limpa em Apadrinhamento
+    // 2. Convivência: oculta e limpa em Apadrinhamento
     const livingFieldset = document.getElementById('postLivingFieldset');
     if (livingFieldset) {
       revealStep(livingFieldset, !isSponsorship);
@@ -2362,7 +2362,7 @@ function setupCreatePostForm() {
       }
     }
 
-    // 3. AdaptaÃ§Ã£o a apartamento: oculta e limpa em Apadrinhamento
+    // 3. Adaptação a apartamento: oculta e limpa em Apadrinhamento
     const apartmentField = document.getElementById('postApartmentField');
     if (apartmentField) {
       apartmentField.hidden = isSponsorship;
@@ -2373,7 +2373,7 @@ function setupCreatePostForm() {
       }
     }
 
-    // 4. NÃ­vel de energia: oculta e limpa em Apadrinhamento
+    // 4. Nível de energia: oculta e limpa em Apadrinhamento
     const energyLevelField = document.getElementById('postEnergyLevelField');
     if (energyLevelField) {
       energyLevelField.hidden = isSponsorship;
@@ -2384,7 +2384,7 @@ function setupCreatePostForm() {
       }
     }
 
-    // 5. Atualiza campos de raÃ§a, porte e genÃ©tica conforme modalidade
+    // 5. Atualiza campos de raça, porte e genética conforme modalidade
     updateBreedFields();
   };
 
@@ -2509,7 +2509,7 @@ async function handleCreatePostSubmit(event) {
       sponsorship_purpose: isSponsorship ? textoOuNulo('sponsorshipPurpose') : null,
       sponsorship_goal: isSponsorship ? textoOuNulo('sponsorshipGoal') : null,
       sponsorship_pix: isSponsorship ? textoOuNulo('sponsorshipPix') : null,
-      // campos de filtro e caracterÃ­sticas
+      // campos de filtro e características
       age_group: textoOuNulo('ageGroup'),
       gender: textoOuNulo('gender'),
       energy_level: isSponsorship ? null : textoOuNulo('energyLevel'),
@@ -3557,12 +3557,12 @@ async function openAdoptionModal(postOrId) {
         globalPostsMap.set(String(post.id), post);
       }
     } catch (fetchErr) {
-      console.warn('Erro ao carregar publicaÃ§Ã£o para modal:', fetchErr);
+      console.warn('Erro ao carregar publicação para modal:', fetchErr);
     }
   }
 
   if (!post) {
-    showToast('Não foi possÃ­vel carregar os detalhes desta publicaÃ§Ã£o.', 'error');
+    showToast('Não foi possível carregar os detalhes desta publicação.', 'error');
     return;
   }
 
@@ -3786,7 +3786,7 @@ async function openAdoptionModal(postOrId) {
 
 
   } catch (err) {
-    console.error('Erro ao preencher dados no modal de adoÃ§Ã£o:', err);
+    console.error('Erro ao preencher dados no modal de adoção:', err);
   } finally {
     modal.hidden = false;
     syncModalScrollLock();
@@ -3896,7 +3896,7 @@ function setupGlobalModalHandlers() {
       }
     });
   }
-  // DelegaÃ§Ã£o global: garante que qualquer botÃ£o ou card "Ver detalhes" abra o modal com 100% de confiabilidade
+  // Delegação global: garante que qualquer botão ou card "Ver detalhes" abra o modal com 100% de confiabilidade
   document.body.addEventListener('click', (event) => {
     const trigger = event.target.closest('[data-post-details], [data-adoption-post]');
     if (!trigger) return;
