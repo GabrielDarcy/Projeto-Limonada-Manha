@@ -1,16 +1,4 @@
-/**
- * ==============================================================================
- * MÓDULO DE PROCESSAMENTO, VALIDAÇÃO E UPLOAD DE IMAGENS (SUPABASE STORAGE v2)
- * ==============================================================================
- * Especializado em:
- * 1. Compressão client-side de altíssima eficiência via HTML5 Canvas (WebP)
- * 2. Prevenção de vazamento de memória (Memory Leak-Free com URL.revokeObjectURL)
- * 3. Validação rígida de entrada (MIME, max 15 MB) e saída (Blob < 150 KB)
- * 4. Isolamento multitenant no Supabase Storage: `${userId}/${uuid}.webp`
- * 5. Rollback transacional e eliminação ativa de arquivos órfãos
- * ==============================================================================
- */
-
+// processamento e compressão de imagens via canvas
 (function (global) {
   'use strict';
 

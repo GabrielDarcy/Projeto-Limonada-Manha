@@ -1,10 +1,4 @@
 import { supabase } from './supabase.js';
-import { CONFIG } from './js/core-config.js';
-import { PostService } from './js/services/post-service.js';
-import { AnalyticsService } from './js/services/analytics-service.js';
-import { AuthService } from './js/services/auth-service.js';
-import './js/components/ad-slot.js';
-import { CookieConsent } from './js/components/cookie-consent.js';
 
 const STORAGE_KEYS = {
   users: 'petamor_users',
@@ -18,6 +12,68 @@ const DEFAULT_AVATAR_URL = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2
 const ALLOWED_EMAIL_DOMAINS = ['gmail.com', 'outlook.com', 'hotmail.com', 'yahoo.com', 'icloud.com', 'live.com'];
 const FEED_PAGE_SIZE = 10;
 let feedCurrentPage = 0;
+
+window.ENABLE_ADS = false;
+
+// se a tag de ad existir na pagina, esconde se tiver desativado
+if (typeof customElements !== 'undefined' && !customElements.get('ad-slot')) {
+  customElements.define('ad-slot', class extends HTMLElement {
+    connectedCallback() {
+      if (!window.ENABLE_ADS) {
+        this.style.display = 'none';
+        this.setAttribute('hidden', '');
+      }
+    }
+  });
+}
+
+// calcula taxa de conversao sem risco de divisao por zero
+function calculateConversionRate(conversions = 0, total = 0) {
+  const conv = Number(conversions) || 0;
+  const tot = Number(total) || 0;
+  if (tot <= 0 || conv < 0) return '0.0%';
+  return ${((conv / tot) * 100).toFixed(1)}%;
+}
+
+// registra visualizacao de post uma vez por sessao para nao inflar os numeros
+function trackPostView(postId) {
+  if (!postId || typeof window === 'undefined') return;
+  try {
+    let viewed = [];
+    const stored = sessionStorage.getItem('petamor_views');
+    if (stored) viewed = JSON.parse(stored);
+    if (Array.isArray(viewed) && viewed.includes(postId)) return;
+    viewed.push(postId);
+    sessionStorage.setItem('petamor_views', JSON.stringify(viewed));
+    const client = getSupabaseClient();
+    if (client?.rpc) {
+      client.rpc('increment_post_views', { p_post_id: postId }).catch(() => {});
+    }
+  } catch (_) {}
+}
+
+// aviso de cookies simples
+function initCookieConsent() {
+  if (typeof window === 'undefined' || typeof document === 'undefined') return;
+  const key = 'petamor_cookies';
+  if (localStorage.getItem(key)) return;
+  if (document.getElementById('cookieConsentBanner')) return;
+
+  const banner = document.createElement('aside');
+  banner.id = 'cookieConsentBanner';
+  banner.style.cssText = 'position:fixed;bottom:20px;left:20px;right:20px;max-width:500px;margin:0 auto;background:#fff;border:1px solid #fed7aa;border-radius:12px;box-shadow:0 10px 25px rgba(0,0,0,0.1);padding:16px 20px;z-index:99999;color:#1e293b;';
+  banner.innerHTML = 
+    <p style="margin:0 0 10px;font-size:0.88rem;line-height:1.4;">Usamos cookies essenciais para autenticação e navegação no site. Veja nossos <a href="termos.html" style="color:#d9611b;text-decoration:underline;">Termos</a>.</p>
+    <div style="display:flex;gap:8px;justify-content:flex-end;">
+      <button type="button" id="btnAcceptCookies" style="background:#d9611b;color:#fff;border:none;padding:8px 16px;border-radius:8px;font-size:0.82rem;font-weight:700;cursor:pointer;">Entendi</button>
+    </div>
+  ;
+  document.body.appendChild(banner);
+  document.getElementById('btnAcceptCookies')?.addEventListener('click', () => {
+    localStorage.setItem(key, 'accepted');
+    banner.remove();
+  });
+}
 
 const BANNED_WORDS = [
   'merda', 'porra', 'caralho', 'puta', 'puto', 'viado', 'vadia', 'bosta', 'foder', 'fodase', 'desgracado', 'desgracada'
@@ -1359,7 +1415,8 @@ async function moderatePost(postId, action) {
 
 async function renderAdminDashboard() {
   const client = getSupabaseClient();
-  // Atualiza m�tricas r�pidas nos cards e painel de analytics avan�ado
+
+  // atualiza os cards e metricas
   try {
     const [adsRes, usersRes, bansRes, pendingRes, adoptedRes, viewsRes, statsRes] = await Promise.all([
       client.from('posts').select('id', { count: 'exact', head: true }).eq('status', 'active'),
@@ -1384,7 +1441,7 @@ async function renderAdminDashboard() {
     }
 
     const totalPosts = activeCount + adoptedCount + pendingCount;
-    const adoptionRateStr = AnalyticsService.calculateConversionRate(adoptedCount, totalPosts);
+    const adoptionRateStr = calculateConversionRate(adoptedCount, totalPosts);
 
     if (document.getElementById('totalAds')) document.getElementById('totalAds').textContent = String(activeCount);
     if (document.getElementById('totalUsers')) document.getElementById('totalUsers').textContent = String(usersCount);
@@ -1394,7 +1451,7 @@ async function renderAdminDashboard() {
     if (document.getElementById('totalAdopted')) document.getElementById('totalAdopted').textContent = String(adoptedCount);
     if (document.getElementById('adoptionRate')) document.getElementById('adoptionRate').textContent = adoptionRateStr;
 
-    // Atualiza painel de analytics avan�ado
+    // preenche o painel de analytics se existir
     if (document.getElementById('analyticsTotalViews')) document.getElementById('analyticsTotalViews').textContent = totalViews.toLocaleString('pt-BR');
     if (document.getElementById('analyticsConversionRate')) document.getElementById('analyticsConversionRate').textContent = adoptionRateStr;
     if (document.getElementById('analyticsTotalHomes')) document.getElementById('analyticsTotalHomes').textContent = totalHomes.toLocaleString('pt-BR');
@@ -1410,7 +1467,7 @@ async function renderAdminDashboard() {
     const funnelAdoptedBar = document.getElementById('funnelAdoptedBar');
     if (funnelAdoptedBar) funnelAdoptedBar.style.width = adoptedPct + '%';
   } catch (err) {
-    console.warn('Erro ao carregar estat�sticas do admin:', err);
+    console.warn('Erro ao carregar estatísticas do admin:', err);
   }
 
   // Tabela de todas as publicações do site
@@ -1644,6 +1701,7 @@ async function banAdminUser(userId) {
 }
 
 function bindAdminActions() {
+  // evita cadastrar o listener duas vezes
   if (window.__adminActionsBound) return;
   window.__adminActionsBound = true;
   document.body.addEventListener('click', (event) => {
@@ -2428,6 +2486,7 @@ async function handleCreatePostSubmit(event) {
 
   const uploadedResults = [];
   try {
+    // sobe uma a uma para conseguir desfazer se alguma falhar no meio
     for (const file of photoFiles) {
       const res = await uploadPostImage(file, userData.user.id);
       uploadedResults.push(res);
@@ -3512,9 +3571,8 @@ async function openAdoptionModal(postOrId) {
     return;
   }
 
-  // Telemetria �tica deduplicada por sess�o (Analytics)
   if (post.id) {
-    AnalyticsService.trackPostView(post.id);
+    trackPostView(post.id);
   }
 
   try {
@@ -4729,7 +4787,7 @@ async function initializePage() {
   await updateHomeUserActions();
   initCustomSelects();
   setupGlobalModalHandlers();
-  CookieConsent.init();
+  initCookieConsent();
   // Exibe toasts pendentes entre redirecionamentos de página (flash message)
   try {
     const flashToast = sessionStorage.getItem('petamor_flash_toast');
@@ -4810,7 +4868,7 @@ async function initializePage() {
     renderPendingPostsAdmin();
     document.getElementById('refreshPendingPostsBtn')?.addEventListener('click', renderPendingPostsAdmin);
     document.getElementById('refreshAnalyticsBtn')?.addEventListener('click', () => {
-      showToast('Atualizando métricas de telemetria...');
+      showToast('Atualizando dados...');
       renderAdminDashboard();
     });
     document.getElementById('analyticsPeriodSelect')?.addEventListener('change', () => {

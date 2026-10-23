@@ -1,9 +1,5 @@
-// ==============================================================================
-// SERVICE WORKER PARA PET AMOR (PWA & CACHE-FIRST / STALE-WHILE-REVALIDATE)
-// Versão do Cache: pet-amor-v2
-// ==============================================================================
-
-const CACHE_NAME = 'pet-amor-v2';
+// service worker do pet amor
+const CACHE_NAME = 'pet-amor-v3';
 const STATIC_ASSETS = [
   './',
   'index.html',
@@ -12,20 +8,14 @@ const STATIC_ASSETS = [
   'css/index.css',
   'img/logo.png',
   'manifest.webmanifest',
-  'js/core-config.js',
-  'js/services/post-service.js',
-  'js/services/analytics-service.js',
-  'js/services/auth-service.js',
-  'js/components/ad-slot.js',
-  'js/components/cookie-consent.js'
+  'script.js',
+  'supabase.js'
 ];
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
-      return cache.addAll(STATIC_ASSETS).catch((err) => {
-        console.warn('Pré-cache parcial durante install do SW v2:', err);
-      });
+      return cache.addAll(STATIC_ASSETS).catch(() => {});
     }).then(() => self.skipWaiting())
   );
 });
@@ -36,7 +26,6 @@ self.addEventListener('activate', (event) => {
       return Promise.all(
         keys.map((key) => {
           if (key !== CACHE_NAME) {
-            console.log('[ServiceWorker] Limpando cache antigo:', key);
             return caches.delete(key);
           }
         })
@@ -48,7 +37,7 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
 
-  // Ignora requisições de API dinâmicas (Supabase, Auth, Storage, Analytics externos)
+  // ignora chamadas de api e servicos externos
   if (
     event.request.method !== 'GET' ||
     url.hostname.includes('supabase.co') ||
@@ -62,7 +51,7 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Estratégia Stale-While-Revalidate para recursos estáticos locais
+  // devolve do cache primeiro e atualiza em segundo plano
   event.respondWith(
     caches.match(event.request).then((cachedResponse) => {
       const fetchPromise = fetch(event.request)
@@ -77,9 +66,7 @@ self.addEventListener('fetch', (event) => {
           }
           return networkResponse;
         })
-        .catch(() => {
-          // Ignora erros de rede se estiver em background
-        });
+        .catch(() => {});
 
       if (cachedResponse) {
         return cachedResponse;
