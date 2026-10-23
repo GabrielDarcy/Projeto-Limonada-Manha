@@ -5,14 +5,14 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <base href="../" />
     <title>ADMINISTRATIVO | Pet Amor</title>
-    <meta name="description" content="Área administrativa privada da Pet Amor." />
-    <meta name="keywords" content="Pet Amor, administração, moderação" />
+    <meta name="description" content="Ãrea administrativa privada da Pet Amor." />
+    <meta name="keywords" content="Pet Amor, administraÃ§Ã£o, moderaÃ§Ã£o" />
     <meta name="robots" content="noindex, nofollow" />
     <link rel="canonical" href="https://SEU-DOMINIO.com.br/admin/admin.html" />
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content="Pet Amor" />
-    <meta property="og:title" content="Pet Amor | Administração" />
-    <meta property="og:description" content="Área administrativa privada da Pet Amor." />
+    <meta property="og:title" content="Pet Amor | AdministraÃ§Ã£o" />
+    <meta property="og:description" content="Ãrea administrativa privada da Pet Amor." />
     <meta property="og:image" content="https://images.unsplash.com/photo-1517849845537-4d257902454a" />
     <meta property="og:url" content="https://SEU-DOMINIO.com.br/admin/admin.html" />
     <meta name="twitter:card" content="summary_large_image" />
@@ -32,7 +32,7 @@
     <meta name="apple-mobile-web-app-title" content="Pet Amor" />
   </head>
   <body data-page="admin">
-    <a class="skip-link" href="#conteudo" hidden onfocus="this.removeAttribute('hidden')" onblur="this.setAttribute('hidden','')">Pular para o conteúdo</a>
+    <a class="skip-link" href="#conteudo" hidden onfocus="this.removeAttribute('hidden')" onblur="this.setAttribute('hidden','')">Pular para o conteÃºdo</a>
     <div class="admin-shell">
       <header class="admin-topbar">
         <a class="brand-row" href="index.html">
@@ -46,35 +46,35 @@
       <main id="conteudo" tabindex="-1" class="admin-content">
         <div class="admin-header">
           <div>
-            <h1>Moderação e gestão</h1>
-            <p style="color: var(--muted); margin: 4px 0 0 0; font-size: 0.95rem;">Controle central de segurança, aprovações e métricas do sistema.</p>
+            <h1>ModeraÃ§Ã£o e gestÃ£o</h1>
+            <p style="color: var(--muted); margin: 4px 0 0 0; font-size: 0.95rem;">Controle central de seguranÃ§a, aprovaÃ§Ãµes e mÃ©tricas do sistema.</p>
           </div>
         </div>
 
-        <!-- MODO DE APROVAÇÃO PRÉVIA (TOGGLE SWITCH) -->
+        <!-- MODO DE APROVAÃ‡ÃƒO PRÃ‰VIA (TOGGLE SWITCH) -->
         <section class="panel moderation-toggle-panel" id="moderationToggleCard">
           <div class="moderation-toggle-info">
             <h2>
               <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
-              Modo de Aprovação de Publicações
+              Modo de AprovaÃ§Ã£o de PublicaÃ§Ãµes
             </h2>
-            <p>Quando ativado, toda nova publicação criada por usuários entra como <strong>"Aguardando aprovação"</strong> e só se torna pública após aprovação manual.</p>
+            <p>Quando ativado, toda nova publicaÃ§Ã£o criada por usuÃ¡rios entra como <strong>"Aguardando aprovaÃ§Ã£o"</strong> e sÃ³ se torna pÃºblica apÃ³s aprovaÃ§Ã£o manual.</p>
           </div>
           <div class="moderation-toggle-action">
             <span id="approvalStatusLabel" class="approval-status-badge badge-off">Desativado</span>
             <label class="toggle-switch" for="togglePostApproval">
-              <input type="checkbox" id="togglePostApproval" aria-label="Ativar ou desativar aprovação obrigatória de posts" />
+              <input type="checkbox" id="togglePostApproval" aria-label="Ativar ou desativar aprovaÃ§Ã£o obrigatÃ³ria de posts" />
               <span class="toggle-slider"></span>
             </label>
           </div>
         </section>
 
-        <!-- FILA DE PUBLICAÇÕES PENDENTES DE APROVAÇÃO -->
+        <!-- FILA DE PUBLICAÃ‡Ã•ES PENDENTES DE APROVAÃ‡ÃƒO -->
         <section class="panel pending-posts-section" id="pendingPostsSection">
           <div class="panel-header">
             <div>
-              <h2>Publicações Pendentes de Moderação <span id="pendingPostsCount" class="pending-badge-counter">0</span></h2>
-              <p style="color: var(--muted); margin: 4px 0 0 0; font-size: 0.9rem;">Examine os detalhes e fotos antes de autorizar ou recusar a publicação.</p>
+              <h2>PublicaÃ§Ãµes Pendentes de ModeraÃ§Ã£o <span id="pendingPostsCount" class="pending-badge-counter">0</span></h2>
+              <p style="color: var(--muted); margin: 4px 0 0 0; font-size: 0.9rem;">Examine os detalhes e fotos antes de autorizar ou recusar a publicaÃ§Ã£o.</p>
             </div>
             <button class="admin-btn secondary" type="button" id="refreshPendingPostsBtn">Atualizar fila</button>
           </div>
@@ -83,22 +83,22 @@
             <table>
               <thead>
                 <tr>
-                  <th>Pet / Título</th>
+                  <th>Pet / TÃ­tulo</th>
                   <th>Modalidade</th>
                   <th>Autor</th>
                   <th>Cidade / UF</th>
                   <th>Data</th>
-                  <th>Ações de Moderação</th>
+                  <th>AÃ§Ãµes de ModeraÃ§Ã£o</th>
                 </tr>
               </thead>
               <tbody id="pendingPostsTableBody">
-                <tr><td colspan="6">Carregando fila de moderação...</td></tr>
+                <tr><td colspan="6">Carregando fila de moderaÃ§Ã£o...</td></tr>
               </tbody>
             </table>
           </div>
         </section>
 
-        <!-- CARDS DE ESTATÍSTICAS -->
+                <!-- CARDS DE ESTATÍSTICAS E CONVERSÃO -->
         <section class="stats-grid">
           <article class="stat-card stat-pending">
             <p class="stat-label">Pendentes de aprovação</p>
@@ -108,6 +108,16 @@
           <article class="stat-card">
             <p class="stat-label">Anúncios ativos</p>
             <strong id="totalAds">0</strong>
+          </article>
+
+          <article class="stat-card" style="border-left: 4px solid #10b981;">
+            <p class="stat-label">Adoções concluídas</p>
+            <strong id="totalAdopted">0</strong>
+          </article>
+
+          <article class="stat-card" style="border-left: 4px solid #8b5cf6;">
+            <p class="stat-label">Taxa de adoção</p>
+            <strong id="adoptionRate">0.0%</strong>
           </article>
 
           <article class="stat-card">
@@ -121,7 +131,55 @@
           </article>
         </section>
 
-        <!-- CONFIGURAÇÕES DE CONTA ADMIN -->
+        <!-- PAINEL DE ANALYTICS E TELEMETRIA AVANÇADA -->
+        <section class="panel admin-analytics-panel" id="adminAnalyticsSection">
+          <div class="panel-header">
+            <div>
+              <h2>Analytics & Desempenho de Adoção</h2>
+              <p style="color: var(--muted); margin: 4px 0 0 0; font-size: 0.9rem;">Telemetria agregada, visualizações únicas e funil de conversão.</p>
+            </div>
+            <div class="analytics-filter-controls">
+              <select id="analyticsPeriodSelect" aria-label="Período de análise" class="admin-select-filter">
+                <option value="today">Hoje (UTC)</option>
+                <option value="7days" selected>Últimos 7 dias</option>
+                <option value="30days">Últimos 30 dias</option>
+                <option value="all">Todo o período</option>
+              </select>
+              <button class="admin-btn secondary" type="button" id="refreshAnalyticsBtn">Atualizar dados</button>
+            </div>
+          </div>
+
+          <div class="analytics-metrics-grid">
+            <div class="analytics-metric-box">
+              <span class="analytics-metric-title">Visualizações Únicas de Posts</span>
+              <strong id="analyticsTotalViews" class="analytics-metric-value">0</strong>
+              <small class="analytics-metric-sub">Deduplicadas por sessão</small>
+            </div>
+            <div class="analytics-metric-box">
+              <span class="analytics-metric-title">Taxa de Conversão em Adoção</span>
+              <strong id="analyticsConversionRate" class="analytics-metric-value">0.0%</strong>
+              <small class="analytics-metric-sub">Pets adotados / Total de posts</small>
+            </div>
+            <div class="analytics-metric-box">
+              <span class="analytics-metric-title">Total de Lares Cadastrados</span>
+              <strong id="analyticsTotalHomes" class="analytics-metric-value">0</strong>
+              <small class="analytics-metric-sub">Impacto comunitário</small>
+            </div>
+          </div>
+
+          <div class="analytics-funnel-container" id="analyticsFunnelContainer">
+            <div class="funnel-bar-item">
+              <div class="funnel-bar-label"><span>Publicações Ativas</span><span id="funnelActivePosts">0</span></div>
+              <div class="funnel-progress"><div class="funnel-fill" id="funnelActiveBar" style="width: 0%;"></div></div>
+            </div>
+            <div class="funnel-bar-item">
+              <div class="funnel-bar-label"><span>Adoções Concluídas</span><span id="funnelAdoptedPosts">0</span></div>
+              <div class="funnel-progress"><div class="funnel-fill adopted" id="funnelAdoptedBar" style="width: 0%;"></div></div>
+            </div>
+          </div>
+        </section>
+
+        <!-- CONFIGURAÃ‡Ã•ES DE CONTA ADMIN -->
         <section class="panel admin-account-panel">
           <div class="panel-header">
             <div>
@@ -130,7 +188,7 @@
           </div>
           <form id="adminAccountForm" class="admin-account-form">
             <label>
-              E-mail / usuário de acesso
+              E-mail / usuÃ¡rio de acesso
               <input type="text" id="adminAccountEmail" required />
             </label>
             <label>
@@ -141,11 +199,11 @@
           </form>
         </section>
 
-        <!-- GESTÃO DE ESTATÍSTICAS DO SITE -->
+        <!-- GESTÃƒO DE ESTATÃSTICAS DO SITE -->
         <section class="panel admin-statistics-panel">
           <div class="panel-header">
             <div>
-              <h2>Gestão de Estatísticas</h2>
+              <h2>GestÃ£o de EstatÃ­sticas</h2>
             </div>
           </div>
           <form id="adminStatisticsForm" class="admin-account-form">
@@ -160,11 +218,11 @@
           </form>
         </section>
 
-        <!-- BUSCA E MODERAÇÃO DE USUÁRIOS -->
+        <!-- BUSCA E MODERAÃ‡ÃƒO DE USUÃRIOS -->
         <section class="panel admin-user-search-panel">
           <div class="panel-header">
             <div>
-              <h2>Buscar usuário</h2>
+              <h2>Buscar usuÃ¡rio</h2>
             </div>
           </div>
           <form id="adminUserSearchForm" class="admin-account-form">
@@ -177,12 +235,12 @@
           <div id="adminUserResults" class="admin-user-results" aria-live="polite"></div>
         </section>
 
-        <!-- GRID DE GESTÃO GERAL -->
+        <!-- GRID DE GESTÃƒO GERAL -->
         <section class="admin-grid">
           <div class="panel">
             <div class="panel-header">
               <div>
-                <h2>Todas as publicações do site</h2>
+                <h2>Todas as publicaÃ§Ãµes do site</h2>
               </div>
             </div>
 
@@ -190,10 +248,10 @@
               <table>
                 <thead>
                   <tr>
-                    <th>Título</th>
+                    <th>TÃ­tulo</th>
                     <th>Tipo</th>
                     <th>Cidade</th>
-                    <th>Ação</th>
+                    <th>AÃ§Ã£o</th>
                   </tr>
                 </thead>
                 <tbody id="postsTableBody"></tbody>
@@ -203,7 +261,7 @@
 
           <div class="panel">
             <div class="panel-header">
-              <h2>Usuários cadastrados</h2>
+              <h2>UsuÃ¡rios cadastrados</h2>
             </div>
 
             <div class="table-wrap">
@@ -214,7 +272,7 @@
                     <th>E-mail</th>
                     <th>Tipo</th>
                     <th>Status</th>
-                    <th>Ação</th>
+                    <th>AÃ§Ã£o</th>
                   </tr>
                 </thead>
                 <tbody id="usersTableBody"></tbody>
@@ -225,7 +283,7 @@
       </main>
     </div>
 
-    <!-- MODAL DE VISUALIZAÇÃO COMPLETA DE DETALHES DO PET (PARA REVISÃO DO ADMIN) -->
+    <!-- MODAL DE VISUALIZAÃ‡ÃƒO COMPLETA DE DETALHES DO PET (PARA REVISÃƒO DO ADMIN) -->
     <div class="adoption-modal" id="adoptionModal" role="dialog" aria-modal="true" aria-labelledby="modalPostTitle" hidden>
       <div class="adoption-modal-backdrop" data-modal-close></div>
       <article class="adoption-modal-content">
@@ -237,15 +295,15 @@
           <p class="modal-location" id="modalPostLocation"></p>
           <p id="modalPostDescription"></p>
           <section class="modal-genetics" aria-labelledby="geneticsTitle">
-            <h3 id="geneticsTitle">Informações de genética</h3>
+            <h3 id="geneticsTitle">InformaÃ§Ãµes de genÃ©tica</h3>
             <dl>
-              <div><dt>Raça do animal</dt><dd id="modalBreed"></dd></div>
-              <div><dt>Raça da mãe</dt><dd id="modalMotherBreed"></dd></div>
-              <div><dt>Raça do pai</dt><dd id="modalFatherBreed"></dd></div>
+              <div><dt>RaÃ§a do animal</dt><dd id="modalBreed"></dd></div>
+              <div><dt>RaÃ§a da mÃ£e</dt><dd id="modalMotherBreed"></dd></div>
+              <div><dt>RaÃ§a do pai</dt><dd id="modalFatherBreed"></dd></div>
             </dl>
           </section>
           <section class="modal-genetics" id="modalAdditionalDetails" aria-labelledby="additionalDetailsTitle" hidden>
-            <h3 id="additionalDetailsTitle">Mais informações</h3>
+            <h3 id="additionalDetailsTitle">Mais informaÃ§Ãµes</h3>
             <dl id="modalPostAdditionalDetails"></dl>
           </section>
           <section class="modal-contact" aria-labelledby="contactTitle">
@@ -256,6 +314,6 @@
       </article>
     </div>
 
-    <script type="module" src="script.js?v=51"></script>
+    <script type="module" src="script.js?v=52"></script>
   </body>
 </html>

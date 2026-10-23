@@ -25,20 +25,27 @@
   # Desativa sniffing de DNS prefetch para domínios não citados.
   X-DNS-Prefetch-Control: off
   # CSP: libera exatamente as origens que o projeto usa.
-  #   script-src  -> jsDelivr (cliente Supabase via ESM) + inline (o app monta
-  #                  handlers por atributo em trechos de HTML montados no cliente)
-  #   style-src   -> Google Fonts + inline (o JS ajusta style.width do medidor de senha)
-  #   connect-src -> projeto Supabase (REST/Auth/Storage) + IBGE (estados e cidades)
+  #   script-src  -> jsDelivr (cliente Supabase via ESM) + inline
+  #   style-src   -> Google Fonts + inline
+  #   connect-src -> projeto Supabase (REST/Auth/Storage) + IBGE + Google Analytics / Consent
   #   img-src     -> Storage do Supabase + Unsplash + placehold.co + data: (prévia local)
   #   font-src    -> arquivos das Google Fonts
-  Content-Security-Policy: default-src 'self'; base-uri 'self'; form-action 'self'; object-src 'none'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https://sqosvgesugekqvgucepn.supabase.co https://images.unsplash.com https://placehold.co https://*.googleusercontent.com; connect-src 'self' https://sqosvgesugekqvgucepn.supabase.co wss://sqosvgesugekqvgucepn.supabase.co https://servicodados.ibge.gov.br; frame-ancestors 'none'; upgrade-insecure-requests
+  Content-Security-Policy: default-src 'self'; base-uri 'self'; form-action 'self'; object-src 'none'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https://sqosvgesugekqvgucepn.supabase.co https://images.unsplash.com https://placehold.co https://*.googleusercontent.com; connect-src 'self' https://sqosvgesugekqvgucepn.supabase.co wss://sqosvgesugekqvgucepn.supabase.co https://servicodados.ibge.gov.br https://*.google-analytics.com https://*.analytics.google.com https://*.googletagmanager.com; frame-ancestors 'none'; upgrade-insecure-requests
 
 # O HTML nunca deve ficar em cache: sempre pega a versão nova do app.
 /*.html
   Cache-Control: public, max-age=0, must-revalidate
 
+# Arquivo ads.txt para validadores IAB
+/ads.txt
+  Cache-Control: public, max-age=86400, must-revalidate
+
 # JS e CSS usam ?v= como cache-busting, então podem ser cacheados com força.
 /script.js
   Cache-Control: public, max-age=31536000, immutable
 /supabase.js
+  Cache-Control: public, max-age=31536000, immutable
+/js/*
+  Cache-Control: public, max-age=31536000, immutable
+/css/*
   Cache-Control: public, max-age=31536000, immutable

@@ -27,6 +27,7 @@
       href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap"
       rel="stylesheet"
     />
+    <link rel="preload" as="image" href="https://images.unsplash.com/photo-1591160690555-5debfba289f0?auto=format&fit=crop&w=1600&q=72" fetchpriority="high" />
     <link rel="stylesheet" href="css/index.css?v=40" />
     <link rel="manifest" href="manifest.webmanifest" />
     <meta name="theme-color" content="#d9611b" />
@@ -58,6 +59,8 @@
     </header>
 
     <main id="conteudo" tabindex="-1">
+      <!-- Espaço reservado para anúncio Leaderboard (oculto e sem CLS via ENABLE_ADS=false) -->
+      <ad-slot type="leaderboard" slot-id="home-top-leaderboard" hidden></ad-slot>
       <section class="home-hero" id="inicio">
         <div class="container home-hero-grid">
           <div class="home-copy" data-reveal-stagger>
@@ -87,7 +90,7 @@
 
           <div class="home-visual">
             <div class="home-card-image">
-              <img loading="lazy" decoding="async"
+              <img loading="eager" fetchpriority="high" decoding="async"
                 src="https://images.unsplash.com/photo-1591160690555-5debfba289f0?auto=format&fit=crop&w=1600&q=72"
                 alt="Filhote de golden retriever olhando para a câmera"
               />
@@ -119,7 +122,7 @@
             <button class="carousel-control" type="button" id="previousCategory" aria-label="Categoria anterior">&#8592;</button>
             <div class="pet-showcase adoption-categories" id="adoptionCarousel">
               <a class="pet-box category-card" href="animais/gato.html">
-              <img loading="lazy" decoding="async" src="https://plus.unsplash.com/premium_photo-1673967831980-1d377baaded2?auto=format&fit=crop&w=1600&q=72" alt="Gato de olhos claros em close" />
+              <img loading="eager" fetchpriority="high" decoding="async" src="https://plus.unsplash.com/premium_photo-1673967831980-1d377baaded2?auto=format&fit=crop&w=1600&q=72" alt="Gato de olhos claros em close" />
               <div class="pet-box-body">
                 <h3>Gato</h3>
                 <p>Encontre gatos esperando por uma família.</p>
@@ -128,7 +131,7 @@
               </a>
 
               <a class="pet-box category-card" href="animais/cachorro.html">
-              <img loading="lazy" decoding="async" src="https://images.unsplash.com/photo-1558929996-da64ba858215?auto=format&fit=crop&w=1600&q=72" alt="Cachorro resgatado recebendo carinho" />
+              <img loading="eager" fetchpriority="high" decoding="async" src="https://images.unsplash.com/photo-1558929996-da64ba858215?auto=format&fit=crop&w=1600&q=72" alt="Cachorro resgatado recebendo carinho" />
               <div class="pet-box-body">
                 <h3>Cachorro</h3>
                 <p>Conheça cachorros em busca de um lar.</p>
@@ -137,7 +140,7 @@
               </a>
 
               <a class="pet-box category-card" href="animais/fazenda.html">
-              <img loading="lazy" decoding="async" src="https://plus.unsplash.com/premium_photo-1663133581871-a882b2ec818b?auto=format&fit=crop&w=1600&q=72" alt="Cachorro aguardando adoção em abrigo" />
+              <img loading="eager" fetchpriority="high" decoding="async" src="https://plus.unsplash.com/premium_photo-1663133581871-a882b2ec818b?auto=format&fit=crop&w=1600&q=72" alt="Cachorro aguardando adoção em abrigo" />
               <div class="pet-box-body">
                 <h3>Animais de Fazenda</h3>
                 <p>Conheça animais de fazenda que precisam de cuidado e espaço.</p>
@@ -146,7 +149,7 @@
               </a>
 
               <a class="pet-box category-card" href="animais/exotico.html">
-              <img loading="lazy" decoding="async" src="https://images.unsplash.com/photo-1544923408-75c5cef46f14?auto=format&fit=crop&w=1600&q=72" alt="Arara vermelha pousada em galho" />
+              <img loading="eager" fetchpriority="high" decoding="async" src="https://images.unsplash.com/photo-1544923408-75c5cef46f14?auto=format&fit=crop&w=1600&q=72" alt="Arara vermelha pousada em galho" />
               <div class="pet-box-body">
                 <h3>Animais Exóticos</h3>
                 <p>Encontre cuidados responsáveis para animais exóticos.</p>
@@ -155,7 +158,7 @@
               </a>
 
               <a class="pet-box category-card" href="animais/marinho.html">
-              <img loading="lazy" decoding="async" src="https://plus.unsplash.com/premium_photo-1765362253321-edc56e2adf2b?auto=format&fit=crop&w=1600&q=72" alt="Peixe-palhaço entre corais coloridos" />
+              <img loading="eager" fetchpriority="high" decoding="async" src="https://plus.unsplash.com/premium_photo-1765362253321-edc56e2adf2b?auto=format&fit=crop&w=1600&q=72" alt="Peixe-palhaço entre corais coloridos" />
               <div class="pet-box-body">
                 <h3>Animais Marinhos</h3>
                 <p>Peixes e fauna aquática necessitando de acolhimento.</p>
@@ -197,7 +200,7 @@
           </div>
 
           <div class="support-story">
-            <img loading="lazy" decoding="async" class="support-story-image" src="https://images.unsplash.com/photo-1597046835715-16f81ac132c0?auto=format&fit=crop&w=1600&q=72" alt="Cachorro resgatado recebendo carinho" />
+            <img loading="eager" fetchpriority="high" decoding="async" class="support-story-image" src="https://images.unsplash.com/photo-1597046835715-16f81ac132c0?auto=format&fit=crop&w=1600&q=72" alt="Cachorro resgatado recebendo carinho" />
             <div class="support-story-content">
               <span class="mini-tag">Transparência</span>
               <h3>Ajude a manter nossa plataforma no ar</h3>
@@ -307,6 +310,6 @@
       </a>
     </nav>
 
-    <script type="module" src="script.js?v=51"></script>
+    <script type="module" src="script.js?v=52"></script>
   </body>
 </html>

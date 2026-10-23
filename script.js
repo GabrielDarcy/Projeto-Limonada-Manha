@@ -1,4 +1,10 @@
 import { supabase } from './supabase.js';
+import { CONFIG } from './js/core-config.js';
+import { PostService } from './js/services/post-service.js';
+import { AnalyticsService } from './js/services/analytics-service.js';
+import { AuthService } from './js/services/auth-service.js';
+import './js/components/ad-slot.js';
+import { CookieConsent } from './js/components/cookie-consent.js';
 
 const STORAGE_KEYS = {
   users: 'petamor_users',
@@ -1353,23 +1359,58 @@ async function moderatePost(postId, action) {
 
 async function renderAdminDashboard() {
   const client = getSupabaseClient();
-
-  // Atualiza métricas rápidas nos cards
+  // Atualiza m�tricas r�pidas nos cards e painel de analytics avan�ado
   try {
-    const [adsRes, usersRes, bansRes, pendingRes] = await Promise.all([
+    const [adsRes, usersRes, bansRes, pendingRes, adoptedRes, viewsRes, statsRes] = await Promise.all([
       client.from('posts').select('id', { count: 'exact', head: true }).eq('status', 'active'),
       client.from('profiles').select('id', { count: 'exact', head: true }).eq('status', 'active'),
       client.from('profiles').select('id', { count: 'exact', head: true }).eq('status', 'banned'),
-      client.from('posts').select('id', { count: 'exact', head: true }).eq('status', 'pending')
+      client.from('posts').select('id', { count: 'exact', head: true }).eq('status', 'pending'),
+      client.from('posts').select('id', { count: 'exact', head: true }).eq('status', 'adopted'),
+      client.from('posts').select('views_count').limit(100),
+      client.from('site_statistics').select('total_lares').eq('id', 1).single()
     ]);
 
-    if (document.getElementById('totalAds')) document.getElementById('totalAds').textContent = String(adsRes.count ?? 0);
-    if (document.getElementById('totalUsers')) document.getElementById('totalUsers').textContent = String(usersRes.count ?? 0);
-    if (document.getElementById('totalBans')) document.getElementById('totalBans').textContent = String(bansRes.count ?? 0);
-    if (document.getElementById('totalPending')) document.getElementById('totalPending').textContent = String(pendingRes.count ?? 0);
-    if (document.getElementById('pendingPostsCount')) document.getElementById('pendingPostsCount').textContent = String(pendingRes.count ?? 0);
+    const activeCount = adsRes.count ?? 0;
+    const usersCount = usersRes.count ?? 0;
+    const bansCount = bansRes.count ?? 0;
+    const pendingCount = pendingRes.count ?? 0;
+    const adoptedCount = adoptedRes.count ?? 0;
+    const totalHomes = Number(statsRes?.data?.total_lares || 0);
+
+    let totalViews = 0;
+    if (viewsRes?.data) {
+      totalViews = viewsRes.data.reduce((acc, curr) => acc + (Number(curr.views_count) || 0), 0);
+    }
+
+    const totalPosts = activeCount + adoptedCount + pendingCount;
+    const adoptionRateStr = AnalyticsService.calculateConversionRate(adoptedCount, totalPosts);
+
+    if (document.getElementById('totalAds')) document.getElementById('totalAds').textContent = String(activeCount);
+    if (document.getElementById('totalUsers')) document.getElementById('totalUsers').textContent = String(usersCount);
+    if (document.getElementById('totalBans')) document.getElementById('totalBans').textContent = String(bansCount);
+    if (document.getElementById('totalPending')) document.getElementById('totalPending').textContent = String(pendingCount);
+    if (document.getElementById('pendingPostsCount')) document.getElementById('pendingPostsCount').textContent = String(pendingCount);
+    if (document.getElementById('totalAdopted')) document.getElementById('totalAdopted').textContent = String(adoptedCount);
+    if (document.getElementById('adoptionRate')) document.getElementById('adoptionRate').textContent = adoptionRateStr;
+
+    // Atualiza painel de analytics avan�ado
+    if (document.getElementById('analyticsTotalViews')) document.getElementById('analyticsTotalViews').textContent = totalViews.toLocaleString('pt-BR');
+    if (document.getElementById('analyticsConversionRate')) document.getElementById('analyticsConversionRate').textContent = adoptionRateStr;
+    if (document.getElementById('analyticsTotalHomes')) document.getElementById('analyticsTotalHomes').textContent = totalHomes.toLocaleString('pt-BR');
+
+    if (document.getElementById('funnelActivePosts')) document.getElementById('funnelActivePosts').textContent = String(activeCount);
+    if (document.getElementById('funnelAdoptedPosts')) document.getElementById('funnelAdoptedPosts').textContent = String(adoptedCount);
+
+    const activePct = totalPosts > 0 ? Math.min(100, Math.round((activeCount / totalPosts) * 100)) : 0;
+    const adoptedPct = totalPosts > 0 ? Math.min(100, Math.round((adoptedCount / totalPosts) * 100)) : 0;
+
+    const funnelActiveBar = document.getElementById('funnelActiveBar');
+    if (funnelActiveBar) funnelActiveBar.style.width = activePct + '%';
+    const funnelAdoptedBar = document.getElementById('funnelAdoptedBar');
+    if (funnelAdoptedBar) funnelAdoptedBar.style.width = adoptedPct + '%';
   } catch (err) {
-    console.warn('Erro ao carregar estatísticas do admin:', err);
+    console.warn('Erro ao carregar estat�sticas do admin:', err);
   }
 
   // Tabela de todas as publicações do site
@@ -1603,6 +1644,8 @@ async function banAdminUser(userId) {
 }
 
 function bindAdminActions() {
+  if (window.__adminActionsBound) return;
+  window.__adminActionsBound = true;
   document.body.addEventListener('click', (event) => {
     const button = event.target.closest('button[data-action]');
     if (!button) return;
@@ -2383,9 +2426,12 @@ async function handleCreatePostSubmit(event) {
     return;
   }
 
-  let uploadedResults = [];
+  const uploadedResults = [];
   try {
-    uploadedResults = await Promise.all(photoFiles.map((file) => uploadPostImage(file, userData.user.id)));
+    for (const file of photoFiles) {
+      const res = await uploadPostImage(file, userData.user.id);
+      uploadedResults.push(res);
+    }
     const imageUrls = uploadedResults.map((item) => (typeof item === 'object' && item.publicUrl ? item.publicUrl : String(item)));
     const contatoFinal = [phone && `Tel: ${phone}`, email && `Email: ${email}`, instagram && `IG: @${instagram}`].filter(Boolean).join(' | ');
 
@@ -3466,8 +3512,12 @@ async function openAdoptionModal(postOrId) {
     return;
   }
 
-  try {
+  // Telemetria �tica deduplicada por sess�o (Analytics)
+  if (post.id) {
+    AnalyticsService.trackPostView(post.id);
+  }
 
+  try {
   const imageContainer = document.getElementById('modalImageContainer');
   if (imageContainer) {
     imageContainer.innerHTML = generateImageCarouselHTML(post.image_urls, post.title);
@@ -4679,6 +4729,7 @@ async function initializePage() {
   await updateHomeUserActions();
   initCustomSelects();
   setupGlobalModalHandlers();
+  CookieConsent.init();
   // Exibe toasts pendentes entre redirecionamentos de página (flash message)
   try {
     const flashToast = sessionStorage.getItem('petamor_flash_toast');
@@ -4755,10 +4806,16 @@ async function initializePage() {
       event.preventDefault();
       searchAdminUsers(document.getElementById('adminUserSearch').value);
     });
-    bindAdminActions();
     setupPostApprovalToggle();
     renderPendingPostsAdmin();
     document.getElementById('refreshPendingPostsBtn')?.addEventListener('click', renderPendingPostsAdmin);
+    document.getElementById('refreshAnalyticsBtn')?.addEventListener('click', () => {
+      showToast('Atualizando métricas de telemetria...');
+      renderAdminDashboard();
+    });
+    document.getElementById('analyticsPeriodSelect')?.addEventListener('change', () => {
+      renderAdminDashboard();
+    });
     renderAdminDashboard();
   }
   await checkSharedPostOnLoad();

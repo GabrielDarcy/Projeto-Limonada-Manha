@@ -2156,6 +2156,13 @@ body[data-animal-type="Cachorro"] .category-filters {
   gap: 18px;
 }
 
+@media (max-width: 640px) {
+  .form-grid {
+    grid-template-columns: 1fr;
+    gap: 14px;
+  }
+}
+
 .create-post-form textarea {
   min-height: 120px;
   resize: vertical;

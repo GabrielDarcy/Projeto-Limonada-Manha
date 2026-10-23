@@ -269,3 +269,116 @@
     width: 100%;
   }
 }
+
+/* ==============================================================================
+   PAINEL DE ANALYTICS E TELEMETRIA (Admin)
+   ============================================================================== */
+.admin-analytics-panel {
+  margin-bottom: 2rem;
+}
+
+.analytics-filter-controls {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.admin-select-filter {
+  padding: 0.45rem 0.8rem;
+  border-radius: var(--r-button);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.analytics-metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 16px;
+  margin: 1.25rem 0;
+}
+
+.analytics-metric-box {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.analytics-metric-title {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.analytics-metric-value {
+  font-size: 1.75rem;
+  font-weight: 800;
+  color: var(--text);
+  line-height: 1.2;
+}
+
+.analytics-metric-sub {
+  font-size: 0.78rem;
+  color: #94a3b8;
+}
+
+.analytics-funnel-container {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin-top: 1.5rem;
+  padding-top: 1.25rem;
+  border-top: 1px solid var(--border);
+}
+
+.funnel-bar-item {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.funnel-bar-label {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.funnel-progress {
+  height: 10px;
+  background: #e2e8f0;
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.funnel-fill {
+  height: 100%;
+  background: #3b82f6;
+  border-radius: 999px;
+  transition: width 0.4s ease;
+}
+
+.funnel-fill.adopted {
+  background: #10b981;
+}
+
+@media (max-width: 640px) {
+  .analytics-filter-controls {
+    flex-direction: column;
+    align-items: stretch;
+    width: 100%;
+  }
+  .admin-select-filter {
+    width: 100%;
+  }
+}

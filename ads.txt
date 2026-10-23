@@ -1,0 +1,12 @@
+# ==============================================================================
+# ads.txt — Pet Amor (Padrao IAB Tech Lab)
+# https://iabtechlab.com/ads-txt/
+# ==============================================================================
+# Este arquivo declara vendedores autorizados de inventario publicitario digital.
+# Substitua 'pub-0000000000000000' pelo seu ID de Publisher real do Google AdSense.
+
+google.com, pub-0000000000000000, DIRECT, f08c47fec0942fa0
+
+# Redes Parceiras e SSPs Adicionais (Ativar conforme necessario)
+# appnexus.com, 0000, RESELLER
+# rubiconproject.com, 0000, RESELLER
