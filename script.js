@@ -1268,9 +1268,10 @@ async function renderPendingPostsAdmin() {
 
   tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:1.5rem;">Carregando fila de moderação...</td></tr>';
 
+  // NOTA: Feito desambiguacao explicita profiles:profiles!posts_author_id_fkey porque a presenca de multiplas Foreign Keys causava o erro PGRST201 ao carregar publicacoes pendentes e resolvemos apontando para a constraint do autor.
   const { data: posts, error } = await getSupabaseClient()
     .from('posts')
-    .select('*, profiles(full_name, email, username)')
+    .select('*, profiles:profiles!posts_author_id_fkey(full_name, email, username)')
     .eq('status', 'pending')
     .order('created_at', { ascending: false });
 
@@ -2603,7 +2604,8 @@ async function handleCreatePostSubmit(event) {
   }
 }
 
-const POST_CARD_COLUMNS = 'id, title, animal_type, breed, state, city, image_urls, status, support_type, created_at, profiles(full_name, username, avatar_url)';
+// NOTA: Feito desambiguacao posts_author_id_fkey com alias profiles em POST_CARD_COLUMNS porque a adicao de Foreign Key de moderacao causava erro PGRST201 no feed e resolvemos especificando a FK do autor.
+const POST_CARD_COLUMNS = 'id, title, animal_type, breed, state, city, image_urls, status, support_type, created_at, profiles:profiles!posts_author_id_fkey(full_name, username, avatar_url)';
 const feedSWRMemoryCache = new Map();
 
 function getFeedSkeletonHTML(count = 4) {
@@ -3558,9 +3560,10 @@ async function openAdoptionModal(postOrId) {
 
   if (!post) {
     try {
+      // NOTA: Feito desambiguacao em openAdoptionModal via profiles:profiles!posts_author_id_fkey porque a presenca de multiplas relacoes entre posts e profiles causava erro PGRST201 e resolvemos nomeando a FK do autor.
       const { data, error } = await getSupabaseClient()
         .from('posts')
-        .select('*, profiles(full_name, username, avatar_url)')
+        .select('*, profiles:profiles!posts_author_id_fkey(full_name, username, avatar_url)')
         .eq('id', postOrId)
         .single();
       if (!error && data) {
@@ -4233,9 +4236,10 @@ async function checkSharedPostOnLoad() {
   if (!postId || !document.getElementById('adoptionModal')) return;
   if (!isUuid(postId)) return;
   try {
+    // NOTA: Feito desambiguacao em checkSharedPostOnLoad via profiles:profiles!posts_author_id_fkey porque abrir posts por link direto falhava com PGRST201 e resolvemos apontando para a FK do autor.
     const { data: post, error } = await getSupabaseClient()
       .from('posts')
-      .select('*, profiles(full_name, username, avatar_url)')
+      .select('*, profiles:profiles!posts_author_id_fkey(full_name, username, avatar_url)')
       .eq('id', postId)
       .single();
     if (post && !error) openAdoptionModal(post);
