@@ -1,6 +1,5 @@
 @import url("common.css?v=40");
 
-/* Cards de Formas de Apoio - Seção Unificada Como Ajudar (Adaptação Fluida) */
 .help-actions-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr));

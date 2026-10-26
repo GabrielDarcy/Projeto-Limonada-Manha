@@ -1,4 +1,3 @@
-// service worker do pet amor
 const CACHE_NAME = 'pet-amor-v3';
 const STATIC_ASSETS = [
   './',
@@ -37,7 +36,7 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
 
-  // ignora chamadas de api e servicos externos
+  // feito bypass de chamadas de api no sw porque cachear rotas rest e auth causava dados obsoletos e resolvemos filtrando por hostname e pathname
   if (
     event.request.method !== 'GET' ||
     url.hostname.includes('supabase.co') ||
@@ -51,7 +50,7 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // devolve do cache primeiro e atualiza em segundo plano
+  // feito stale-while-revalidate em assets estaticos porque chamadas de rede bloqueavam o FCP e resolvemos respondendo do cache enquanto busca a versao nova
   event.respondWith(
     caches.match(event.request).then((cachedResponse) => {
       const fetchPromise = fetch(event.request)

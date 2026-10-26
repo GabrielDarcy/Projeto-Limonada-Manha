@@ -15,7 +15,7 @@ let feedCurrentPage = 0;
 
 window.ENABLE_ADS = false;
 
-// se a tag de ad existir na pagina, esconde se tiver desativado
+// feito ocultacao do ad-slot via display:none porque customElements sem configuracao causavam espaco vazio em tela e resolvemos escondendo quando window.ENABLE_ADS for false
 if (typeof customElements !== 'undefined' && !customElements.get('ad-slot')) {
   customElements.define('ad-slot', class extends HTMLElement {
     connectedCallback() {
@@ -27,7 +27,7 @@ if (typeof customElements !== 'undefined' && !customElements.get('ad-slot')) {
   });
 }
 
-// calcula taxa de conversao sem risco de divisao por zero
+// feito tratamento defensivo de total <= 0 porque divisao por zero resultava em NaN/Infinity na interface e resolvemos retornando '0.0%'
 function calculateConversionRate(conversions = 0, total = 0) {
   const conv = Number(conversions) || 0;
   const tot = Number(total) || 0;
@@ -35,7 +35,7 @@ function calculateConversionRate(conversions = 0, total = 0) {
   return ((conv / tot) * 100).toFixed(1) + '%';
 }
 
-// registra visualizacao de post uma vez por sessao para nao inflar os numeros
+// feito deduplicacao em sessionStorage porque pageviews repetidos na mesma sessao inflavam a telemetria e resolvemos checando array local antes da RPC
 function trackPostView(postId) {
   if (!postId || typeof window === 'undefined') return;
   try {
@@ -52,7 +52,6 @@ function trackPostView(postId) {
   } catch (_) {}
 }
 
-// aviso de cookies simples
 function initCookieConsent() {
   if (typeof window === 'undefined' || typeof document === 'undefined') return;
   const key = 'petamor_cookies';
@@ -74,7 +73,6 @@ const BANNED_WORDS = [
   'merda', 'porra', 'caralho', 'puta', 'puto', 'viado', 'vadia', 'bosta', 'foder', 'fodase', 'desgracado', 'desgracada'
 ];
 
-// escapa texto antes de entrar em innerHTML
 function escapeHTML(str) {
   if (str === null || str === undefined) return '';
   return String(str)
@@ -85,7 +83,7 @@ function escapeHTML(str) {
     .replace(/'/g, '&#39;');
 }
 
-// sanitiza URLs para impedir injeção de esquemas perigosos (javascript:, vbscript:, etc.)
+// feito validacao estrita de prefixos de URL porque esquemas como javascript: permitiam DOM XSS e resolvemos aceitando apenas http, https, data ou caminhos relativos
 function sanitizeUrl(url) {
   if (!url) return '';
   const trimmed = String(url).trim();
@@ -98,7 +96,7 @@ function sanitizeUrl(url) {
   return '';
 }
 
-// o filtro do postgrest usa virgula e parenteses como sintaxe, entao tiramos esses caracteres
+// feito sanitizacao de caracteres especiais porque virgulas e parenteses quebravam a sintaxe de filtro do PostgREST e resolvemos removendo pontuacoes reservadas
 function sanitizeFiltroPostgrest(valor) {
   return String(valor || '')
     .normalize('NFC')
@@ -118,11 +116,8 @@ function ehFalhaDeRede(codigo, texto) {
   return /network|fetch|failed to fetch|timeout|ERR_NAME|ERR_INTERNET/i.test(String(codigo) + String(texto));
 }
 
-// os erros do supabase chegam em ingles. traduzimos so os que o usuario
-// realmente precisa entender; o resto vira uma mensagem generica, porque
-// "duplicate key value violates unique constraint" nao ajuda ninguem.
+// feito mapeamento amigavel de erros do Supabase porque mensagens nativas em ingles e tecnicas assustavam o usuario e resolvemos traduzindo codigos para explicacoes claras em portugues
 const ERROS_PT = {
-  // banco
   '23505': 'Esse dado já está cadastrado.',
   '23503': 'Esse item está ligado a outro registro e não pode ser alterado agora.',
   '23502': 'Faltou preencher um campo obrigatório.',
@@ -130,19 +125,15 @@ const ERROS_PT = {
   '42501': 'Você não tem permissão para essa ação.',
   '22P02': 'Um dos valores enviados tem formato inválido.',
   '22001': 'O texto enviado é longo demais.',
-  // auth: e-mail ja cadastrado
   'user_already_exists': 'Este e-mail já está cadastrado. Tente entrar ou recuperar a senha.',
   'email_exists': 'Este e-mail já está cadastrado. Tente entrar ou recuperar a senha.',
-  // auth: senha
   'weak_password': 'Sua senha é fraca. Use pelo menos 8 caracteres, com letras e números.',
-  // auth: e-mail
   'email_address_invalid': 'Informe um e-mail válido.',
   'validation_failed': 'Confira os dados preenchidos e tente de novo.',
   'email_not_confirmed': 'Confirme seu e-mail antes de entrar.',
   'invalid_credentials': 'E-mail ou senha incorretos.',
   'over_email_send_rate_limit': 'Muitos e-mails enviados. Aguarde alguns minutos.',
   'over_request_rate_limit': 'Muitas tentativas. Aguarde alguns minutos.',
-  // auth: sessao
   'session_expired': 'Sua sessão expirou. Entre novamente.',
     'refresh_token_not_found': 'Sua sessão expirou. Entre novamente.',
   'email_provider_disabled': 'O cadastro por e-mail está desativado no painel da Supabase. Ative o provedor "Email" em Authentication > Providers no painel da Supabase.',
@@ -154,15 +145,12 @@ function mensagemDeErroSegura(error, alternativa) {
   const chave = String(error?.error_code || '');
   const texto = String(error?.message || error?.msg || '');
 
-  // rede e limite primeiro: valem mais que o codigo
   if (ehFalhaDeRede(codigo, texto)) return 'Não foi possível conectar. Verifique sua internet e tente novamente.';
   if (/rate|too many|429/i.test(codigo + texto + chave)) return 'Muitas tentativas. Aguarde alguns minutos e tente novamente.';
 
-  // codigo exato do banco ou do auth
   if (ERROS_PT[chave]) return ERROS_PT[chave];
   if (ERROS_PT[codigo]) return ERROS_PT[codigo];
 
-  // mensagens em ingles que valem traduzir
   if (/already registered|already exists|user_already/i.test(texto)) return ERROS_PT['user_already_exists'];
   if (/duplicate key/i.test(texto)) return ERROS_PT['23505'];
   if (/password should be at least|weak password/i.test(texto)) return ERROS_PT['weak_password'];
@@ -173,11 +161,9 @@ function mensagemDeErroSegura(error, alternativa) {
     if (/email.*provider.*disabled|signups are disabled|logins are disabled/i.test(texto + chave)) return 'O cadastro/login por e-mail está desativado no painel da Supabase. Ative o provedor "Email" em Authentication > Providers.';
   if (/jwt|token.*expired|session.*expired/i.test(texto)) return 'Sua sessão expirou. Entre novamente.';
 
-  // qualquer outro erro tecnico fica generico de proposito
   return padrao;
 }
 
-// Mensagem do login: tradução clara e amigável dos erros do Supabase Auth
 function mensagemDeAuthSegura(error) {
   const codigo = String(error?.code || error?.status || '');
   const chave = String(error?.error_code || '');
@@ -322,16 +308,14 @@ function getSession() {
 function normalizeUsername(value) {
   return String(value || '')
     .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')   // tira acento: "joão" vira "joao", nao "joo"
+    .replace(/[\u0300-\u036f]/g, '')
     .trim()
     .toLowerCase()
     .replace(/^@+/, '')
     .replace(/[^a-z0-9._]/g, '');
 }
 
-// checagem unica de username. existe porque as duas copias que havia por ai
-// divergiam: a do perfil nao excluia o proprio usuario e travava quem tentava
-// salvar o mesmo nome de novo.
+// feito unificacao da checagem de username porque funcoes divergentes impediam o usuario de salvar o proprio perfil e resolvemos centralizando com exclusao do idAtual
 async function garantirUsernameLivre(client, username, idAtual) {
   let consulta = client.from('profiles').select('id').ilike('username', username);
   if (idAtual) consulta = consulta.neq('id', idAtual);
@@ -372,8 +356,7 @@ async function toggleFavorite(postId) {
   const nextFavorites = isAlreadyFav
     ? favorites.filter((id) => id !== normalizedId)
     : [...favorites, normalizedId];
-
-  // 1. Atualização otimista imediata no DOM e cache local (0ms)
+  // feito atualizacao otimista imediata no DOM e cache local porque esperar a resposta do banco causava atraso na interface e resolvemos alternando as classes antes da requisicao
   writeStorage(STORAGE_KEYS.favorites, nextFavorites);
   document.querySelectorAll(`[data-favorite-id="${normalizedId}"]`).forEach((btn) => {
     btn.classList.toggle('is-favorite', !isAlreadyFav);
@@ -383,10 +366,9 @@ async function toggleFavorite(postId) {
 
   if (session) {
     try {
-      // Tenta operação atômica no banco sem Lost Update
+      // feito chamada a RPC toggle_favorite_post com fallback para update direto porque queries concorrentes causavam Lost Update no array e resolvemos priorizando transacao atomica no banco
       const { error: rpcError } = await getSupabaseClient().rpc('toggle_favorite_post', { p_post_id: normalizedId });
       if (rpcError) {
-        // Fallback para update direto caso a RPC ainda não esteja provisionada
         await getSupabaseClient().from('profiles').update({ favorite_posts: nextFavorites }).eq('id', session.userId);
       }
       saveSession({ ...session, id: session.userId, favorite_posts: nextFavorites });
@@ -523,7 +505,7 @@ function clearSession() {
   localStorage.removeItem(STORAGE_KEYS.session);
 }
 
-// quem manda em permissao e o perfil lido no banco, nunca o localStorage
+// feito validacao de role via tabela profiles do banco porque dados em localStorage eram suscetiveis a adulteracao local e resolvemos consultando o servidor
 const AUTHORITATIVE_SESSION_KEY = 'petamor_verified_session';
 let perfilVerificado = null;
 
@@ -542,7 +524,7 @@ function saveVerifiedSession(user) {
   return payload;
 }
 
-// le o perfil uma vez por carregamento, em sessionStorage
+// feito cache de sessao em sessionStorage porque consultas repetidas a cada acao degradavam a cota da API e resolvemos armazenando a leitura inicial
 async function getVerificacaoAtual() {
   if (perfilVerificado) return perfilVerificado;
   const client = getSupabaseClient();
@@ -581,7 +563,7 @@ function resetVerificacao() {
   sessionStorage.removeItem(AUTHORITATIVE_SESSION_KEY);
 }
 
-// colunas na mao: select('*') traria o recovery_code pro cliente
+// feito select com projecao restrita porque select('*') vazava recovery_code e metadados no cliente e resolvemos listando apenas colunas essenciais
 const COLUNAS_PERFIL_PUBLICAS = 'id, email, full_name, username, birth_date, avatar_url, favorite_posts, role, status, created_at';
 
 async function fetchProfileByUserId(userId) {
@@ -600,17 +582,13 @@ async function fetchProfileByUserId(userId) {
 async function resolveEmailFromIdentifier(client, identifier) {
   const raw = String(identifier || '').trim();
   if (!raw) throw new Error('Informe seu e-mail ou nome de usuário.');
-
-  // Caso de atalho de conveniência do admin
   if (raw.toLowerCase() === 'admin') {
     return 'admin@petamor.com';
   }
 
-  // Se o usuário digitou com @ no início (ex: @usuario), trata como username explícito
   const isExplicitUsername = raw.startsWith('@');
   const cleanInput = raw.replace(/^@+/, '').trim();
 
-  // Se NÃO é username explícito e contém @ no meio com estrutura de e-mail
   if (!isExplicitUsername && cleanInput.includes('@')) {
     const emailLower = cleanInput.toLowerCase();
     if (!isValidEmail(emailLower)) {
@@ -619,13 +597,12 @@ async function resolveEmailFromIdentifier(client, identifier) {
     return emailLower;
   }
 
-  // Caso contrário, trata como nome de usuário (username)
   const cleanUsername = normalizeUsername(cleanInput);
   if (!cleanUsername) {
     throw new Error('Informe um nome de usuário válido.');
   }
 
-  // 1. Tentar via RPC seguro get_email_by_username (SECURITY DEFINER para usuários anon/não autenticados)
+  // feito resolucao de username via RPC get_email_by_username porque a tabela auth.users nao e publica para visitantes anonimos e resolvemos com funcao security definer
   try {
     const { data: rpcEmail, error: rpcError } = await client.rpc('get_email_by_username', {
       p_username: cleanUsername
@@ -637,7 +614,6 @@ async function resolveEmailFromIdentifier(client, identifier) {
     console.warn('Tentativa via RPC get_email_by_username falhou:', err);
   }
 
-  // 2. Fallback: consulta direta na tabela profiles caso a RPC ainda não tenha sido executada no banco
   try {
     const { data: profile, error: profileError } = await client
       .from('profiles')
@@ -652,7 +628,6 @@ async function resolveEmailFromIdentifier(client, identifier) {
     console.warn('Tentativa direta em profiles por username falhou:', err);
   }
 
-  // Se não foi encontrado nenhum e-mail para este username
   throw new Error('Usuário não encontrado.');
 }
 
@@ -726,13 +701,7 @@ async function handleAdminAccountSubmit(event) {
   }
 }
 
-/**
- * Comprime e converte qualquer imagem para WebP via Canvas mantendo o consumo de memória sob controle
- * (URL.revokeObjectURL) e garantindo tamanho final do Blob < 150 KB.
- * Perfis:
- * - 'perfil': max 300x300, qualidade inicial 0.75
- * - 'pet': max 900px no maior lado mantendo proporção, qualidade inicial 0.80
- */
+// feito compressao em canvas com WebP porque imagens pesadas estouravam o Storage e atrasavam o LCP e resolvemos redimensionando dinamicamente com limite de 150KB
 function compressAndValidateImage(file, profileName = 'pet') {
   if (typeof window !== 'undefined' && window.ImageService && typeof window.ImageService.compressAndValidateImage === 'function') {
     return window.ImageService.compressAndValidateImage(file, profileName);
@@ -795,7 +764,7 @@ function compressAndValidateImage(file, profileName = 'pet') {
         ctx.imageSmoothingQuality = 'high';
         ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
 
-        const MAX_BLOB_BYTES = 150 * 1024; // 150 KB
+        const MAX_BLOB_BYTES = 150 * 1024;
 
         const tryEncode = (quality) => {
           canvas.toBlob((blob) => {
@@ -830,9 +799,7 @@ function compressAndValidateImage(file, profileName = 'pet') {
   });
 }
 
-/**
- * Exclui com segurança um arquivo do Supabase Storage prevenindo arquivos órfãos.
- */
+// feito remocao segura de fotos no Storage porque manter arquivos sem vinculo estourava a cota gratuita e resolvemos expurgando caminhos orfaos
 async function deleteStorageImageByUrl(urlOrPath, bucket = 'imagens-adocao') {
   if (typeof window !== 'undefined' && window.ImageService && typeof window.ImageService.deleteStorageImage === 'function') {
     return window.ImageService.deleteStorageImage(urlOrPath, getSupabaseClient(), bucket);
@@ -913,7 +880,7 @@ async function registerWithSupabase(name, username, email, password, birthDate, 
   if (error) throw new Error(mensagemDeErroSegura(error));
 
   let currentSession = data.session;
-  // Login instantâneo automático se o signUp não tiver gerado a sessão imediata
+  // feito login automatico via signInWithPassword porque o signUp com confirmacao desativada nem sempre retornava sessao imediata e resolvemos autenticando na sequencia
   if (!currentSession && data.user) {
     try {
       const loginRes = await client.auth.signInWithPassword({ email, password });
@@ -921,7 +888,6 @@ async function registerWithSupabase(name, username, email, password, birthDate, 
         currentSession = loginRes.data.session;
       }
     } catch (_) {
-      // Continua caso o login pendente falhe
     }
   }
 
@@ -941,15 +907,13 @@ async function registerWithSupabase(name, username, email, password, birthDate, 
       if (avatarUrl) {
         await deleteStorageImageByUrl(avatarUrl);
       }
-      // o 23505 aqui e o indice do username. confere antes de acusar, senao
-      // qualquer outra constraint vira "nome de usuario ja em uso".
+      // feito verificacao isolada de violacao da chave 23505 porque outras constraints geravam mensagens falsas de username duplicado e resolvemos checando garantirUsernameLivre
       if (profileError.code === '23505') {
         await garantirUsernameLivre(client, normalizedUsername, userId);
       }
       throw new Error(mensagemDeErroSegura(profileError, 'Não foi possível salvar o perfil. Tente novamente.'));
     }
 
-    // Salva o código de recuperação através da RPC segura com salt e hash criptográfico
     try {
       await client.rpc('save_recovery_code', { p_code: recoveryCode });
     } catch (rcError) {
@@ -972,7 +936,7 @@ async function registerWithSupabase(name, username, email, password, birthDate, 
   };
 }
 
-// recolhe o hero em vez de esconder, senao os atalhos #inicio e #ajuda quebram
+// feito recolhimento do hero com classe CSS em vez de display:none porque esconder o elemento quebrava a navegacao por ancoras #inicio e resolvemos com altura colapsada
 async function updateHomeUserActions() {
   const session = getSession();
   const heroSection = document.getElementById('inicio');
@@ -1029,7 +993,7 @@ function setupDonationRedirect() {
   });
 }
 
-// reveal por scroll, so esconde se o js estiver ativo
+// feito estilizacao progressiva com IntersectionObserver porque usuarios sem JavaScript ou com conexao lenta ficavam com conteudo invisivel e resolvemos revelando apenas via script ativo
 function setupScrollReveal() {
   const alvos = document.querySelectorAll('[data-reveal], [data-reveal-stagger]');
   if (!alvos.length) return;
@@ -1082,7 +1046,7 @@ function setupPWA() {
   });
 }
 
-// imagem quebrada vira uma pata, sem loop infinito
+// feito fallback global de imagens com trava de dataset porque falhas consecutivas de rede geravam loop infinito no evento error e resolvemos marcando dataset.fallbackAplicado
 function setupImageFallbacks() {
   const PLACEHOLDER = DEFAULT_AVATAR_URL;
   document.addEventListener('error', (event) => {
@@ -1232,13 +1196,12 @@ async function setPostApprovalMode(enabled) {
     return false;
   }
 
-  // Tenta via RPC blindada no banco
+  // feito chamada a RPC admin_set_post_approval_mode com fallback para upsert direto porque instalacoes sem a procedure causavam falha na alteracao e resolvemos sincronizando com system_settings
   const { data, error } = await getSupabaseClient().rpc('admin_set_post_approval_mode', {
     p_enabled: Boolean(enabled)
   });
 
   if (error) {
-    // Fallback para upsert direto na tabela system_settings
     const { error: updateErr } = await getSupabaseClient()
       .from('system_settings')
       .upsert({
@@ -1393,14 +1356,13 @@ async function moderatePost(postId, action) {
     if (!confirmReject) return;
   }
 
-  // Tenta via RPC blindada
+  // feito chamada a RPC admin_moderate_post com fallback para update direto porque ambientes legados sem a procedure precisam atualizar o status e resolvemos com bloco defensivo
   const { data, error } = await getSupabaseClient().rpc('admin_moderate_post', {
     p_post_id: postId,
     p_action: action
   });
 
   if (error) {
-    // Fallback para update direto
     const newStatus = isApproval ? 'active' : 'rejected';
     const { error: updateErr } = await getSupabaseClient()
       .from('posts')
@@ -1426,8 +1388,6 @@ async function moderatePost(postId, action) {
 
 async function renderAdminDashboard() {
   const client = getSupabaseClient();
-
-  // atualiza os cards e metricas
   try {
     const [adsRes, usersRes, bansRes, pendingRes, adoptedRes, viewsRes, statsRes] = await Promise.all([
       client.from('posts').select('id', { count: 'exact', head: true }).eq('status', 'active'),
@@ -1461,8 +1421,6 @@ async function renderAdminDashboard() {
     if (document.getElementById('pendingPostsCount')) document.getElementById('pendingPostsCount').textContent = String(pendingCount);
     if (document.getElementById('totalAdopted')) document.getElementById('totalAdopted').textContent = String(adoptedCount);
     if (document.getElementById('adoptionRate')) document.getElementById('adoptionRate').textContent = adoptionRateStr;
-
-    // preenche o painel de analytics se existir
     if (document.getElementById('analyticsTotalViews')) document.getElementById('analyticsTotalViews').textContent = totalViews.toLocaleString('pt-BR');
     if (document.getElementById('analyticsConversionRate')) document.getElementById('analyticsConversionRate').textContent = adoptionRateStr;
     if (document.getElementById('analyticsTotalHomes')) document.getElementById('analyticsTotalHomes').textContent = totalHomes.toLocaleString('pt-BR');
@@ -1480,8 +1438,6 @@ async function renderAdminDashboard() {
   } catch (err) {
     console.warn('Erro ao carregar estatísticas do admin:', err);
   }
-
-  // Tabela de todas as publicações do site
   const postsTableBody = document.getElementById('postsTableBody');
   if (postsTableBody) {
     const { data: posts, error } = await client
@@ -1507,8 +1463,6 @@ async function renderAdminDashboard() {
       `).join('') || '<tr><td colspan="4">Nenhum post publicado.</td></tr>';
     }
   }
-
-  // Tabela de usuários cadastrados
   const usersTableBody = document.getElementById('usersTableBody');
   if (usersTableBody) {
     const { data: users, error: userErr } = await client
@@ -1610,7 +1564,7 @@ function setupStatisticsManagement() {
   document.getElementById('resetStatisticsButton')?.addEventListener('click', () => updateSiteStatistics(0, true));
 }
 
-// Exclusão segura de publicação com remoção ativa de imagens no Supabase Storage (anti-órfão)
+// feito exclusao em cascata de publicacoes e fotos porque apagar apenas o registro deixava arquivos orfaos no Storage e resolvemos iterando image_urls antes do retorno
 async function deletePost(postId) {
   const session = getSession();
   const isAdmin = await isCurrentUserAdmin();
@@ -1626,8 +1580,7 @@ async function deletePost(postId) {
     showToast('Publicação não encontrada.', 'error');
     return;
   }
-
-  // Barreira de autorização: apenas o dono ou um administrador pode excluir
+  // feito checagem de autoria e perfil admin porque requisicoes forjadas no cliente podiam apagar posts de terceiros e resolvemos validando com session.userId
   if (post.user_id !== session?.userId && !isAdmin) {
     showToast('Apenas o autor da publicação ou administradores podem excluí-la.', 'error');
     return;
@@ -1642,8 +1595,6 @@ async function deletePost(postId) {
     showToast(`Não foi possível excluir o post: ${mensagemDeErroSegura(error)}`, 'error');
     return;
   }
-
-  // Prevenção de arquivos órfãos: expurga todas as imagens da publicação no Storage
   if (post.image_urls) {
     const rawUrls = Array.isArray(post.image_urls) ? post.image_urls : [post.image_urls];
     for (const url of rawUrls) {
@@ -1712,7 +1663,7 @@ async function banAdminUser(userId) {
 }
 
 function bindAdminActions() {
-  // evita cadastrar o listener duas vezes
+  // feito guarda booleana __adminActionsBound porque re-renderizacoes do painel duplicavam listeners de clique e resolvemos travando apos a primeira vinculacao
   if (window.__adminActionsBound) return;
   window.__adminActionsBound = true;
   document.body.addEventListener('click', (event) => {
@@ -1915,7 +1866,7 @@ const BREED_CATALOGS = {
 
 const breedOptionsCache = new Map();
 
-// icone de localizacao em svg. antes esse mesmo svg aparecia copiado em 7 pontos.
+// feito centralizacao de ICONE_PIN em constante unica porque o mesmo SVG estava duplicado em 7 pontos do bundle e resolvemos reaproveitando a string
 const ICONE_PIN = '<svg class="pin-icon" viewBox="0 0 24 24" width="14" height="14" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 5.2-8 12-8 12s-8-6.8-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="2.6"/></svg>';
 
 const SPECIES_OPTIONS = {
@@ -1960,11 +1911,7 @@ const BREEDS_BY_SPECIES = {
   Peixe: `Betta|Carpa koi|Kinguio|Peixe-palhaço`
 };
 
-/**
- * Ordena a lista de raças priorizando a opção padrão correspondente:
- * - Para cães e gatos: "Vira-lata (SRD)" fica sempre em primeiro lugar.
- * - Para todas as demais espécies/categorias: "Não sei" fica sempre em primeiro lugar.
- */
+// feito ordenacao de racas com prioridade para SRD ou Nao sei porque usuarios perdiam tempo rolando listas longas e resolvemos inserindo a opcao padrao no topo
 function orderBreedsForAnimal(breeds, animalTypeOrSpecies) {
   const isDogOrCat = animalTypeOrSpecies === 'Cachorro' || animalTypeOrSpecies === 'Gato';
   const defaultOption = isDogOrCat ? 'Vira-lata (SRD)' : 'Não sei';
@@ -1978,11 +1925,10 @@ function orderBreedsForAnimal(breeds, animalTypeOrSpecies) {
     const trimmed = String(breed || '').trim();
     if (!trimmed) return;
     const normalized = normalizeSelectSearch(trimmed);
-    // Remove qualquer menção a Vira-lata para espécies que não sejam cães ou gatos
+    // feito expurgo de Vira-lata para exoticos e Nao sei para caes e gatos porque opcoes incongruentes poluiam a selecao e resolvemos filtrando pela especie
     if (!isDogOrCat && (normalized.includes('vira-lata') || normalized.includes('srd'))) {
       return;
     }
-    // Remove "Não sei" de cães e gatos caso venha do banco
     if (isDogOrCat && normalized === 'nao sei') {
       return;
     }
@@ -2239,8 +2185,6 @@ function setupCreatePostForm() {
     const canChooseBreed = Boolean(animalType && (!needsSpecies || (species && BREEDS_BY_SPECIES[species])));
     speciesLabel.hidden = !needsSpecies;
     speciesField.disabled = !needsSpecies;
-
-    // Genética é exclusiva de Adoção Definitiva!
     if (!isAdoption) {
       geneticsFields.hidden = true;
       [breedField, motherBreedField, fatherBreedField].forEach((select) => {
@@ -2261,8 +2205,6 @@ function setupCreatePostForm() {
     breedField.closest('label').firstChild.textContent = (species ? ('Ra\u00e7a da esp\u00e9cie ' + species) : ('Qual a ra\u00e7a/esp\u00e9cie do ' + animalName + '?')) + ' ';
     motherBreedField.closest('label').firstChild.textContent = (species ? ('Ra\u00e7a da m\u00e3e (' + species + ')') : 'Ra\u00e7a ou Esp\u00e9cie da M\u00e3e') + ' ';
     fatherBreedField.closest('label').firstChild.textContent = (species ? ('Ra\u00e7a do pai (' + species + ')') : 'Ra\u00e7a/Esp\u00e9cie do Pai') + ' ';
-
-    // Porte do cachorro (obrigatorio em Adocao e LT; dispensado em Apadrinhamento)
     const showSize = !isSponsorship && animalType === 'Cachorro';
     sizeField.hidden = !showSize;
     sizeInput.disabled = !showSize;
@@ -2308,8 +2250,6 @@ function setupCreatePostForm() {
     const hasType = Boolean(typeField.value);
     const needsSpecies = Boolean(SPECIES_OPTIONS[typeField.value]?.length);
     const hasSpecies = !needsSpecies || Boolean(speciesField.value);
-    
-    // Genética só é exigida em Adoção Definitiva
     const requiresGenetics = isAdoption && (!needsSpecies || Boolean(BREEDS_BY_SPECIES[speciesField.value]));
     revealStep(detailsStep, hasType);
 
@@ -2324,8 +2264,6 @@ function setupCreatePostForm() {
     const geneticReady = !requiresGenetics || Boolean(
       breedField.value.trim() && parentMatches && motherBreedField.value.trim() && fatherBreedField.value.trim()
     );
-
-    // Validação de porte: dispensado em apadrinhamento e para não-caninos
     const sizeReady = isSponsorship || typeField.value !== 'Cachorro' || Boolean(sizeInput.value);
 
     const detailsReady = Boolean(
@@ -2343,8 +2281,7 @@ function setupCreatePostForm() {
     const isAdoption = val === 'adocao';
     const isLT = val === 'lar_temporario';
     const isSponsorship = val === 'apadrinhamento';
-
-    // 1. Fieldsets específicos de cada modalidade
+    // feito exibicao condicional de genetica e porte porque modalidades como apadrinhamento e especies nao-caninas nao exigem esses dados e resolvemos ocultando e desabilitando os inputs no form
     const ltFields = document.getElementById('larTemporarioFields');
     const sponsorshipFields = document.getElementById('apadrinhamentoFields');
     if (ltFields) {
@@ -2365,8 +2302,6 @@ function setupCreatePostForm() {
         });
       }
     }
-
-    // 2. Convivência: oculta e limpa em Apadrinhamento
     const livingFieldset = document.getElementById('postLivingFieldset');
     if (livingFieldset) {
       revealStep(livingFieldset, !isSponsorship);
@@ -2377,8 +2312,6 @@ function setupCreatePostForm() {
         });
       }
     }
-
-    // 3. Adaptação a apartamento: oculta e limpa em Apadrinhamento
     const apartmentField = document.getElementById('postApartmentField');
     if (apartmentField) {
       apartmentField.hidden = isSponsorship;
@@ -2388,8 +2321,6 @@ function setupCreatePostForm() {
         if (isSponsorship) aptInput.value = '';
       }
     }
-
-    // 4. Nível de energia: oculta e limpa em Apadrinhamento
     const energyLevelField = document.getElementById('postEnergyLevelField');
     if (energyLevelField) {
       energyLevelField.hidden = isSponsorship;
@@ -2399,8 +2330,6 @@ function setupCreatePostForm() {
         if (isSponsorship) energyInput.value = '';
       }
     }
-
-    // 5. Atualiza campos de raça, porte e genética conforme modalidade
     updateBreedFields();
   };
 
@@ -2413,7 +2342,7 @@ function setupCreatePostForm() {
   form.addEventListener('input', updateProgressiveStages);
   form.addEventListener('change', updateProgressiveStages);
 
-  // Auto-save de rascunho em localStorage para prevenir perda acidental de dados
+  // feito salvamento automatico de rascunho em localStorage porque perdas de conexao ou recarregamentos limpavam o formulario e resolvemos persistindo a cada digitacao
   const savePostDraft = () => {
     try {
       const draft = {
@@ -2431,8 +2360,6 @@ function setupCreatePostForm() {
   };
   form.addEventListener('input', savePostDraft);
   form.addEventListener('change', savePostDraft);
-
-  // Notificação para restaurar rascunho anterior se houver
   try {
     const rawDraft = localStorage.getItem('petamor_post_draft');
     if (rawDraft) {
@@ -2486,7 +2413,7 @@ async function handleCreatePostSubmit(event) {
   const submitButton = form.querySelector('button[type="submit"]') || document.getElementById('createPostSubmit');
   const originalSubmitText = submitButton ? submitButton.innerHTML : '';
 
-  // Bloqueio imediato contra duplo clique
+  // feito desabilitacao imediata do botao de submit porque cliques duplos enviavam posts duplicados e resolvemos bloqueando com indicador de carregamento
   if (submitButton) {
     submitButton.disabled = true;
     submitButton.innerHTML = '<span class="spinner" aria-hidden="true"></span> Publicando anúncio...';
@@ -2524,8 +2451,7 @@ async function handleCreatePostSubmit(event) {
   const instagram = form.instagram.value.trim();
   const photoFiles = form.__selectedFiles || [];
 
-  // campos de filtro: vazio vira null (= nao informado), nunca false.
-  // isso evita que exigir um filtro esconda anuncios que nao preencheram o campo.
+  // feito conversao de campos vazios para null porque armazenar false excluia animais sem informacao dos filtros tri-state e resolvemos tratando 'sim'/'nao' explicitamente
   const simNaoOuNulo = (nome) => {
     const v = (form.elements.namedItem(nome)?.value || '').trim();
     if (v === 'sim') return true;
@@ -2575,7 +2501,7 @@ async function handleCreatePostSubmit(event) {
 
   const uploadedResults = [];
   try {
-    // sobe uma a uma para conseguir desfazer se alguma falhar no meio
+    // feito envio sequencial de imagens com rastreamento de caminhos porque upload em lote sem controle impedia o rollback em caso de falha e resolvemos armazenando uploadedResults
     for (const file of photoFiles) {
       const res = await uploadPostImage(file, userData.user.id);
       uploadedResults.push(res);
@@ -2603,7 +2529,6 @@ async function handleCreatePostSubmit(event) {
       sponsorship_purpose: isSponsorship ? textoOuNulo('sponsorshipPurpose') : null,
       sponsorship_goal: isSponsorship ? textoOuNulo('sponsorshipGoal') : null,
       sponsorship_pix: isSponsorship ? textoOuNulo('sponsorshipPix') : null,
-      // campos de filtro e características
       age_group: textoOuNulo('ageGroup'),
       gender: textoOuNulo('gender'),
       energy_level: isSponsorship ? null : textoOuNulo('energyLevel'),
@@ -2617,8 +2542,6 @@ async function handleCreatePostSubmit(event) {
       good_with_cats: isSponsorship ? null : simNaoOuNulo('goodWithCats'),
       status: 'active'
     };
-
-    // Validação e enquadramento do status conforme modo de aprovação prévia
     const requireApproval = await getPostApprovalSetting();
     const isAdmin = await isCurrentUserAdmin();
     if (requireApproval && !isAdmin) {
@@ -2628,7 +2551,7 @@ async function handleCreatePostSubmit(event) {
     const { error } = await getSupabaseClient().from('posts').insert([post]).select().single();
     if (error) {
       console.error(error);
-      // ROLLBACK TRANSAÇÃO: Remove todas as fotos enviadas caso o INSERT no banco falhe
+      // feito rollback manual no Storage imagens-adocao porque a falha no insert do banco deixava arquivos orfaos e resolvemos removendo os caminhos de uploadedResults
       const pathsToRollback = uploadedResults.map((r) => r.path).filter(Boolean);
       if (pathsToRollback.length > 0) {
         await getSupabaseClient().storage.from('imagens-adocao').remove(pathsToRollback);
@@ -2668,7 +2591,6 @@ async function handleCreatePostSubmit(event) {
     }
   } catch (error) {
     unlockSubmit();
-    // Se falhar durante qualquer ponto do upload ou processamento, desfaz uploads já concluídos
     if (uploadedResults && uploadedResults.length > 0) {
       const pathsToClean = uploadedResults.map((r) => r.path).filter(Boolean);
       if (pathsToClean.length > 0) {
@@ -2700,8 +2622,6 @@ function getFeedSkeletonHTML(count = 4) {
     </article>
   `.repeat(count);
 }
-
-// bloco de renderização do feed com zero CLS e projeção enxuta
 function renderFeed(append = false) {
   const feedTarget = document.getElementById('feedPosts');
   const typeField = document.getElementById('feedType');
@@ -2722,7 +2642,7 @@ function renderFeed(append = false) {
   const breedValue = (breedField?.value || '').trim().toLowerCase();
   const breedLabel = breedField?.selectedOptions[0]?.textContent || breedValue;
 
-  // Projeção enxuta de colunas para eliminar over-fetching e acelerar LCP
+  // feito projecao POST_CARD_COLUMNS nas consultas do feed porque selecionar todos os campos saturava a banda e atrasava o LCP e resolvemos requisitando apenas colunas visiveis
   let query = getSupabaseClient().from('posts').select(POST_CARD_COLUMNS).eq('status', 'active').order('created_at', { ascending: false }).range(page * FEED_PAGE_SIZE, (page + 1) * FEED_PAGE_SIZE - 1);
 
   if (stateValue) query = query.eq('state', stateValue);
@@ -2826,7 +2746,7 @@ function renderRecentPosts() {
   const target = document.getElementById('recentPosts');
   if (!target) return;
 
-  // SWR: renderiza cache instantâneo se válido (< 45s), eliminando sensação de lentidão
+  // feito cache SWR em feedSWRMemoryCache com validade de 45s porque requisicoes frequentes a cada navegacao causavam lentidao e resolvemos servindo memoria antes da rede
   const cached = feedSWRMemoryCache.get('recent_posts_home');
   if (cached && (Date.now() - cached.time < 45000)) {
     renderRecentPostsData(target, cached.data);
@@ -2950,8 +2870,7 @@ function formatPostLocation(post) {
   return [city, state].filter(Boolean).join(', ');
 }
 
-// faixa de idade a partir da data de nascimento (0000-00-00). fica no cadastro
-// pra que a idade envelheca sozinha, sem o anuncio mentir com o tempo
+// feito calculo dinamico de faixa etaria via birth_date porque faixas fixas ficavam desatualizadas com o tempo e resolvemos computando a diferenca em meses na data atual
 function faixaDeIdadePorNascimento(birthDate) {
   if (!birthDate) return null;
   const nasc = new Date(`${birthDate}T00:00:00`);
@@ -2997,8 +2916,6 @@ function getPostContact(post) {
   const contacts = getContactItems(post);
   return contacts.length ? contacts.join(' | ') : 'Contato não informado';
 }
-
-// le os campos do painel de filtros. devolve so o que foi escolhido.
 function lerFiltrosDaTela() {
   const v = (id) => (document.getElementById(id)?.value || '').trim();
   return {
@@ -3016,21 +2933,17 @@ function algumFiltroAtivo(f) {
   return Object.values(f).some((x) => x !== '');
 }
 
-// booleano de 3 estados: 'sim' -> true, 'nao' -> false, vazio -> nao filtra.
-// o null nao entra na comparacao, entao quem nao informou continua aparecendo.
+// feito filtro tri-state em aplicarBooleano porque buscas booleanas binarias excluiam registros com valor null e resolvemos ignorando condicoes vazias
 function aplicarBooleano(query, coluna, valor) {
   if (valor === 'sim') return query.eq(coluna, true);
   if (valor === 'nao') return query.eq(coluna, false);
   return query;
 }
-
-// foto de estado vazio, reaproveitada em varios pontos
 function fotoVazia() {
   return { url: 'https://images.unsplash.com/photo-1552053831-71594a27632d?auto=format&fit=crop&w=800&q=72', alt: 'Cachorro aguardando adoção' };
 }
 
-// etiquetas que explicam o animal. campo sem informacao vira etiqueta neutra,
-// em vez de sumir da ficha.
+// feito geracao de chipsDeAtributos com cores semanticas porque atributos booleanos precisavam de distincao visual e resolvemos mapeando classes de destaque
 function chipsDeAtributos(post) {
   const chips = [];
   const add = (texto, tom) => chips.push(`<span class="atributo atributo-${tom || 'neutro'}">${escapeHTML(texto)}</span>`);
@@ -3047,8 +2960,6 @@ function chipsDeAtributos(post) {
 
   return chips.length ? `<div class="post-atributos">${chips.join('')}</div>` : '';
 }
-
-// rotulo legivel de cada filtro, para virar chip na tela
 const ROTULOS_FILTRO = {
   state: 'Estado', city: 'Cidade', breed: 'Raça', gender: 'Sexo', age: 'Idade',
   size: 'Porte', energy: 'Energia', neutered: 'Castrado', vaccinated: 'Vacinado',
@@ -3056,8 +2967,7 @@ const ROTULOS_FILTRO = {
   dogs: 'Com cachorros', cats: 'Com gatos', special: 'Necessidades especiais',
 };
 
-// chips dos filtros aplicados. cada um remove o proprio filtro ao clicar,
-// o que evita obrigar a pessoa a reabrir o painel so para desfazer.
+// feito interatividade direta nos chips de filtro porque reabrir o painel para desmarcar causava atrito na navegacao e resolvemos removendo chaves via data-limpar-filtro
 function renderChipsFiltros(f) {
   const alvo = document.getElementById('filtrosAtivos');
   if (!alvo) return;
@@ -3075,8 +2985,6 @@ function renderChipsFiltros(f) {
     </button>`;
   }).join('');
 }
-
-// mostra quantos filtros estao ativos e quantos resultados voltaram
 function atualizarResumoFiltros(f, total) {
   const contagem = document.getElementById('filtrosContagem');
   const limpar = document.getElementById('filtrosLimpar');
@@ -3088,8 +2996,7 @@ function atualizarResumoFiltros(f, total) {
   contagem.textContent = total === 1 ? '1 animal encontrado' : `${total} animais encontrados`;
 }
 
-// painel de filtros: abre e fecha, limpa tudo e guarda o que foi escolhido.
-// preservar o estado importa: voltar para a pagina nao pode zerar a busca.
+// feito persistencia de filtros em sessionStorage CHAVE_FILTROS porque navegar para detalhes e voltar perdia a busca do usuario e resolvemos recarregando o estado no load
 const CHAVE_FILTROS = 'petamor_filtros_categoria';
 
 const IDS_CAMPOS_FILTRO = {
@@ -3102,7 +3009,7 @@ const IDS_CAMPOS_FILTRO = {
 };
 
 function salvarFiltrosNaSessao(f) {
-  try { sessionStorage.setItem(CHAVE_FILTROS, JSON.stringify(f)); } catch (e) { /* modo privado */ }
+  try { sessionStorage.setItem(CHAVE_FILTROS, JSON.stringify(f)); } catch (e) {}
 }
 
 function restaurarFiltrosDaSessao() {
@@ -3117,9 +3024,7 @@ function restaurarFiltrosDaSessao() {
   return algum;
 }
 
-// sincroniza o dropdown com o valor do select nativo.
-// o texto vive no proprio botao (nao existe .custom-select-label), e usamos o
-// evento proprio do componente para nao disparar 'change' e refazer a busca.
+// feito disparo de customselect:refresh em sincronizarSelectCustomizado porque disparar change causava cascata de novas buscas e resolvemos atualizando apenas a interface do select
 function sincronizarSelectCustomizado(campo) {
   if (!campo) return;
   campo.dispatchEvent(new Event('customselect:refresh'));
@@ -3146,14 +3051,10 @@ function limparFiltros() {
     cityField.disabled = true;
     sincronizarSelectCustomizado(cityField);
   }
-
-  // Limpa campos de busca
   document.querySelectorAll('input[type="search"], .search-input, #searchInput, .custom-select-search').forEach((input) => {
     input.value = '';
     input.dispatchEvent(new Event('input', { bubbles: true }));
   });
-
-  // Desmarca checkboxes/radios do painel de filtros caso existam
   document.querySelectorAll('#painelFiltros input[type="checkbox"], #painelFiltros input[type="radio"]').forEach((input) => {
     input.checked = false;
     input.dispatchEvent(new Event('change', { bubbles: true }));
@@ -3164,7 +3065,6 @@ function limparFiltros() {
   try {
     sessionStorage.removeItem(CHAVE_FILTROS);
   } catch (e) {
-    /* ignora */
   }
 
   const chipsContainer = document.getElementById('filtrosAtivos');
@@ -3186,8 +3086,7 @@ function limparBuscaDeSelectCustomizado() {
   });
 }
 
-// esqueleto no formato do card. evita a piscada de "Carregando" em conexao boa:
-// so aparece se a resposta demorar mais que o limiar.
+// feito atraso de 220ms para esqueletoDeCards porque exibir loading em conexoes rapidas gerava cintilacao visual e resolvemos aguardando o limiar antes de renderizar
 function esqueletoDeCards(quantidade) {
   return `<div class="carregando-cards" aria-hidden="true">${
     Array.from({ length: quantidade || 3 }, () => `
@@ -3205,13 +3104,10 @@ async function renderCategoryFeed(animalType) {
   if (!target) return;
   const f = lerFiltrosDaTela();
 
-  // se o usuario mexe em varios filtros rapido, a resposta antiga nao pode
-  // pintar por cima da nova. so o ultimo pedido escreve na tela.
-  const meuPedido = (Number(target.dataset.pedido) || 0) + 1;
+  // feito controle de concorrencia com dataset.pedido em renderCategoryFeed porque respostas lentas anteriores sobrescreviam filtros mais recentes e resolvemos descartando requisicoes obsoletas
+    const meuPedido = (Number(target.dataset.pedido) || 0) + 1;
   target.dataset.pedido = String(meuPedido);
   const aindaVale = () => target.dataset.pedido === String(meuPedido);
-
-  // so pinta o esqueleto se a resposta demorar; em conexao boa nem pisca
   const temporizador = window.setTimeout(() => {
     if (aindaVale() && !target.children.length) target.innerHTML = esqueletoDeCards(3);
   }, 220);
@@ -3249,7 +3145,7 @@ async function renderCategoryFeed(animalType) {
 
   const { data, error } = await query;
   window.clearTimeout(temporizador);
-  if (!aindaVale()) return;   // chegou tarde: outro pedido ja assumiu a tela
+  if (!aindaVale()) return;
 
   atualizarResumoFiltros(f, data?.length);
 
@@ -3452,16 +3348,13 @@ async function generateInstagramStory(post) {
     canvas.width = 1080;
     canvas.height = 1920;
     const ctx = canvas.getContext('2d');
-
-    // 1. Fundo Gradiente Elegante
+    // feito geracao dinamica de card de story em Canvas 1080x1920 porque compartilhamento em redes sociais precisava de layout visual atrativo e resolvemos compondo fundo gradiente, foto e metadados
     const bgGrad = ctx.createLinearGradient(0, 0, 0, 1920);
     bgGrad.addColorStop(0, '#fffbf7');
     bgGrad.addColorStop(0.5, '#fef5eb');
     bgGrad.addColorStop(1, '#fde8d7');
     ctx.fillStyle = bgGrad;
     ctx.fillRect(0, 0, 1080, 1920);
-
-    // Decorações de fundo suaves
     ctx.save();
     ctx.fillStyle = 'rgba(217, 97, 27, 0.05)';
     ctx.beginPath();
@@ -3471,8 +3364,6 @@ async function generateInstagramStory(post) {
     ctx.arc(100, 1750, 320, 0, Math.PI * 2);
     ctx.fill();
     ctx.restore();
-
-    // 2. Cabeçalho Superior do Story
     ctx.save();
     ctx.fillStyle = '#b8490f';
     ctx.font = 'bold 44px Manrope, sans-serif';
@@ -3488,8 +3379,6 @@ async function generateInstagramStory(post) {
       : 'Uma vida cheia de amor esperando por você! ✨';
     ctx.fillText(subtitle, 540, 175);
     ctx.restore();
-
-    // 3. Moldura da Foto Principal (920 x 960 px)
     const cardX = 80;
     const cardY = 230;
     const cardW = 920;
@@ -3504,8 +3393,6 @@ async function generateInstagramStory(post) {
     drawRoundedRect(ctx, cardX, cardY, cardW, cardH, radius);
     ctx.fill();
     ctx.restore();
-
-    // Imagem do Animal
     const imgUrl = (Array.isArray(post.image_urls) && post.image_urls[0]) ? post.image_urls[0] : DEFAULT_AVATAR_URL;
     try {
       const img = await loadImageAsync(imgUrl);
@@ -3540,8 +3427,6 @@ async function generateInstagramStory(post) {
       ctx.fillText('🐾', 540, cardY + cardH / 2);
       ctx.restore();
     }
-
-    // 4. Informações do Pet
     const infoY = 1270;
     ctx.save();
     ctx.fillStyle = '#1f1b1b';
@@ -3554,8 +3439,6 @@ async function generateInstagramStory(post) {
     ctx.font = '600 36px Manrope, sans-serif';
     ctx.fillText(`📍 ${formatPostLocation(post)}`, 540, infoY + 65);
     ctx.restore();
-
-    // 5. Pílulas de Características
     const badges = [
       formatAnimalType(post.animal_type) || 'Animal',
       post.breed || 'SRD',
@@ -3587,8 +3470,6 @@ async function generateInstagramStory(post) {
       currentX += w + 16;
     });
     ctx.restore();
-
-    // 6. Rodapé
     ctx.save();
     const footerBoxY = 1570;
     ctx.fillStyle = '#ffffff';
@@ -3611,8 +3492,6 @@ async function generateInstagramStory(post) {
     ctx.font = '500 28px Manrope, sans-serif';
     ctx.fillText('Acesse: petamor.com.br', 540, footerBoxY + 190);
     ctx.restore();
-
-    // 7. Exportação e Compartilhamento
     canvas.toBlob(async (blob) => {
       if (!blob) {
         showToast('Não foi possível gerar a imagem.', 'error');
@@ -3660,7 +3539,7 @@ async function generateInstagramStory(post) {
   }
 }
 
-// Cache global para acesso imediato aos posts carregados por ID
+// feito cache global globalPostsMap indexado por ID porque abrir o modal a partir do feed nao deve disparar nova requisicao de rede e resolvemos reutilizando dados ja carregados
 const globalPostsMap = new Map();
 
 function registerPostsInGlobalCache(posts) {
@@ -3717,8 +3596,6 @@ async function openAdoptionModal(postOrId) {
 
   const descEl = document.getElementById('modalPostDescription');
   if (descEl) descEl.textContent = post.description || 'Descrição não informada.';
-
-  // Atualiza as tags do topo do modal (animal, suporte, status)
   const modalBodyEl = modal.querySelector('.adoption-modal-body');
   if (modalBodyEl) {
     let tagsContainer = modalBodyEl.querySelector('.modal-tags-row');
@@ -4028,7 +3905,7 @@ function setupGlobalModalHandlers() {
       }
     });
   }
-  // Delegação global: garante que qualquer botão ou card "Ver detalhes" abra o modal com 100% de confiabilidade
+  // feito delegacao global de cliques no document.body para botoes data-post-details porque cards renderizados dinamicamente perdiam listeners individuais e resolvemos interceptando eventos no ancestral comum
   document.body.addEventListener('click', (event) => {
     const trigger = event.target.closest('[data-post-details], [data-adoption-post]');
     if (!trigger) return;
@@ -4052,7 +3929,7 @@ async function setupCategoryPage() {
 
   const label = animalType === 'Cachorro' || animalType === 'Gato' ? 'Todas as raças' : 'Todas as espécies';
 
-  // busca com um respiro: sem isso, mexer em 3 selects seguidos dispara 3 consultas
+  // feito debounce de 260ms na funcao buscar porque alterar multiplos selects seguidos gerava sobrecarga de consultas concorrentes e resolvemos agrupando via temporizador
   let temporizador = null;
   const buscar = (imediato) => {
     window.clearTimeout(temporizador);
@@ -4072,8 +3949,6 @@ async function setupCategoryPage() {
     cityField.addEventListener('change', () => buscar(true));
     loadStates(stateField, cityField);
   }
-
-  // todo filtro do painel dispara a busca
   [
     'categorySupportType', 'categoryGender', 'categoryAge', 'categorySize', 'categoryEnergy',
     'categoryNeutered', 'categoryVaccinated', 'categoryDewormed',
@@ -4083,9 +3958,8 @@ async function setupCategoryPage() {
     document.getElementById(id)?.addEventListener('change', () => buscar(false));
   });
 
-  // abre e fecha o painel. fechado por padrao em qualquer tela: quem quer
-  // filtrar procura, e quem so quer ver os animais nao perde a tela para o painel.
-  const caixa = document.getElementById('filtrosCaixa');
+  // feito recolhimento inicial de filtrosCaixa em mobile e desktop porque manter o painel aberto ocupava toda a viewport inicial e resolvemos com toggle colapsavel via data-estado
+    const caixa = document.getElementById('filtrosCaixa');
   const toggle = document.getElementById('filtrosToggle');
   const rotuloToggle = toggle?.querySelector('.filtros-toggle-texto');
   let liberaOverflow = null;
@@ -4095,17 +3969,14 @@ async function setupCategoryPage() {
     caixa.dataset.estado = aberto ? 'aberto' : 'fechado';
     toggle.setAttribute('aria-expanded', String(aberto));
     if (rotuloToggle) rotuloToggle.textContent = aberto ? 'Ocultar filtros' : 'Mostrar filtros';
-    // enquanto fechado, o conteudo nao recebe foco pelo teclado
     if (aberto) caixa.removeAttribute('inert');
     else caixa.setAttribute('inert', '');
 
-    // o overflow precisa voltar a hidden durante a animacao (senao o 0fr nao
-    // colapsa) e a visible depois, senao o dropdown do select fica recortado.
-    window.clearTimeout(liberaOverflow);
+    // feito alternancia de overflow entre hidden e visible via liberaOverflow porque a transicao de grid 0fr exige clip de conteudo mas o dropdown do select precisa vazar a borda e resolvemos atrasando a visibilidade
+        window.clearTimeout(liberaOverflow);
     delete caixa.dataset.aberto;
     if (aberto) {
       const liberar = () => { caixa.dataset.aberto = 'sim'; };
-      // com menos movimento a animacao e instantanea: nao faz sentido esperar
       const semMovimento = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
       if (animar && !semMovimento) liberaOverflow = window.setTimeout(liberar, 560);
       else liberar();
@@ -4114,7 +3985,7 @@ async function setupCategoryPage() {
     if (!animar) caixa.dataset.semAnimacao = '';
   };
   definirAberto(false, false);
-  // devolve a animacao depois do primeiro quadro, senao a caixa anima ao carregar
+  // feito desativacao temporaria de transicoes via data-sem-animacao no primeiro quadro porque a caixa animava fechando no carregamento da tela e resolvemos liberando no requestAnimationFrame
   window.requestAnimationFrame(() => { if (caixa) delete caixa.dataset.semAnimacao; });
 
   toggle?.addEventListener('click', () => {
@@ -4132,8 +4003,6 @@ async function setupCategoryPage() {
       executarLimpezaFiltros();
     }
   });
-
-  // chip de filtro ativo: clicar remove so aquele filtro
   document.getElementById('filtrosAtivos')?.addEventListener('click', (evento) => {
     const chip = evento.target.closest('[data-limpar-filtro]');
     if (!chip) return;
@@ -4144,8 +4013,6 @@ async function setupCategoryPage() {
     }
     buscar(true);
   });
-
-  // devolve o que o usuario tinha escolhido ao voltar para a pagina
   const restaurou = restaurarFiltrosDaSessao();
   if (restaurou) definirAberto(true, true);
 
@@ -4303,9 +4170,8 @@ function initCustomSelects() {
         });
         options.appendChild(item);
       });
-      // busca so ajuda quando a lista e longa. em lista de 3 opcoes (Sim/Nao/
-      // Tanto faz) ela so ocupava espaco e deixava o menu pesado.
-      const valeBuscar = select.options.length > 6;
+      // feito ocultacao do campo de busca em selects com 6 opcoes ou menos porque menus curtos ficavam excessivamente altos e poluidos e resolvemos ativando apenas quando valeBuscar for verdadeiro
+            const valeBuscar = select.options.length > 6;
       search.hidden = !valeBuscar;
       search.setAttribute('aria-hidden', String(!valeBuscar));
       menu.classList.toggle('custom-select-menu--curto', !valeBuscar);
@@ -4323,7 +4189,6 @@ function initCustomSelects() {
       menu.hidden = !willOpen;
       wrapper.classList.toggle('is-open', willOpen);
       if (willOpen) {
-        // menu curto nao tem busca: o foco vai para a opcao atual
         if (search.hidden) {
           const atual = options.querySelector('.custom-select-option[aria-selected="true"]')
             || options.querySelector('.custom-select-option:not([hidden])');
@@ -4379,7 +4244,7 @@ async function checkSharedPostOnLoad() {
   }
 }
 
-// crypto e nao math.random, o codigo e um segredo
+// feito geracao de codigo com crypto.getRandomValues e rejeicao de bias porque Math.random e previsivel para recuperacao de conta e resolvemos com CSPRNG de 6 digitos uniforme
 function generateRecoveryCode() {
   const limite = 900000;
   const maximo = Math.floor(4294967296 / limite) * limite;
@@ -4604,7 +4469,7 @@ async function handleProfileUsernameSubmit(event) {
 
     const { error } = await getSupabaseClient().from('profiles').update({ username: normalizedUsername }).eq('id', session.userId);
     if (error) {
-      // confere de quem e a violacao antes de acusar o username
+      // feito validacao defensiva do erro 23505 com garantirUsernameLivre porque conflitos em outros campos geravam falso positivo de username e resolvemos testando especificamente a unicidade
       if (error.code === '23505') {
         await garantirUsernameLivre(getSupabaseClient(), normalizedUsername, session.userId);
       }
@@ -4642,11 +4507,11 @@ async function handleAvatarUpdate(event) {
     newAvatarUrl = await uploadAvatar(file, session.userId);
     const { error } = await getSupabaseClient().from('profiles').update({ avatar_url: newAvatarUrl }).eq('id', session.userId);
     if (error) {
-      // ROLLBACK: desfaz o envio no Storage se o banco falhar
+      // feito rollback imediato com deleteStorageImageByUrl porque falhas no update de profiles geravam avatares orfaos e resolvemos desfazendo o upload se o banco falhar
       if (newAvatarUrl) await deleteStorageImageByUrl(newAvatarUrl);
       throw new Error(mensagemDeErroSegura(error));
     }
-    // ANTI-ÓRFÃO: remove foto antiga do Storage para economizar a cota gratuita
+    // feito expurgo de oldAvatarUrl no Storage porque acumulo de avatares antigos estourava a cota do bucket e resolvemos removendo o arquivo substituido
     if (oldAvatarUrl && oldAvatarUrl !== newAvatarUrl) {
       deleteStorageImageByUrl(oldAvatarUrl);
     }
@@ -4851,7 +4716,7 @@ function setupProfilePage() {
   document.getElementById('deleteAccountButton')?.addEventListener('click', deleteAccount);
 }
 
-// uma verificacao no servidor por pagina, antes de renderizar
+// feito verificacao autoritativa unica via getVerificacaoAtual porque consultar o servidor a cada componente causava cascata de rede e resolvemos centralizando no ciclo de inicializacao da pagina
 async function initializePage() {
   const verificacao = await getVerificacaoAtual();
   const data = { user: verificacao?.user || null };
@@ -4915,7 +4780,7 @@ async function initializePage() {
   initCustomSelects();
   setupGlobalModalHandlers();
   initCookieConsent();
-  // Exibe toasts pendentes entre redirecionamentos de página (flash message)
+  // feito leitura de petamor_flash_toast em sessionStorage porque redirecionamentos de pagina limpavam o estado dos toasts e resolvemos exibindo a mensagem apos a nova carga
   try {
     const flashToast = sessionStorage.getItem('petamor_flash_toast');
     if (flashToast) {
@@ -4927,7 +4792,7 @@ async function initializePage() {
     }
   } catch (_) {}
 
-  // Limpa parâmetros sensíveis de URL após fluxos OAuth para segurança
+  // feito remocao de parametros sensiveis da URL via cleanupAuthUrlParams porque tokens de OAuth ficavam expostos no historico do navegador e resolvemos limpando apos o handshake
   cleanupAuthUrlParams();
   document.getElementById('googleAuthButton')?.addEventListener('click', signInWithGoogle);
 

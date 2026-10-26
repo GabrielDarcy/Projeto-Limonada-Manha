@@ -16,20 +16,18 @@
   --line: rgba(34, 28, 23, 0.1);
 
   
-  --r-input: 10px;   /* campos, chips, blocos de código */
-  --r-card: 16px;    /* cards, painéis, modais */
-  --r-pill: 999px;   /* botões, badges, avatares, controles de carrossel */
+  --r-input: 10px;
+  --r-card: 16px;
+  --r-pill: 999px;
 
   
-  --t-xs: 0.75rem;   /* metadados */
-  --t-sm: 0.875rem;  /* apoio, labels */
-  --t-md: 1rem;      /* corpo */
-  --t-lg: 1.125rem;  /* corpo grande */
-  --t-xl: 1.5rem;    /* subtítulo de card */
-  --t-2xl: 2rem;     /* título de seção */
-  --t-3xl: clamp(2.25rem, 4.4vw, 3.6rem); /* h1 */
-
-  /* --- ESPAÇO: ritmo vertical das seções --- */
+  --t-xs: 0.75rem;
+  --t-sm: 0.875rem;
+  --t-md: 1rem;
+  --t-lg: 1.125rem;
+  --t-xl: 1.5rem;
+  --t-2xl: 2rem;
+  --t-3xl: clamp(2.25rem, 4.4vw, 3.6rem);
   --s-section: clamp(3.5rem, 7vw, 6rem);
   --s-gap: clamp(1.25rem, 2.4vw, 2rem);
 
@@ -1562,8 +1560,6 @@ th {
   line-height: 1.5;
   margin: 0;
 }
-
-/* Cards de Formas de Apoio - Seção Unificada Como Ajudar (Adaptação Fluida) */
 .help-actions-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr));
@@ -1848,7 +1844,7 @@ body[data-animal-type="Cachorro"] .category-filters {
   padding-bottom: 6px;
 }
 
-/* menu sem busca (listas curtas tipo Sim/Nao/Tanto faz): mais leve e direto */
+/* feito estilizacao custom-select-menu--curto porque menus com poucas opcoes ficavam desproporcionais com campo de busca e resolvemos reduzindo espacamento */
 .custom-select-menu--curto {
   max-height: 260px;
   padding: 5px;
@@ -2400,8 +2396,6 @@ body[data-animal-type="Cachorro"] .category-filters {
   font-weight: 800;
   text-align: center;
 }
-
-/* Página de Termos de Uso e Isenção */
 .terms-page-layout {
   padding: 48px 0 80px;
 }
@@ -2474,8 +2468,6 @@ body[data-animal-type="Cachorro"] .category-filters {
 .terms-section li {
   margin-bottom: 8px;
 }
-
-/* Modal de Termos de Uso (Sob demanda) */
 .terms-modal .dynamic-modal-panel {
   width: min(720px, 100%);
   max-height: 85vh;
@@ -2807,7 +2799,7 @@ body[data-animal-type="Cachorro"] .category-filters {
   box-shadow: var(--shadow-hover);
 }
 
-/* a foto cresce de leve no hover: dá vida sem mexer no layout */
+/* feito escala suave no hover porque cards sem feedback tatil pareciam inanimados e resolvemos com transform scale */
 .category-pet-card > img,
 .category-pet-card > .post-single-image,
 .category-pet-card .post-carousel-track {
@@ -2820,8 +2812,7 @@ body[data-animal-type="Cachorro"] .category-filters {
   transform: scale(1.03);
 }
 
-/* carregando: blocos na forma do card final, com brilho passando.
-   spinner generico nao diz o que esta vindo; isto diz. */
+/* feito esqueleto com animacao de brilho porque spinners genericos nao representavam a estrutura dos cards e resolvemos com layout espelhado */
 .carregando-cards {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -2852,7 +2843,6 @@ body[data-animal-type="Cachorro"] .category-filters {
 .carregando-card .sk-linha.sk-curta { width: 45%; }
 .carregando-card .sk-linha.sk-media { width: 70%; }
 
-/* o brilho passa por cima de tudo, uma vez por ciclo */
 .carregando-card::after {
   content: "";
   position: absolute;
@@ -2871,7 +2861,6 @@ body[data-animal-type="Cachorro"] .category-filters {
   to   { background-position: -40% 0; }
 }
 
-/* chips de filtro entram em cascata quando aparecem */
 .filtros-ativos .filtro-chip {
   animation: chip-entra var(--d-base) var(--ease-spring) backwards;
 }
@@ -3710,14 +3699,12 @@ html.modal-open,
   font-weight: 800;
 }
 
-/* o atributo hidden precisa vencer display:grid/flex do nosso css.
-   sem isso, painel.hidden = true nao esconde nada e o botao parece morto. */
+/* feito definicao de display:none !important em [hidden] porque regras de flex e grid do CSS sobrescreviam o atributo nativo e resolvemos forcando a precedencia */
 [hidden] {
   display: none !important;
 }
 
-/* texto so para leitor de tela: fica fora da tela, nao usa display:none
-   (senao o leitor ignora) nem visibility (senao some do fluxo de foco). */
+/* feito classe sr-only com clip-path porque leitores de tela ignoram display:none e resolvemos ocultando visualmente mantendo a acessibilidade */
 .sr-only {
   position: absolute;
   width: 1px;
@@ -3730,11 +3717,10 @@ html.modal-open,
   border: 0;
 }
 
-/* painel de filtros: fechado por padrao. abre com transicao real de altura
-   (grid-template-rows 0fr -> 1fr), que e animavel sem medir pixel no js. */
+/* feito transicao com grid-template-rows 0fr para 1fr porque animar max-height causava saltos visuais e resolvemos com interpolacao de grid nativo */
 .filtros {
   position: relative;
-  z-index: 20;          /* mantem o dropdown acima dos cards seguintes */
+  z-index: 20;
   margin: 26px 0 10px;
   padding: 18px 20px;
   background: var(--surface);
@@ -3743,7 +3729,7 @@ html.modal-open,
   box-shadow: var(--shadow-soft);
 }
 
-/* com um select aberto, o painel sobe na frente de tudo que vem depois */
+/* feito elevacao de z-index para 90 quando is-open porque o dropdown ficava escondido sob elementos subsequentes e resolvemos sobrepondo o container */
 .filtros:has(.custom-select.is-open) {
   z-index: 90;
 }
@@ -3789,7 +3775,6 @@ html.modal-open,
   transform: translateY(1px);
 }
 
-/* a seta gira junto com a abertura: reforca o estado sem precisar de texto */
 .filtros-toggle-icone {
   transition: transform var(--d-base) var(--ease-spring);
 }
@@ -3811,11 +3796,7 @@ html.modal-open,
   font-variant-numeric: tabular-nums;
 }
 
-/* a caixa anima a altura. o filho precisa de min-height: 0 e overflow hidden
-   para o 0fr realmente colapsar.
-   ATENCAO: overflow hidden corta o menu suspenso dos selects, que e position
-   absolute. Por isso ele so vale enquanto a caixa esta fechada ou animando;
-   aberta e parada, o overflow volta a visible. */
+/* feito alternancia de overflow para visible apos a expansao porque overflow hidden recortava menus absolute suspensos e resolvemos liberando no estado aberto */
 .filtros-caixa {
   display: grid;
   grid-template-rows: 0fr;
@@ -3834,13 +3815,11 @@ html.modal-open,
   opacity: 1;
 }
 
-/* aberto e sem animacao em curso: libera o overflow para o dropdown aparecer
-   inteiro, em vez de recortado dentro do painel */
 .filtros-caixa[data-estado="aberto"][data-aberto="sim"] > .filtros-campos {
   overflow: visible;
 }
 
-/* sem animacao no primeiro desenho, senao o painel "pula" ao carregar a pagina */
+/* feito supressao de transicao com data-sem-animacao no primeiro carregamento porque o painel disparava animacao falsa ao abrir a pagina e resolvemos desativando no load */
 .filtros-caixa[data-sem-animacao] {
   transition: none;
 }
@@ -3887,7 +3866,6 @@ html.modal-open,
   gap: 12px 16px;
 }
 
-/* chips dos filtros aplicados: da para tirar um filtro sem reabrir o painel */
 .filtros-ativos {
   display: flex;
   flex-wrap: wrap;
@@ -3933,7 +3911,6 @@ html.modal-open,
   .filtros-linhas { grid-template-columns: 1fr; }
 }
 
-/* etiquetas de atributo no card: o estado fica escrito, nao so na cor */
 .post-atributos {
   display: flex;
   flex-wrap: wrap;
@@ -3974,8 +3951,6 @@ html.modal-open,
   background: rgba(255, 138, 61, 0.16);
   color: var(--primary-dark);
 }
-
-/* grupos do formulario de publicacao */
 .care-fieldset {
   margin: 0;
   padding: 18px 20px;
@@ -4551,12 +4526,6 @@ textarea,
     padding: 24px;
   }
 }
-
-/* ==========================================================================
-   NOVAS FUNCIONALIDADES: WhatsApp, Stories, Status de Adoção e LT/Padrinho
-   ========================================================================== */
-
-/* Botão WhatsApp */
 .btn-whatsapp {
   display: inline-flex;
   align-items: center;
@@ -4592,8 +4561,6 @@ textarea,
 .btn-whatsapp svg {
   flex-shrink: 0;
 }
-
-/* Botão Story (Instagram / WhatsApp Status) */
 .btn-story {
   display: inline-flex;
   align-items: center;
@@ -4629,8 +4596,6 @@ textarea,
 .btn-story svg {
   flex-shrink: 0;
 }
-
-/* Badges de Status da Adoção */
 .status-badge {
   display: inline-flex;
   align-items: center;
@@ -4670,8 +4635,6 @@ textarea,
   color: #15803d;
   border: 1px solid rgba(21, 128, 61, 0.25);
 }
-
-/* Badges de Modalidade de Apoio (Lar Temporário e Apadrinhamento) */
 .badge-lt {
   background: #eff6ff !important;
   color: #1d4ed8 !important;
@@ -4683,8 +4646,6 @@ textarea,
   color: #a21caf !important;
   border: 1px solid rgba(162, 28, 175, 0.25) !important;
 }
-
-/* Painel de Gestão de Status em Minhas Publicações */
 .my-post-status-box {
   margin-top: 14px;
   padding: 12px;
@@ -4714,8 +4675,6 @@ textarea,
   font-size: 0.78rem;
   padding: 7px 10px;
 }
-
-/* Modal de Prévia do Card para Stories */
 .story-preview-container {
   display: flex;
   flex-direction: column;
@@ -4742,8 +4701,6 @@ textarea,
 .story-preview-actions .btn {
   flex: 1;
 }
-
-/* Botão PWA Install */
 .btn-pwa-install {
   display: inline-flex;
   align-items: center;
@@ -4767,15 +4724,6 @@ textarea,
 .btn-pwa-install:active {
   transform: scale(0.95);
 }
-
-
-
-
-/* ==========================================================================
-   MODALIDADES DE POST (Lar Temporário e Apadrinhamento)
-   ========================================================================== */
-
-/* Estilos dos Fieldsets no Formulário */
 .modality-fieldset {
   margin-top: 14px;
   border-radius: var(--r-card);
@@ -4804,8 +4752,6 @@ textarea,
   margin-right: 4px;
   font-size: 1.1rem;
 }
-
-/* Card Destacado no Modal de Detalhes */
 .modal-modality-highlight {
   margin: 16px 0;
   padding: 16px 18px;
@@ -4880,8 +4826,6 @@ textarea,
   color: var(--text);
   line-height: 1.35;
 }
-
-/* Callout PIX dentro do Modal de Apadrinhamento */
 .pix-donation-callout {
   margin-top: 14px;
   padding: 12px 14px;
@@ -4940,9 +4884,6 @@ textarea,
   transform: translateY(-1px);
 }
 
-/* ==========================================================================
-   SKELETON SCREENS E ANIMAÇÃO SHIMMER (ZERO CLS)
-   ========================================================================== */
 @keyframes shimmerWave {
   0% { background-position: -200% 0; }
   100% { background-position: 200% 0; }

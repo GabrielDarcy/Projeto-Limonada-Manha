@@ -1,10 +1,4 @@
 @import url("../css/common.css");
-
-/* ==========================================================================
-   PAINEL DE MODERAÇÃO E CONTROLE ADMINISTRATIVO
-   ========================================================================== */
-
-/* Card de Controle do Modo de Aprovação */
 .moderation-toggle-panel {
   display: flex;
   align-items: center;
@@ -47,8 +41,6 @@
   gap: 1rem;
   flex-shrink: 0;
 }
-
-/* Custom Accessible Toggle Switch */
 .toggle-switch {
   position: relative;
   display: inline-block;
@@ -123,13 +115,9 @@
   border: 1px solid rgba(4, 120, 87, 0.35);
   box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.15);
 }
-
-/* Card estatístico de pendentes */
 .stat-card.stat-pending {
   border-left: 4px solid #f59e0b;
 }
-
-/* Tabela de Moderação de Posts Pendentes */
 .pending-posts-section {
   margin-bottom: 2rem;
 }
@@ -243,8 +231,6 @@
 .admin-btn.inspect:hover {
   background: #e2e8f0;
 }
-
-/* Responsividade Mobile para Admin */
 @media (max-width: 768px) {
   .moderation-toggle-panel {
     flex-direction: column;
@@ -270,9 +256,6 @@
   }
 }
 
-/* ==============================================================================
-   PAINEL DE ANALYTICS E TELEMETRIA (Admin)
-   ============================================================================== */
 .admin-analytics-panel {
   margin-bottom: 2rem;
 }
