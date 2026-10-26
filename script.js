@@ -368,17 +368,33 @@ async function toggleFavorite(postId) {
   const normalizedId = String(postId);
   const session = getSession();
   const favorites = getFavoriteIds();
-  const nextFavorites = favorites.includes(normalizedId)
+  const isAlreadyFav = favorites.includes(normalizedId);
+  const nextFavorites = isAlreadyFav
     ? favorites.filter((id) => id !== normalizedId)
     : [...favorites, normalizedId];
+
+  // 1. Atualização otimista imediata no DOM e cache local (0ms)
+  writeStorage(STORAGE_KEYS.favorites, nextFavorites);
+  document.querySelectorAll(`[data-favorite-id="${normalizedId}"]`).forEach((btn) => {
+    btn.classList.toggle('is-favorite', !isAlreadyFav);
+    btn.setAttribute('aria-pressed', String(!isAlreadyFav));
+    btn.setAttribute('aria-label', !isAlreadyFav ? 'Remover dos favoritos' : 'Adicionar aos favoritos');
+  });
+
   if (session) {
-    const { error } = await getSupabaseClient().from('profiles').update({ favorite_posts: nextFavorites }).eq('id', session.userId);
-    if (error) throw new Error(`Não foi possível atualizar seus favoritos: ${mensagemDeErroSegura(error)}`);
-    saveSession({ ...session, id: session.userId, favorite_posts: nextFavorites });
-  } else {
-    writeStorage(STORAGE_KEYS.favorites, nextFavorites);
+    try {
+      // Tenta operação atômica no banco sem Lost Update
+      const { error: rpcError } = await getSupabaseClient().rpc('toggle_favorite_post', { p_post_id: normalizedId });
+      if (rpcError) {
+        // Fallback para update direto caso a RPC ainda não esteja provisionada
+        await getSupabaseClient().from('profiles').update({ favorite_posts: nextFavorites }).eq('id', session.userId);
+      }
+      saveSession({ ...session, id: session.userId, favorite_posts: nextFavorites });
+    } catch (err) {
+      console.warn('Erro ao persistir favorito:', err);
+    }
   }
-  return nextFavorites.includes(normalizedId);
+  return !isAlreadyFav;
 }
 
 function favoriteButtonHTML(postId) {
@@ -2396,6 +2412,68 @@ function setupCreatePostForm() {
   }
   form.addEventListener('input', updateProgressiveStages);
   form.addEventListener('change', updateProgressiveStages);
+
+  // Auto-save de rascunho em localStorage para prevenir perda acidental de dados
+  const savePostDraft = () => {
+    try {
+      const draft = {
+        title: form.title?.value || '',
+        description: form.description?.value || '',
+        animalType: typeField?.value || '',
+        species: speciesField?.value || '',
+        supportType: form.elements.supportType?.value || 'adocao',
+        phone: form.phone?.value || '',
+        email: form.email?.value || '',
+        instagram: form.instagram?.value || ''
+      };
+      localStorage.setItem('petamor_post_draft', JSON.stringify(draft));
+    } catch (_) {}
+  };
+  form.addEventListener('input', savePostDraft);
+  form.addEventListener('change', savePostDraft);
+
+  // Notificação para restaurar rascunho anterior se houver
+  try {
+    const rawDraft = localStorage.getItem('petamor_post_draft');
+    if (rawDraft) {
+      const d = JSON.parse(rawDraft);
+      if (d && (d.title || d.description)) {
+        const notice = document.createElement('div');
+        notice.className = 'draft-notice';
+        notice.innerHTML = `
+          <span>Você possui um rascunho salvo anteriormente. Deseja restaurá-lo?</span>
+          <div style="display:flex;gap:8px;">
+            <button type="button" class="btn btn-secondary btn-sm" id="btnRestoreDraft">Restaurar</button>
+            <button type="button" class="btn btn-sm" id="btnDiscardDraft" style="background:transparent;border:none;cursor:pointer;color:#64748b;">Descartar</button>
+          </div>
+        `;
+        form.parentNode.insertBefore(notice, form);
+        notice.querySelector('#btnRestoreDraft')?.addEventListener('click', () => {
+          if (d.title && form.title) form.title.value = d.title;
+          if (d.description && form.description) form.description.value = d.description;
+          if (d.phone && form.phone) form.phone.value = d.phone;
+          if (d.email && form.email) form.email.value = d.email;
+          if (d.instagram && form.instagram) form.instagram.value = d.instagram;
+          if (d.animalType && typeField) {
+            typeField.value = d.animalType;
+            updateBreedFields();
+          }
+          if (d.supportType && form.elements.supportType) {
+            form.elements.supportType.value = d.supportType;
+            updateModalityFields();
+          }
+          updateProgressiveStages();
+          notice.remove();
+          showToast('Rascunho restaurado com sucesso!', 'info');
+        });
+        notice.querySelector('#btnDiscardDraft')?.addEventListener('click', () => {
+          localStorage.removeItem('petamor_post_draft');
+          notice.remove();
+        });
+      }
+    }
+  } catch (_) {}
+
   updateModalityFields();
   loadStates();
   form.addEventListener('submit', handleCreatePostSubmit);
@@ -2405,6 +2483,21 @@ async function handleCreatePostSubmit(event) {
   event.preventDefault();
 
   const form = event.currentTarget;
+  const submitButton = form.querySelector('button[type="submit"]') || document.getElementById('createPostSubmit');
+  const originalSubmitText = submitButton ? submitButton.innerHTML : '';
+
+  // Bloqueio imediato contra duplo clique
+  if (submitButton) {
+    submitButton.disabled = true;
+    submitButton.innerHTML = '<span class="spinner" aria-hidden="true"></span> Publicando anúncio...';
+  }
+
+  const unlockSubmit = () => {
+    if (submitButton) {
+      submitButton.disabled = false;
+      submitButton.innerHTML = originalSubmitText;
+    }
+  };
 
   const supportType = form.elements.supportType?.value || 'adocao';
   const isAdoption = supportType === 'adocao';
@@ -2460,6 +2553,7 @@ async function handleCreatePostSubmit(event) {
   }
 
   if (!photoFiles.length) {
+    unlockSubmit();
     showToast('Adicione pelo menos uma foto do animal.', 'error');
     return;
   }
@@ -2567,11 +2661,13 @@ async function handleCreatePostSubmit(event) {
           type: 'success'
         }));
       } catch (_) {}
+      try { localStorage.removeItem('petamor_post_draft'); } catch (_) {}
       setTimeout(() => {
         window.location.href = 'index.html';
       }, 700);
     }
   } catch (error) {
+    unlockSubmit();
     // Se falhar durante qualquer ponto do upload ou processamento, desfaz uploads já concluídos
     if (uploadedResults && uploadedResults.length > 0) {
       const pathsToClean = uploadedResults.map((r) => r.path).filter(Boolean);
@@ -2585,7 +2681,27 @@ async function handleCreatePostSubmit(event) {
   }
 }
 
-// bloco hoje inalcancavel: setupFeedFilters sai antes por falta dos ids no html
+const POST_CARD_COLUMNS = 'id, title, animal_type, breed, state, city, image_urls, status, support_type, created_at, profiles(full_name, username, avatar_url)';
+const feedSWRMemoryCache = new Map();
+
+function getFeedSkeletonHTML(count = 4) {
+  return `
+    <article class="feed-card skeleton-card">
+      <div class="skeleton skeleton-img"></div>
+      <div class="feed-card-body">
+        <div class="skeleton-author">
+          <div class="skeleton skeleton-avatar"></div>
+          <div class="skeleton skeleton-title" style="width: 120px; height: 14px; margin-bottom: 0;"></div>
+        </div>
+        <div class="skeleton skeleton-title"></div>
+        <div class="skeleton skeleton-text" style="width: 70%;"></div>
+        <div class="skeleton skeleton-text" style="width: 45%;"></div>
+      </div>
+    </article>
+  `.repeat(count);
+}
+
+// bloco de renderização do feed com zero CLS e projeção enxuta
 function renderFeed(append = false) {
   const feedTarget = document.getElementById('feedPosts');
   const typeField = document.getElementById('feedType');
@@ -2597,7 +2713,7 @@ function renderFeed(append = false) {
 
   if (!append) {
     feedCurrentPage = 0;
-    feedTarget.innerHTML = '';
+    feedTarget.innerHTML = getFeedSkeletonHTML(4);
   }
   const page = feedCurrentPage;
   const stateValue = (stateField?.value || '').trim();
@@ -2606,7 +2722,8 @@ function renderFeed(append = false) {
   const breedValue = (breedField?.value || '').trim().toLowerCase();
   const breedLabel = breedField?.selectedOptions[0]?.textContent || breedValue;
 
-  let query = getSupabaseClient().from('posts').select('*, profiles(full_name, username, avatar_url)').eq('status', 'active').order('created_at', { ascending: false }).range(page * FEED_PAGE_SIZE, (page + 1) * FEED_PAGE_SIZE - 1);
+  // Projeção enxuta de colunas para eliminar over-fetching e acelerar LCP
+  let query = getSupabaseClient().from('posts').select(POST_CARD_COLUMNS).eq('status', 'active').order('created_at', { ascending: false }).range(page * FEED_PAGE_SIZE, (page + 1) * FEED_PAGE_SIZE - 1);
 
   if (stateValue) query = query.eq('state', stateValue);
   if (typeValue !== 'Todos') query = query.eq('animal_type', typeValue);
@@ -2676,43 +2793,58 @@ function renderFeed(append = false) {
   });
 }
 
+function renderRecentPostsData(target, posts) {
+  target.innerHTML = (posts || []).map((post) => `
+    <article class="recent-post-card ${post.status === 'adopted' ? 'adopted-card' : ''}">
+      <div class="card-utility-actions">${favoriteButtonHTML(post.id)}${shareButtonHTML(post)}</div>
+      ${post.status === 'adopted' ? '<div class="adopted-ribbon">Adotado! 🎉</div>' : ''}
+      ${post.status === 'in_process' ? '<div class="adopted-ribbon" style="background: #f59e0b;">Em processo ⏳</div>' : ''}
+      ${generateImageCarouselHTML(post.image_urls, post.title)}
+      <div class="recent-post-body">
+        ${renderAuthorBar(post.profiles)}
+        <div style="display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-bottom: 6px;">
+          <span class="mini-tag">${escapeHTML(formatAnimalType(post.animal_type))}</span>
+          ${renderSupportTypeBadge(post.support_type)}
+        </div>
+        <h3>${escapeHTML(post.title)}</h3>
+        <p class="recent-post-location"><svg class="pin-icon" viewBox="0 0 24 24" width="14" height="14" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 5.2-8 12-8 12s-8-6.8-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="2.6"/></svg> ${escapeHTML(formatPostLocation(post))}</p>
+        ${post.status === 'active' || post.status === 'in_process' ? `<div class="post-action-row">${postActionButtonsHTML(post, podeAdministrarAgora())}</div>` : ''}
+      </div>
+    </article>
+  `).join('');
+
+  const postsById = new Map((posts || []).map((post) => [String(post.id), post]));
+  target.querySelectorAll('[data-adoption-post]').forEach((button) => {
+    button.addEventListener('click', () => openAdoptionModal(postsById.get(button.dataset.adoptionPost)));
+  });
+  target.querySelectorAll('[data-post-details]').forEach((button) => {
+    button.addEventListener('click', () => openAdoptionModal(postsById.get(button.dataset.postDetails)));
+  });
+}
+
 function renderRecentPosts() {
   const target = document.getElementById('recentPosts');
   if (!target) return;
 
-  getSupabaseClient().from('posts').select('*, profiles(full_name, username, avatar_url)').in('status', ['active', 'in_process']).order('created_at', { ascending: false }).limit(12)
+  // SWR: renderiza cache instantâneo se válido (< 45s), eliminando sensação de lentidão
+  const cached = feedSWRMemoryCache.get('recent_posts_home');
+  if (cached && (Date.now() - cached.time < 45000)) {
+    renderRecentPostsData(target, cached.data);
+  } else if (!target.children.length) {
+    target.innerHTML = getFeedSkeletonHTML(4);
+  }
+
+  getSupabaseClient().from('posts').select(POST_CARD_COLUMNS).in('status', ['active', 'in_process']).order('created_at', { ascending: false }).limit(12)
     .then(({ data, error }) => {
       if (error) throw new Error(mensagemDeErroSegura(error));
+      feedSWRMemoryCache.set('recent_posts_home', { time: Date.now(), data: data || [] });
       registerPostsInGlobalCache(data);
-      target.innerHTML = (data || []).map((post) => `
-        <article class="recent-post-card ${post.status === 'adopted' ? 'adopted-card' : ''}">
-          <div class="card-utility-actions">${favoriteButtonHTML(post.id)}${shareButtonHTML(post)}</div>
-          ${post.status === 'adopted' ? '<div class="adopted-ribbon">Adotado! 🎉</div>' : ''}
-          ${post.status === 'in_process' ? '<div class="adopted-ribbon" style="background: #f59e0b;">Em processo ⏳</div>' : ''}
-          ${generateImageCarouselHTML(post.image_urls, post.title)}
-          <div class="recent-post-body">
-            ${renderAuthorBar(post.profiles)}
-            <div style="display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-bottom: 6px;">
-              <span class="mini-tag">${escapeHTML(formatAnimalType(post.animal_type))}</span>
-              ${renderSupportTypeBadge(post.support_type)}
-            </div>
-            <h3>${escapeHTML(post.title)}</h3>
-            <p class="recent-post-location"><svg class="pin-icon" viewBox="0 0 24 24" width="14" height="14" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 5.2-8 12-8 12s-8-6.8-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="2.6"/></svg> ${escapeHTML(formatPostLocation(post))}</p>
-            ${post.status === 'active' || post.status === 'in_process' ? `<div class="post-action-row">${postActionButtonsHTML(post, podeAdministrarAgora())}</div>` : ''}
-          </div>
-        </article>
-      `).join('');
-
-      const postsById = new Map((data || []).map((post) => [String(post.id), post]));
-      target.querySelectorAll('[data-adoption-post]').forEach((button) => {
-        button.addEventListener('click', () => openAdoptionModal(postsById.get(button.dataset.adoptionPost)));
-      });
-      target.querySelectorAll('[data-post-details]').forEach((button) => {
-        button.addEventListener('click', () => openAdoptionModal(postsById.get(button.dataset.postDetails)));
-      });
+      renderRecentPostsData(target, data || []);
     })
     .catch((error) => {
-      target.innerHTML = `<div class="empty-state">Não foi possível carregar as publicações: ${escapeHTML(error.message)}</div>`;
+      if (!cached) {
+        target.innerHTML = `<div class="empty-state">Não foi possível carregar as publicações: ${escapeHTML(error.message)}</div>`;
+      }
     });
 }
 
@@ -3086,7 +3218,7 @@ async function renderCategoryFeed(animalType) {
 
   let query = getSupabaseClient()
     .from('posts')
-    .select('*, profiles(full_name, username, avatar_url)')
+    .select(POST_CARD_COLUMNS)
     .eq('animal_type', animalType)
     .in('status', ['active', 'in_process'])
     .order('created_at', { ascending: false })
@@ -3175,7 +3307,7 @@ async function renderFavorites() {
 
   target.innerHTML = '<div class="empty-state">Carregando seus favoritos...</div>';
 
-  const { data, error } = await getSupabaseClient().from('posts').select('*, profiles(full_name, username, avatar_url)').in('id', favoriteIds);
+  const { data, error } = await getSupabaseClient().from('posts').select(POST_CARD_COLUMNS).in('id', favoriteIds);
   if (error) {
     target.innerHTML = `<div class="empty-state">Não foi possível carregar seus favoritos: ${escapeHTML(error.message)}</div>`;
     return;
@@ -4606,7 +4738,7 @@ async function renderUserPosts() {
   target.innerHTML = '<div class="empty-state">Carregando suas publicações...</div>';
   const { data, error } = await getSupabaseClient()
     .from('posts')
-    .select('*, profiles(full_name, username, avatar_url)')
+    .select(POST_CARD_COLUMNS)
     .eq('user_id', session.userId)
     .order('created_at', { ascending: false });
 
